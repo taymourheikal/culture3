@@ -84,6 +84,25 @@ There is no explicit reward score and no training loop. Agents do not learn duri
 
 The local backend stores world snapshots and birth/death events in SQLite while the app is running. This is not a public multiplayer server; it is local persistence for the current machine.
 
+## Batch Experiments
+
+The **Batch** tab runs many worlds on the local backend and saves the results. It is for answering a different question than Live: not "what happened in this one world?" but "what tends to happen across many worlds?"
+
+The top of the Batch page controls run count, stop tick, and base seed. Saved batch runs can be loaded later. Once loaded, the page shows aggregate outcomes, run-by-run results, survivor distributions, and selected lineage details.
+
+The weight analysis area helps compare surviving neural networks:
+
+- **Convergence Summary** compares how similar surviving lineages are within the same NN architecture.
+- **Pairwise NN Distance** shows how far apart survivor neural weights are.
+- **Behavioral Similarity Test** runs survivors through the same fixed situations and compares their action outputs.
+- **Clustered Weight Heatmap** groups similar survivor weight patterns visually.
+
+These tools are meant to show whether survivors tend to converge toward similar agents, or whether different successful strategies remain meaningfully different.
+
+## Help Page
+
+The question-mark tab opens a short Help page. It explains the simulation in simple terms, including neural-network inputs and outputs, how attributes shape behavior, how mutation works, and what Batch terms like Bias and Weight norm mean.
+
 ## Current Shape
 
 This is a v0 experience. It is built to make emergence visible first: simple rules, visible consequences, readable lineages, and enough controls to tune the world into interesting behavior.
