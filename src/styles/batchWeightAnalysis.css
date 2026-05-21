@@ -1,0 +1,116 @@
+.visualization-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.weight-analysis-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.weight-analysis-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.weight-analysis-head .panel-title {
+  margin-bottom: 3px;
+}
+
+.weight-scope-tabs {
+  justify-content: flex-start;
+}
+
+.weight-architecture-select {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.weight-architecture-select span {
+  color: #c8d3c8;
+  font-size: 0.78rem;
+}
+
+.weight-architecture-select select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.065);
+  color: #f7f4e8;
+}
+
+.weight-panel-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.convergence-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.convergence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.convergence-metric {
+  min-width: 0;
+  padding: 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.convergence-metric span {
+  display: block;
+  color: #9eb0a5;
+  font-size: 0.68rem;
+}
+
+.convergence-metric strong {
+  display: block;
+  margin-top: 3px;
+  color: #f7f4e8;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.analysis-note {
+  padding: 8px 10px;
+  border-left: 3px solid rgba(219, 181, 91, 0.78);
+  border-radius: 7px;
+  background: rgba(219, 181, 91, 0.08);
+  color: #e7dcc3;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.weight-heatmap-canvas {
+  display: block;
+  width: 100%;
+  height: 280px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  background: #14191b;
+}
+
+.heatmap-note {
+  margin-top: 8px;
+  color: #9eb0a5;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}

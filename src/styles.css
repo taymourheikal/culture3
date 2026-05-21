@@ -2,4 +2,7 @@
 @import "./styles/live.css";
 @import "./styles/sidebar.css";
 @import "./styles/batch.css";
+@import "./styles/batchTables.css";
+@import "./styles/batchWeightAnalysis.css";
+@import "./styles/architectureComparison.css";
 @import "./styles/charts.css";

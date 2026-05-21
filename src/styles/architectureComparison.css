@@ -1,0 +1,147 @@
+.architecture-comparison-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.architecture-comparison-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.architecture-comparison-head .panel-title {
+  margin-bottom: 3px;
+}
+
+.architecture-comparison-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.architecture-select-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.architecture-select-field span {
+  color: #9eb0a5;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.architecture-select-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.065);
+  color: #f7f4e8;
+}
+
+.ttest-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.ttest-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 220px;
+}
+
+.ttest-axis-line {
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1;
+}
+
+.ttest-axis-text,
+.ttest-value-label,
+.ttest-group-label {
+  fill: #9eb0a5;
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.ttest-axis-text {
+  text-anchor: start;
+}
+
+.ttest-group-label {
+  fill: #f7f4e8;
+  font-size: 14px;
+}
+
+.ttest-bar {
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 1;
+}
+
+.ttest-bar-a {
+  fill: #dbb55b;
+}
+
+.ttest-bar-b {
+  fill: #86d87a;
+}
+
+.ttest-error-line {
+  stroke: #f7f4e8;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.ttest-group-names {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ttest-group-names div {
+  min-width: 0;
+  padding: 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.ttest-group-names span {
+  display: block;
+  color: #9eb0a5;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.ttest-group-names strong {
+  display: block;
+  margin-top: 3px;
+  color: #f7f4e8;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.ttest-readout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+}
+
+.convergence-metric em {
+  display: block;
+  margin-top: 3px;
+  color: #9eb0a5;
+  font-size: 0.68rem;
+  font-style: normal;
+  line-height: 1.25;
+}

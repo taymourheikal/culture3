@@ -93,4 +93,43 @@
     color: #ffd680;
     font-weight: 900;
   }
+
+  .architecture-modal-backdrop {
+    align-items: stretch;
+    padding: 10px;
+  }
+
+  .architecture-modal {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    min-height: 0;
+  }
+
+  .architecture-modal-header {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .architecture-header-stats {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .architecture-body-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .architecture-side-panel {
+    max-height: 220px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 0;
+  }
+
+  .gate-view-head,
+  .gate-diagram {
+    grid-template-columns: 1fr;
+  }
+
+  .gate-view-head {
+    display: grid;
+  }
 }

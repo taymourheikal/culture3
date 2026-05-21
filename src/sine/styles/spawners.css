@@ -231,6 +231,139 @@
   gap: 10px;
 }
 
+.architecture-open-card {
+  min-height: 58px;
+  padding: 10px;
+  border-color: rgba(255, 214, 128, 0.34);
+  border-radius: 8px;
+  background: rgba(255, 214, 128, 0.1);
+  color: #fff0cf;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.architecture-open-card:hover {
+  background: rgba(255, 214, 128, 0.16);
+}
+
+.uniqueness-open-card {
+  display: flex;
+  min-height: 58px;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px;
+  border-color: rgba(105, 215, 208, 0.3);
+  border-radius: 8px;
+  background: rgba(105, 215, 208, 0.08);
+  color: #dffbf8;
+  text-align: left;
+}
+
+.uniqueness-open-card:hover {
+  background: rgba(105, 215, 208, 0.13);
+}
+
+.uniqueness-open-card span {
+  color: #9fc4bf;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.uniqueness-open-card strong {
+  color: #f7fbfa;
+  font-size: 1rem;
+}
+
+.uniqueness-modal-backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 8, 10, 0.52);
+  backdrop-filter: blur(5px);
+}
+
+.uniqueness-modal {
+  width: min(420px, 92vw);
+  border: 1px solid rgba(105, 215, 208, 0.24);
+  border-radius: 10px;
+  background: #0d1417;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.46);
+}
+
+.uniqueness-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.uniqueness-modal h3 {
+  margin: 3px 0 0;
+  color: #f7fbfa;
+  font-size: 1.1rem;
+}
+
+.uniqueness-close {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-color: rgba(255, 214, 128, 0.32);
+  border-radius: 7px;
+  background: rgba(255, 214, 128, 0.1);
+  color: #fff0cf;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.uniqueness-score-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 15px;
+}
+
+.uniqueness-metric,
+.uniqueness-neighbors {
+  min-width: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.uniqueness-metric {
+  padding: 11px;
+}
+
+.uniqueness-metric span,
+.uniqueness-neighbors span {
+  display: block;
+  color: #9fc4bf;
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.uniqueness-metric strong,
+.uniqueness-neighbors strong {
+  display: block;
+  margin-top: 4px;
+  color: #f7fbfa;
+  font-size: 1rem;
+}
+
+.uniqueness-neighbors {
+  margin: 0 15px 15px;
+  padding: 11px;
+}
+
 @keyframes spawner-birth-pulse {
   0% {
     box-shadow: 0 0 0 0 rgba(255, 214, 128, 0.45);

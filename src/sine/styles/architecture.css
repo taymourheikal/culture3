@@ -1,0 +1,250 @@
+.architecture-modal-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(4, 8, 10, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.architecture-modal {
+  display: flex;
+  width: min(1480px, 96vw);
+  max-height: 92vh;
+  min-height: min(760px, 92vh);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(105, 215, 208, 0.24);
+  border-radius: 10px;
+  background: #0c1215;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+}
+
+.architecture-modal-header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.architecture-close-button,
+.architecture-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: rgba(255, 214, 128, 0.32);
+  background: rgba(255, 214, 128, 0.1);
+  color: #fff0cf;
+}
+
+.architecture-close-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 7px;
+}
+
+.architecture-back-button {
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-weight: 850;
+}
+
+.architecture-modal h2 {
+  margin: 2px 0 0;
+  color: #f7fbfa;
+  font-size: 1.25rem;
+}
+
+.architecture-header-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.architecture-header-stats span {
+  padding: 5px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.065);
+  color: #c5d5d2;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.architecture-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.architecture-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #b9c9c5;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.architecture-toolbar input[type="number"] {
+  width: 76px;
+  padding: 5px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.065);
+  color: #f7fbfa;
+}
+
+.architecture-body-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+}
+
+.architecture-graph-scroll {
+  min-width: 0;
+  overflow: auto;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    rgba(255, 255, 255, 0.025);
+  background-size: 28px 28px;
+}
+
+.architecture-graph {
+  display: block;
+}
+
+.architecture-edge {
+  cursor: pointer;
+}
+
+.architecture-edge text {
+  pointer-events: none;
+  font-size: 10px;
+  font-weight: 850;
+  paint-order: stroke;
+  stroke: #0c1215;
+  stroke-width: 3px;
+}
+
+.architecture-edge.selected path {
+  stroke-opacity: 1;
+  filter: drop-shadow(0 0 8px rgba(255, 214, 128, 0.42));
+}
+
+.architecture-node rect {
+  fill: rgba(255, 255, 255, 0.07);
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 1;
+}
+
+.architecture-node.input rect {
+  fill: rgba(105, 215, 208, 0.1);
+  stroke: rgba(105, 215, 208, 0.34);
+}
+
+.architecture-node.unit rect {
+  fill: rgba(255, 214, 128, 0.11);
+  stroke: rgba(255, 214, 128, 0.38);
+}
+
+.architecture-node.output rect {
+  fill: rgba(255, 143, 112, 0.1);
+  stroke: rgba(255, 143, 112, 0.34);
+}
+
+.architecture-node.disabled {
+  opacity: 0.4;
+}
+
+.architecture-node text {
+  pointer-events: none;
+  fill: #f7fbfa;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.architecture-node .architecture-node-sub {
+  fill: #aebfbc;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.architecture-unit-click-target {
+  cursor: pointer;
+}
+
+.architecture-unit-click-target:hover rect {
+  stroke: #ffd680;
+  stroke-width: 2;
+}
+
+.architecture-side-panel,
+.architecture-connection-detail {
+  overflow: auto;
+  padding: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.architecture-connection-detail {
+  min-height: 100px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 0;
+}
+
+.architecture-panel-title {
+  margin: 0 0 9px;
+  color: #f7fbfa;
+  font-size: 0.76rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.architecture-metric-row,
+.architecture-detail-grid {
+  min-width: 0;
+}
+
+.architecture-metric-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: #aebfbc;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.architecture-metric-row strong {
+  color: #f7fbfa;
+  text-align: right;
+}
+
+.architecture-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0 18px;
+}
+
+.architecture-connection-detail p {
+  margin: 0;
+  color: #b9c9c5;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}

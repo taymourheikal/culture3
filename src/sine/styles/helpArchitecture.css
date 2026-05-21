@@ -1,0 +1,124 @@
+.sine-layer-diagram {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) minmax(0, 1.2fr);
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.sine-layer-stack,
+.sine-connection-board {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sine-layer {
+  position: relative;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(105, 215, 208, 0.22);
+  border-radius: 8px;
+  background: rgba(105, 215, 208, 0.08);
+  color: #f7fbfa;
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.sine-layer::after {
+  position: absolute;
+  right: 50%;
+  bottom: -18px;
+  width: 2px;
+  height: 18px;
+  background: rgba(255, 214, 128, 0.45);
+  content: "";
+  transform: translateX(50%);
+}
+
+.sine-layer:last-child::after {
+  display: none;
+}
+
+.sine-layer.input {
+  border-color: rgba(134, 201, 255, 0.25);
+  background: rgba(134, 201, 255, 0.08);
+}
+
+.sine-layer.deep {
+  border-color: rgba(194, 153, 255, 0.24);
+  background: rgba(194, 153, 255, 0.08);
+}
+
+.sine-layer.output {
+  border-color: rgba(158, 230, 161, 0.28);
+  background: rgba(158, 230, 161, 0.08);
+}
+
+.sine-connection {
+  min-width: 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  color: #e8f3f0;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.sine-connection.allowed {
+  border: 1px solid rgba(158, 230, 161, 0.26);
+  background: rgba(158, 230, 161, 0.08);
+}
+
+.sine-connection.allowed::before {
+  color: #9ee6a1;
+  content: "Allowed: ";
+}
+
+.sine-connection.blocked {
+  border: 1px solid rgba(255, 110, 110, 0.26);
+  background: rgba(255, 110, 110, 0.08);
+}
+
+.sine-connection.blocked::before {
+  color: #ffaaaa;
+  content: "Blocked: ";
+}
+
+.sine-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.sine-rule-card {
+  padding: 14px;
+}
+
+.sine-rule-card strong {
+  display: block;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.sine-rule-card.allowed {
+  border-color: rgba(158, 230, 161, 0.26);
+  background: rgba(158, 230, 161, 0.07);
+}
+
+.sine-rule-card.blocked {
+  border-color: rgba(255, 110, 110, 0.26);
+  background: rgba(255, 110, 110, 0.07);
+}
+
+.sine-lifecycle {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 18px minmax(150px, 1fr) 18px minmax(150px, 1fr) 18px minmax(150px, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sine-life-step {
+  padding: 14px;
+  border-color: rgba(255, 214, 128, 0.18);
+}

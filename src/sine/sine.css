@@ -1,6 +1,11 @@
 @import "./styles/base.css";
 @import "./styles/layout.css";
+@import "./styles/help.css";
+@import "./styles/helpFlow.css";
+@import "./styles/helpArchitecture.css";
 @import "./styles/charts.css";
 @import "./styles/spawners.css";
+@import "./styles/architecture.css";
+@import "./styles/architectureGate.css";
 @import "./styles/controls.css";
 @import "./styles/responsive.css";

@@ -15,6 +15,7 @@ export {
   validateGenome,
 } from "./spawner/genome";
 export { SeededRng } from "./spawner/rng";
+export { computeSpawnerUniqueness, type SpawnerUniquenessScore } from "./spawner/uniqueness";
 export {
   advanceSpawnerWorldToTimeline,
   createSpawnerWorld,
