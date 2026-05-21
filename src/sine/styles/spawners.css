@@ -1,0 +1,254 @@
+.spawner-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(105, 215, 208, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.spawner-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.spawner-panel h2 {
+  margin: 3px 0 0;
+  color: #f7fbfa;
+  font-size: 1.15rem;
+}
+
+.spawner-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.spawner-summary span {
+  padding: 5px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.065);
+  color: #c5d5d2;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.spawner-roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 12px;
+  max-height: 430px;
+  overflow: auto;
+  padding: 2px 4px 2px 0;
+  align-items: start;
+}
+
+.spawner-card strong {
+  color: #ffd680;
+}
+
+.spawner-event-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  height: 24px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.spawner-event-strip span {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 143, 112, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 143, 112, 0.08);
+  color: #ffb9a5;
+  font-size: 0.68rem;
+  font-weight: 850;
+  animation: spawner-death-fade 2.8s ease-out;
+}
+
+.spawner-event-strip.empty span {
+  visibility: hidden;
+}
+
+.spawner-card {
+  display: flex;
+  width: 100%;
+  min-height: 168px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(105, 215, 208, 0.18);
+  border-color: rgba(105, 215, 208, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #dce8e5;
+  text-align: left;
+}
+
+.spawner-card.selected {
+  background: rgba(255, 214, 128, 0.1);
+  box-shadow: 0 0 0 1px rgba(255, 214, 128, 0.34), 0 0 24px rgba(255, 214, 128, 0.1);
+}
+
+.spawner-card.newborn {
+  animation: spawner-birth-pulse 1.2s ease-out;
+}
+
+.spawner-card-head {
+  display: grid;
+  width: 100%;
+  height: auto;
+  min-height: 38px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.spawner-card-head:hover {
+  background: transparent;
+}
+
+.spawner-avatar {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ffd680;
+  color: #071014;
+  font-size: 0.74rem;
+  font-weight: 950;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.14), 0 0 18px rgba(255, 255, 255, 0.08);
+}
+
+.spawner-card-meta {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.spawner-card-meta small,
+.spawner-card-stats span,
+.spawner-meter span:first-child {
+  overflow: hidden;
+  color: #aebfbc;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spawner-action {
+  min-width: 48px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.065);
+  color: #9eb0a5;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.spawner-action.long {
+  background: rgba(105, 215, 208, 0.12);
+  color: #9ce5df;
+}
+
+.spawner-action.short {
+  background: rgba(255, 143, 112, 0.12);
+  color: #ffb9a5;
+}
+
+.spawner-bars {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.spawner-meter {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.spawner-meter span:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.spawner-meter strong {
+  color: #f7fbfa;
+}
+
+.spawner-meter-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.spawner-meter-track span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+}
+
+.spawner-card-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.spawner-card-stats span {
+  padding: 5px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.055);
+  text-align: center;
+  white-space: normal;
+}
+
+.spawner-detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+@keyframes spawner-birth-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 214, 128, 0.45);
+  }
+
+  100% {
+    box-shadow: 0 0 0 18px rgba(255, 214, 128, 0);
+  }
+}
+
+@keyframes spawner-death-fade {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 0.45;
+    transform: translateY(2px);
+  }
+}

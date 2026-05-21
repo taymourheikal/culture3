@@ -243,7 +243,9 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
+  max-height: 76px;
   margin-top: 8px;
+  overflow: auto;
   color: #b8c7bb;
   font-size: 0.74rem;
 }

@@ -14,15 +14,15 @@ type Props = {
 
 export function PopulationGraph({ history, lineages }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const graphLineages = resolveGraphLineages(history, lineages);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    drawGraph(canvas, history, lineages);
-  }, [history, lineages]);
+    drawGraph(canvas, history, graphLineages);
+  }, [history, graphLineages]);
 
   const latest = history[history.length - 1];
-  const visibleLineages = lineages.filter((lineage) => lineage.currentPopulation > 0).slice(0, 8);
 
   return (
     <section className="panel population-graph-panel">
@@ -31,7 +31,7 @@ export function PopulationGraph({ history, lineages }: Props) {
       <div className="graph-legend">
         <span className="graph-key food-key" />
         <span>Food {latest?.food ?? 0}</span>
-        {visibleLineages.map((lineage) => (
+        {graphLineages.map((lineage) => (
           <span className="graph-legend-item" key={lineage.id}>
             <span className="graph-key" style={{ background: lineage.color }} />
             L{lineage.id} {lineage.currentPopulation}
@@ -42,7 +42,37 @@ export function PopulationGraph({ history, lineages }: Props) {
   );
 }
 
-function drawGraph(canvas: HTMLCanvasElement, history: PopulationHistoryPoint[], lineages: Lineage[]) {
+type GraphLineage = Pick<Lineage, "id" | "color" | "currentPopulation">;
+
+function resolveGraphLineages(history: PopulationHistoryPoint[], lineages: Lineage[]): GraphLineage[] {
+  const lineageById = new Map(lineages.map((lineage) => [lineage.id, lineage]));
+  const ids = new Set<number>();
+  for (const point of history) {
+    for (const lineageId of Object.keys(point.lineages)) {
+      if ((point.lineages[Number(lineageId)] ?? 0) > 0) ids.add(Number(lineageId));
+    }
+  }
+  for (const lineage of lineages) {
+    if (lineage.currentPopulation > 0) ids.add(lineage.id);
+  }
+
+  return [...ids]
+    .sort((left, right) => left - right)
+    .map((id) => {
+      const lineage = lineageById.get(id);
+      return {
+        id,
+        color: lineage?.color ?? lineageColor(id),
+        currentPopulation: lineage?.currentPopulation ?? 0,
+      };
+    });
+}
+
+function lineageColor(id: number) {
+  return `hsl(${(id * 47) % 360} 74% 62%)`;
+}
+
+function drawGraph(canvas: HTMLCanvasElement, history: PopulationHistoryPoint[], lineages: GraphLineage[]) {
   const rect = canvas.getBoundingClientRect();
   const ratio = window.devicePixelRatio || 1;
   const width = Math.max(1, Math.floor(rect.width * ratio));
@@ -77,7 +107,7 @@ function drawGraph(canvas: HTMLCanvasElement, history: PopulationHistoryPoint[],
   drawGrid(context, padding, chartWidth, chartHeight, rect.width, rect.height, endTick, maxValue);
   drawSeries(context, history, "food", "#86d87a", startTick, endTick, maxValue, padding, chartWidth, chartHeight);
 
-  for (const lineage of lineages.filter((item) => item.currentPopulation > 0).slice(0, 8)) {
+  for (const lineage of lineages) {
     drawSeries(context, history, lineage.id, lineage.color, startTick, endTick, maxValue, padding, chartWidth, chartHeight);
   }
 }

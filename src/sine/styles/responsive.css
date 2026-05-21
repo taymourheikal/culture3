@@ -1,0 +1,96 @@
+@media (max-width: 900px) {
+  .sine-shell {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .sine-header {
+    flex-direction: column;
+  }
+
+  .sine-view-tabs {
+    width: 100%;
+  }
+
+  .sine-view-tabs button {
+    flex: 1 1 0;
+  }
+
+  .sine-readout {
+    width: 100%;
+    text-align: left;
+  }
+
+  .sine-canvas,
+  .price-chart-wrap {
+    min-height: 360px;
+  }
+
+  .sine-canvas {
+    height: 360px;
+  }
+
+  .noise-chart-wrap,
+  .noise-canvas,
+  .parameter-chart-wrap,
+  .parameter-canvas,
+  .telemetry-chart-wrap,
+  .telemetry-canvas {
+    min-height: 210px;
+    height: 210px;
+  }
+
+  .parameter-legend,
+  .telemetry-legend {
+    left: 14px;
+  }
+
+  .spawner-panel-header {
+    flex-direction: column;
+  }
+
+  .spawner-summary {
+    justify-content: flex-start;
+  }
+
+  .spawner-roster {
+    grid-template-columns: 1fr;
+  }
+
+  .sine-help-shell {
+    padding: 12px;
+  }
+
+  .sine-help-header {
+    flex-direction: column;
+  }
+
+  .sine-help-content {
+    grid-template-columns: 1fr;
+  }
+
+  .sine-rnn-schematic {
+    grid-template-columns: 1fr;
+  }
+
+  .sine-rnn-arrow {
+    min-height: 18px;
+  }
+
+  .sine-system-map,
+  .sine-io-grid,
+  .sine-layer-diagram,
+  .sine-lifecycle {
+    grid-template-columns: 1fr;
+  }
+
+  .sine-map-arrow,
+  .sine-life-arrow {
+    display: flex;
+    min-height: 16px;
+    align-items: center;
+    justify-content: center;
+    color: #ffd680;
+    font-weight: 900;
+  }
+}

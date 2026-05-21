@@ -2,58 +2,50 @@
 
 ## Project Structure & Module Organization
 
-This repository is a local browser simulation built with Vite, React, TypeScript, and a small Node SQLite API.
-
-- `src/sim/`: deterministic simulation core. Keep React and DOM APIs out of this layer.
-- `src/render/`: canvas rendering and camera helpers.
-- `src/client/`: React sidebar panels, persistence client, and browser storage helpers.
-- `src/App.tsx`: app shell, animation loop, reset behavior, and tab composition.
-- `server/index.mjs`: local SQLite persistence API.
-- `scripts/`: headless tooling, including batch simulation runs.
-- `data/`: generated SQLite files; do not treat as source.
-- `emergent-ant-world-v0-spec.md`: product/spec reference.
-
-There is currently no dedicated `tests/` directory.
+- `src/sim/`: Emergent Ant World deterministic simulation core. Keep React, DOM, and persistence out of this layer.
+- `src/client/`, `src/render/`, `src/App.tsx`: Ant World React UI, canvas rendering, batch visualizations, parameter panels, and persistence client.
+- `src/sine/`: standalone Toy Market Simulator frontend and food-spawner RNN/NEAT-like logic. It is intentionally separate from Ant World.
+- `server/`: local HTTP API, SQLite repositories, and worker-thread batch job orchestration.
+- `scripts/runBatch.ts`: headless Ant World batch runner.
+- `scripts/testSine.ts`: Toy Market contract tests.
+- `data/`: generated SQLite files, screenshots, and experiment outputs; do not treat as source.
+- `index.html` serves Ant World; `sine.html` serves Toy Market.
 
 ## Build, Test, and Development Commands
 
-- `npm run dev`: starts both Vite on `127.0.0.1:5173` and the SQLite API on `127.0.0.1:8787`.
-- `npm run dev:client`: starts only the Vite frontend.
-- `npm run dev:server`: starts only the SQLite backend in watch mode via `tsx`.
-- `npm run start:server`: starts only the SQLite backend without watch mode via `tsx`.
-- `npm run check`: runs TypeScript project checks with `tsc -b`.
-- `npm run build`: type-checks and builds the production frontend into `dist/`.
-- `npm run sim:batch -- --runs 100 --ticks 5000 --out data/batch.json`: runs headless simulations and writes survivor summaries.
-- `npm run preview`: serves the built frontend locally.
+- `npm run dev`: starts Vite and the SQLite API. Vite may choose another port if needed.
+- `npm run dev:client`: starts only the frontend.
+- `npm run dev:server`: starts the SQLite API in watch mode on `127.0.0.1:8787`.
+- `npm run start:server`: starts the SQLite API without watch mode.
+- `npm run check`: runs TypeScript project checks.
+- `npm run test:sine`: runs Toy Market simulator/RNN contract tests.
+- `npm run build`: type-checks and builds both frontends into `dist/`.
+- `npm run sim:batch -- --runs 100 --ticks 5000 --out data/batch.json`: runs headless Ant World simulations.
 
 ## Coding Style & Naming Conventions
 
-Use TypeScript with strict types. Prefer explicit domain types in `src/sim/types.ts` and centralized defaults in `src/sim/parameters.ts`. Use two-space indentation, `camelCase` for variables/functions, `PascalCase` for React components and exported types, and descriptive file names such as `ParameterPanel.tsx`.
+Use strict TypeScript, two-space indentation, `camelCase` for values/functions, and `PascalCase` for React components and exported types. Prefer domain types in `src/sim/types.ts` and `src/sine/spawner/types.ts`. Centralize tunable defaults and bounds; avoid duplicated slider limits.
 
-Keep simulation logic pure and deterministic where practical. UI components should read/write parameters through typed objects rather than duplicating constants.
+Keep simulation cores deterministic where practical. UI components should call typed APIs rather than reaching into simulation internals.
 
 ## Testing Guidelines
 
-No formal test runner is configured yet. Before submitting changes, run:
+Before handing off changes, run:
 
 ```bash
 npm run check
+npm run test:sine
 npm run build
 ```
 
-For simulation behavior, add small `npx tsx` probes or introduce focused tests before changing core mechanics. Verify UI changes manually in the browser, especially sidebar tabs and reset behavior.
+Use Playwright for visual/layout checks when changing charts, sidebars, or canvas behavior. For simulation mechanics, add focused contract tests near `scripts/testSine.ts`.
 
 ## Commit & Pull Request Guidelines
 
-This directory has no Git history, so no established commit convention exists. Use concise imperative commits, for example `Add agents parameter tab` or `Fix lineage initialization`.
+Recent commits use concise imperative messages, for example `Add project README` and `Expand experience guide`. Keep that style.
 
-Pull requests should include:
-
-- A short description of behavior changed.
-- Commands run, especially `npm run check` and `npm run build`.
-- Screenshots for UI changes.
-- Notes for simulation balance changes, including any changed defaults.
+Pull requests should include behavior changed, commands run, screenshots for UI changes, and notes for changed simulation defaults or reward logic.
 
 ## Architecture Notes
 
-The simulation should not know React exists. Keep `src/sim/` reusable for future server-authoritative simulation, replay, or experiments. Persistence is local-only and uses Node’s experimental `node:sqlite`; expect the warning during backend startup.
+Ant World batch runs are server-backed and persisted to SQLite. Toy Market is a separate frontend with its own settings storage, market generator, GRU-like spawner brains, mutation settings, and help content. Avoid coupling the two unless explicitly requested.

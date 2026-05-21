@@ -2,6 +2,7 @@ import { Download, Play, Square } from "lucide-react";
 import type { BatchRunSummary, SurvivingLineageSummary } from "../sim/batch";
 import type { SimulationParameters } from "../sim/types";
 import { AppModeTabs, type AppMode } from "./AppModeTabs";
+import { ArchitectureComparison } from "./ArchitectureComparison";
 import { BatchVisualizations } from "./BatchVisualizations";
 import { BatchWeightAnalysis } from "./BatchWeightAnalysis";
 import { SavedBatchesPanel } from "./SavedBatchesPanel";
@@ -152,6 +153,7 @@ export function BatchRunnerView({ parameters, activeMode, onModeChange }: Props)
 
         <div className="batch-right">
           <BatchWeightAnalysis runs={runs} />
+          <ArchitectureComparison runs={runs} />
           <LineageSummaryPanel
             run={selectedRun}
             selectedLineage={selectedLineage}
