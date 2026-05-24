@@ -2,15 +2,16 @@ import type { SpawnerEvent, SpawnerWorld } from "./types";
 
 export function recordSpawnerEvent(
   world: SpawnerWorld,
-  event: Omit<SpawnerEvent, "id" | "tick" | "time"> & Partial<Pick<SpawnerEvent, "tick" | "time">>,
+  event: Omit<SpawnerEvent, "id" | "tick"> & Partial<Pick<SpawnerEvent, "tick">>,
 ) {
-  world.recentEvents.push({
+  const recorded = {
     id: world.nextEventId,
     tick: event.tick ?? world.tick,
-    time: event.time ?? world.time,
     ...event,
-  });
+  };
+  world.eventSink?.(recorded);
+  world.recentEvents.push(recorded);
   world.nextEventId += 1;
-  const minTime = world.time - Math.max(12, world.config.foodHistorySeconds);
-  world.recentEvents = world.recentEvents.filter((candidate) => candidate.time >= minTime).slice(-300);
+  const minTick = world.tick - Math.max(12, world.config.foodHistoryTicks);
+  world.recentEvents = world.recentEvents.filter((candidate) => candidate.tick >= minTick).slice(-300);
 }

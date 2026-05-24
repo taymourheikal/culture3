@@ -1,26 +1,33 @@
-import { buildTimelineSamples, getTimelineSampleAt, type MarketTimeline } from "../marketTimeline";
-import { getVisibleSpawnerFoods, type SpawnerFood, type SpawnerWorld } from "../spawnerSimulation";
-import { clamp, drawGrid, prepareCanvas, valueToY, type ChartBounds } from "./canvas";
+import type { ChartFoodMarker, MarketChartPacket } from "../marketWorkerProtocol";
+import {
+  centeredTickWindow,
+  clamp,
+  drawGrid,
+  drawMarketTimeAxis,
+  niceSymmetricBound,
+  prepareCanvas,
+  tickToX,
+  valueToY,
+  type ChartBounds,
+} from "./canvas";
 import { formatPercentAxis, formatSignedPercent } from "./format";
 
-export function drawSignalChart(
-  canvas: HTMLCanvasElement,
-  timeline: MarketTimeline,
-  spawnerWorld: SpawnerWorld,
-  selectedSpawnerId: number | null,
-) {
+export function drawSignalChart(canvas: HTMLCanvasElement, packet: MarketChartPacket, selectedSpawnerId: number | null) {
   const prepared = prepareCanvas(canvas);
   if (!prepared) return;
 
   const { context, cssWidth, cssHeight } = prepared;
   const bounds = getSignalChartBounds(cssWidth, cssHeight);
-  const geometry = getSignalChartGeometry(timeline, bounds);
-  const { chartWidth, centerTime, secondsVisible, samples, valueMin, valueMax } = geometry;
+  const geometry = getSignalChartGeometry(packet, bounds);
+  const { chartWidth, valueMin, valueMax } = geometry;
   const centerX = bounds.left + chartWidth / 2;
 
   context.fillStyle = "#0d1216";
   context.fillRect(0, 0, cssWidth, cssHeight);
   drawGrid(context, bounds, valueMin, valueMax, formatPercentAxis);
+  if (packet.marketSource !== "generated") {
+    drawMarketTimeAxis(context, bounds, packet.signalSamples, geometry.start, packet.ticksVisible);
+  }
 
   const zeroY = valueToY(0, valueMin, valueMax, bounds);
   context.strokeStyle = "rgba(255, 255, 255, 0.22)";
@@ -30,9 +37,10 @@ export function drawSignalChart(
   context.lineTo(bounds.right, zeroY);
   context.stroke();
 
+  const visibleSamples = getVisibleSignalSamples(packet, geometry.start, geometry.end);
   context.beginPath();
-  samples.forEach((sample, index) => {
-    const x = bounds.left + (chartWidth * index) / Math.max(1, samples.length - 1);
+  visibleSamples.forEach((sample, index) => {
+    const x = geometry.tickToX(sample.tick);
     const y = valueToY(sample.signal, valueMin, valueMax, bounds);
     if (index === 0) context.moveTo(x, y);
     else context.lineTo(x, y);
@@ -46,16 +54,14 @@ export function drawSignalChart(
 
   drawSpawnerMarkers(context, {
     bounds,
-    centerTime,
-    secondsVisible,
     valueMin,
     valueMax,
-    foods: getVisibleSpawnerFoods(spawnerWorld, centerTime, secondsVisible),
+    foods: packet.visibleFoods,
     selectedSpawnerId,
+    geometry,
   });
 
-  const currentSample = getTimelineSampleAt(timeline, centerTime);
-  const currentY = valueToY(currentSample.signal, valueMin, valueMax, bounds);
+  const currentY = valueToY(packet.currentSignal, valueMin, valueMax, bounds);
   context.strokeStyle = "rgba(255, 214, 128, 0.95)";
   context.lineWidth = 2;
   context.beginPath();
@@ -71,29 +77,22 @@ export function drawSignalChart(
   context.fillStyle = "#dce8e5";
   context.font = "700 12px Inter, system-ui, sans-serif";
   context.textAlign = "left";
-  context.fillText(formatSignedPercent(currentSample.signal), centerX + 10, currentY - 10);
+  context.fillText(formatSignedPercent(packet.currentSignal), centerX + 10, currentY - 10);
   context.restore();
 }
 
-export function pickSignalChartFood(
-  canvas: HTMLCanvasElement,
-  timeline: MarketTimeline,
-  spawnerWorld: SpawnerWorld,
-  clientX: number,
-  clientY: number,
-) {
+export function pickSignalChartFood(canvas: HTMLCanvasElement, packet: MarketChartPacket, clientX: number, clientY: number) {
   const rect = canvas.getBoundingClientRect();
   const bounds = getSignalChartBounds(rect.width, rect.height);
-  const geometry = getSignalChartGeometry(timeline, bounds);
+  const geometry = getSignalChartGeometry(packet, bounds);
   const point = { x: clientX - rect.left, y: clientY - rect.top };
-  const foods = getVisibleSpawnerFoods(spawnerWorld, timeline.time, geometry.secondsVisible);
-  for (const food of [...foods].reverse()) {
+  for (const food of [...packet.visibleFoods].reverse()) {
     const marker = getFoodMarkerGeometry(food, bounds, geometry);
     const spawnHit = distance(point.x, point.y, marker.spawnX, marker.spawnY) <= marker.radius + 5;
     const resolvedHit =
       food.status !== "pending" &&
-      food.resolveTime >= geometry.start &&
-      food.resolveTime <= geometry.end &&
+      food.resolveTick >= geometry.start &&
+      food.resolveTick <= geometry.end &&
       distance(point.x, point.y, marker.exitX, marker.resolvedY) <= marker.radius + 6;
     if (spawnHit || resolvedHit) return food;
   }
@@ -109,57 +108,46 @@ function getSignalChartBounds(cssWidth: number, cssHeight: number): ChartBounds 
   };
 }
 
-function getSignalChartGeometry(timeline: MarketTimeline, bounds: ChartBounds) {
+function getSignalChartGeometry(packet: MarketChartPacket, bounds: ChartBounds) {
   const chartWidth = bounds.right - bounds.left;
-  const secondsVisible = 16;
-  const centerTime = timeline.time;
-  const samples = buildTimelineSamples(timeline, centerTime, secondsVisible, Math.max(80, Math.floor(chartWidth / 2)));
-  const values = samples.map((sample) => sample.signal);
-  const maxAbs = Math.max(2, ...values.map((value) => Math.abs(value)));
-  const valueBound = maxAbs * 1.18;
+  const { start, end } = centeredTickWindow(packet.renderTick, packet.ticksVisible);
+  const values = getVisibleSignalSamples(packet, start, end).map((sample) => sample.signal);
+  const maxAbs = Math.max(2, ...values.map((value) => Math.abs(value)), Math.abs(packet.currentSignal));
+  const valueBound = niceSymmetricBound(maxAbs * 1.18);
   const valueMin = -valueBound;
   const valueMax = valueBound;
-  const start = centerTime - secondsVisible / 2;
-  const end = centerTime + secondsVisible / 2;
   return {
     chartWidth,
-    centerTime,
-    secondsVisible,
-    samples,
     valueMin,
     valueMax,
     start,
     end,
-    timeToX: (time: number) => bounds.left + ((time - start) / secondsVisible) * chartWidth,
+    tickToX: (tick: number) => tickToX(tick, start, end, bounds),
   };
+}
+
+function getVisibleSignalSamples(packet: MarketChartPacket, start: number, end: number) {
+  return packet.signalSamples.filter((sample) => sample.tick >= start && sample.tick <= end);
 }
 
 function drawSpawnerMarkers(
   context: CanvasRenderingContext2D,
   {
     bounds,
-    centerTime,
-    secondsVisible,
     valueMin,
     valueMax,
     foods,
     selectedSpawnerId,
+    geometry,
   }: {
     bounds: ChartBounds;
-    centerTime: number;
-    secondsVisible: number;
     valueMin: number;
     valueMax: number;
-    foods: SpawnerFood[];
+    foods: ChartFoodMarker[];
     selectedSpawnerId: number | null;
+    geometry: ReturnType<typeof getSignalChartGeometry>;
   },
 ) {
-  const start = centerTime - secondsVisible / 2;
-  const end = centerTime + secondsVisible / 2;
-  const chartWidth = bounds.right - bounds.left;
-  const timeToX = (time: number) => bounds.left + ((time - start) / secondsVisible) * chartWidth;
-  const now = centerTime;
-
   context.save();
   context.font = "800 9px Inter, system-ui, sans-serif";
   context.textAlign = "center";
@@ -167,21 +155,21 @@ function drawSpawnerMarkers(
 
   for (const food of foods) {
     const selected = selectedSpawnerId === null || selectedSpawnerId === food.creatorSpawnerId;
-    const x = timeToX(food.spawnTime);
+    const x = geometry.tickToX(food.spawnTick);
     const y = valueToY(food.entrySignal, valueMin, valueMax, bounds);
-    const exitX = timeToX(food.resolveTime);
+    const exitX = geometry.tickToX(food.resolveTick);
     const resolvedY = food.exitSignal === undefined ? y : valueToY(food.exitSignal, valueMin, valueMax, bounds);
     const radius = 6 + food.strength * 5;
     const isLong = food.direction === "long";
     const outcomeColor = food.status === "pending" ? "#ffd680" : food.status === "win" ? "#86d87a" : "#ff8f70";
     const directionFill = isLong ? "rgba(105, 215, 208, 0.92)" : "rgba(255, 143, 112, 0.92)";
-    const spawnVisible = food.spawnTime >= start && food.spawnTime <= end;
-    const resolvedVisible = food.status !== "pending" && food.resolveTime >= start && food.resolveTime <= end;
-    const lineStartTime = clamp(food.spawnTime, start, end);
-    const lineEndTime = clamp(food.resolveTime, start, end);
-    if (lineEndTime < lineStartTime) continue;
-    const lineStartY = food.status === "pending" ? y : valueToY(interpolateFoodSignal(food, lineStartTime), valueMin, valueMax, bounds);
-    const lineEndY = food.status === "pending" ? y : valueToY(interpolateFoodSignal(food, lineEndTime), valueMin, valueMax, bounds);
+    const spawnVisible = food.spawnTick >= geometry.start && food.spawnTick <= geometry.end;
+    const resolvedVisible = food.status !== "pending" && food.resolveTick >= geometry.start && food.resolveTick <= geometry.end;
+    const lineStartTick = clamp(food.spawnTick, geometry.start, geometry.end);
+    const lineEndTick = clamp(food.resolveTick, geometry.start, geometry.end);
+    if (lineEndTick < lineStartTick) continue;
+    const lineStartY = food.status === "pending" ? y : valueToY(interpolateFoodSignal(food, lineStartTick), valueMin, valueMax, bounds);
+    const lineEndY = food.status === "pending" ? y : valueToY(interpolateFoodSignal(food, lineEndTick), valueMin, valueMax, bounds);
     const spawnY = clamp(y, bounds.top + radius, bounds.bottom - radius);
     const clampedResolvedY = clamp(resolvedY, bounds.top + radius, bounds.bottom - radius);
 
@@ -189,18 +177,11 @@ function drawSpawnerMarkers(
     context.strokeStyle = outcomeColor;
     context.lineWidth = selected ? (food.status === "pending" ? 1.8 : 3) : 1.5;
     context.beginPath();
-    context.moveTo(timeToX(lineStartTime), clamp(lineStartY, bounds.top, bounds.bottom));
-    context.lineTo(timeToX(lineEndTime), clamp(lineEndY, bounds.top, bounds.bottom));
+    context.moveTo(geometry.tickToX(lineStartTick), clamp(lineStartY, bounds.top, bounds.bottom));
+    context.lineTo(geometry.tickToX(lineEndTick), clamp(lineEndY, bounds.top, bounds.bottom));
     context.stroke();
 
     if (spawnVisible) {
-      const spawnPulse = food.status === "pending" ? Math.max(0, 1 - Math.abs(now - food.spawnTime) / 0.9) : 0;
-      if (spawnPulse > 0) {
-        context.fillStyle = `rgba(255, 214, 128, ${0.16 * spawnPulse})`;
-        context.beginPath();
-        context.arc(x, spawnY, radius + 8 + spawnPulse * 8, 0, Math.PI * 2);
-        context.fill();
-      }
       context.fillStyle = food.status === "pending" ? "rgba(13, 18, 22, 0.9)" : directionFill;
       drawDirectionMarker(context, x, spawnY, radius, isLong);
       context.fill();
@@ -213,14 +194,6 @@ function drawSpawnerMarkers(
 
     if (resolvedVisible) {
       const markerSize = radius * 0.78;
-      const resolvePulse = Math.max(0, 1 - Math.abs(now - food.resolveTime) / 1.1);
-      if (resolvePulse > 0) {
-        context.fillStyle =
-          food.status === "win" ? `rgba(134, 216, 122, ${0.18 * resolvePulse})` : `rgba(255, 143, 112, ${0.18 * resolvePulse})`;
-        context.beginPath();
-        context.arc(exitX, clampedResolvedY, radius + 10 + resolvePulse * 10, 0, Math.PI * 2);
-        context.fill();
-      }
       context.fillStyle = food.status === "win" ? "rgba(134, 216, 122, 0.95)" : "rgba(255, 143, 112, 0.95)";
       context.strokeStyle = "#0d1216";
       context.lineWidth = 2;
@@ -243,21 +216,21 @@ function drawSpawnerMarkers(
   context.restore();
 }
 
-function interpolateFoodSignal(food: SpawnerFood, time: number) {
-  if (food.exitSignal === undefined || food.resolveTime <= food.spawnTime) return food.entrySignal;
-  const amount = (time - food.spawnTime) / Math.max(0.0001, food.resolveTime - food.spawnTime);
+function interpolateFoodSignal(food: ChartFoodMarker, tick: number) {
+  if (food.exitSignal === undefined || food.resolveTick <= food.spawnTick) return food.entrySignal;
+  const amount = (tick - food.spawnTick) / Math.max(0.0001, food.resolveTick - food.spawnTick);
   return food.entrySignal + (food.exitSignal - food.entrySignal) * clamp(amount, 0, 1);
 }
 
 function getFoodMarkerGeometry(
-  food: SpawnerFood,
+  food: ChartFoodMarker,
   bounds: ChartBounds,
   geometry: ReturnType<typeof getSignalChartGeometry>,
 ) {
   const radius = 6 + food.strength * 5;
-  const spawnX = geometry.timeToX(food.spawnTime);
+  const spawnX = geometry.tickToX(food.spawnTick);
   const spawnY = clamp(valueToY(food.entrySignal, geometry.valueMin, geometry.valueMax, bounds), bounds.top + radius, bounds.bottom - radius);
-  const exitX = geometry.timeToX(food.resolveTime);
+  const exitX = geometry.tickToX(food.resolveTick);
   const resolvedValue = food.exitSignal ?? food.entrySignal;
   const resolvedY = clamp(valueToY(resolvedValue, geometry.valueMin, geometry.valueMax, bounds), bounds.top + radius, bounds.bottom - radius);
   return { spawnX, spawnY, exitX, resolvedY, radius };

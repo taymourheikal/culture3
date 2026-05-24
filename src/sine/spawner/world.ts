@@ -1,10 +1,10 @@
-import { getTimelineSampleByTick, type MarketTimeline } from "../marketTimeline";
+import type { MarketTimeline } from "../marketTimeline";
 import { forwardSpawner } from "./brain";
-import { DEFAULT_SPAWNER_CONFIG } from "./config";
+import { DEFAULT_SPAWNER_CONFIG, OUTPUT_INDEX } from "./config";
 import { recordSpawnerEvent } from "./events";
 import { activeConnections, activeLayerIndexes, activeUnits, createInnovationRegistry, createRandomGenome, mutateGenome } from "./genome";
 import { clamp, interpolate, sigmoid } from "./math";
-import { buildMarketInputs } from "./marketInputs";
+import { createMarketInputResolver } from "./marketInputs";
 import { emitFood, resolveFoods } from "./reward";
 import { SeededRng } from "./rng";
 import { recordTelemetry } from "./telemetry";
@@ -18,7 +18,6 @@ export function createSpawnerWorld(seed = 101, config: Partial<SpawnerConfig> = 
     seed,
     rng,
     tick: 0,
-    time: 0,
     nextEventId: 1,
     nextSpawnerId: 1,
     nextLineageId: 1,
@@ -49,7 +48,6 @@ export function advanceSpawnerWorldToTimeline(world: SpawnerWorld, timeline: Mar
   let steps = 0;
   while (world.tick < timeline.tick && steps < maxSteps) {
     world.tick += 1;
-    world.time = getTimelineSampleByTick(timeline, world.tick).time;
     steps += 1;
     stepSpawnerWorld(world, timeline);
   }
@@ -59,10 +57,10 @@ export function advanceSpawnerWorldToTimeline(world: SpawnerWorld, timeline: Mar
   };
 }
 
-export function getVisibleSpawnerFoods(world: SpawnerWorld, centerTime: number, secondsVisible: number) {
-  const start = centerTime - secondsVisible / 2;
-  const end = centerTime + secondsVisible / 2;
-  return world.foods.filter((food) => food.spawnTime <= end && food.resolveTime >= start);
+export function getVisibleSpawnerFoods(world: Pick<SpawnerWorld, "foods">, centerTick: number, ticksVisible: number) {
+  const start = centerTick - ticksVisible / 2;
+  const end = centerTick + ticksVisible / 2;
+  return world.foods.filter((food) => food.spawnTick <= end && food.resolveTick >= start);
 }
 
 export function spawnerHitRate(spawner: SpawnerAgent) {
@@ -81,49 +79,52 @@ function stepSpawnerWorld(world: SpawnerWorld, timeline: MarketTimeline) {
   resolveFoods(world, timeline);
   world.spawners = pruneDeadSpawners(world);
 
-  const pendingDensity =
-    world.foods.filter((food) => food.status === "pending").length / Math.max(1, world.config.pendingDensityDivisor);
-  const marketInputs = buildMarketInputs(timeline, world.tick, pendingDensity);
+  const pendingFoodCount = world.foods.filter((food) => food.status === "pending").length;
+  const marketInputResolver = createMarketInputResolver(timeline, world.tick, pendingFoodCount);
   const newborns: SpawnerAgent[] = [];
 
   for (const spawner of world.spawners) {
-    spawner.age += world.config.tickSeconds;
-    spawner.cooldown = Math.max(0, spawner.cooldown - world.config.tickSeconds);
+    spawner.ageTicks += 1;
+    spawner.cooldownTicks = Math.max(0, spawner.cooldownTicks - 1);
     spawner.energy -=
-      (world.config.metabolism +
-        activeUnits(spawner.genome).length * world.config.brainEnergyCostPerActiveUnit +
-        activeConnections(spawner.genome).length * world.config.brainEnergyCostPerActiveConnection +
-        activeLayerIndexes(spawner.genome).length * world.config.brainEnergyCostPerActiveLayer) *
-      world.config.tickSeconds;
+      world.config.energyDrainPerTick +
+      activeUnits(spawner.genome).length * world.config.brainEnergyCostPerActiveUnit +
+      activeConnections(spawner.genome).length * world.config.brainEnergyCostPerActiveConnection +
+      activeLayerIndexes(spawner.genome).length * world.config.brainEnergyCostPerActiveLayer;
     spawner.lastAction = "wait";
 
+    const marketInputs = marketInputResolver.resolve(spawner.genome.perception);
     const inputs = [...marketInputs, clamp(spawner.energy / world.config.reproductionEnergy, -1, 2), clamp(spawner.health / 100, 0, 1)];
     const outputs = forwardSpawner(spawner, inputs);
-    const longScore = sigmoid(outputs[0] ?? 0) + spawner.genome.thresholdBias;
-    const shortScore = sigmoid(outputs[1] ?? 0) + spawner.genome.thresholdBias;
-    const strength = clamp(sigmoid(outputs[2] ?? 0), world.config.minSignalStrength, 1);
-    const horizon = interpolate(spawner.genome.minHorizon, spawner.genome.maxHorizon, sigmoid(outputs[3] ?? 0));
-    const cooldown = spawner.genome.cooldownBase + sigmoid(outputs[4] ?? 0) * world.config.cooldownOutputMultiplier;
+    const longScore = sigmoid(outputs[OUTPUT_INDEX.long] ?? 0) + spawner.genome.thresholdBias;
+    const shortScore = sigmoid(outputs[OUTPUT_INDEX.short] ?? 0) + spawner.genome.thresholdBias;
+    const strength = clamp(sigmoid(outputs[OUTPUT_INDEX.strength] ?? 0), world.config.minSignalStrength, 1);
+    const horizonTicks = Math.max(
+      1,
+      Math.round(interpolate(spawner.genome.minHorizonTicks, spawner.genome.maxHorizonTicks, sigmoid(outputs[OUTPUT_INDEX.horizon] ?? 0))),
+    );
+    const cooldownTicks = Math.max(
+      0,
+      Math.round(spawner.genome.cooldownBaseTicks + sigmoid(outputs[OUTPUT_INDEX.cooldown] ?? 0) * world.config.cooldownOutputMultiplierTicks),
+    );
+    const reproductionProbability = sigmoid(outputs[OUTPUT_INDEX.reproduce] ?? 0);
 
-    if (spawner.cooldown <= 0 && spawner.energy > world.config.spawnCost + world.config.minimumSpawnEnergySurplus) {
+    if (spawner.cooldownTicks <= 0 && spawner.energy > world.config.spawnCost + world.config.minimumSpawnEnergySurplus) {
       if (longScore >= world.config.spawnThreshold && longScore >= shortScore) {
-        emitFood(world, spawner, "long", strength, horizon, timeline);
-        spawner.cooldown = cooldown;
+        emitFood(world, spawner, "long", strength, horizonTicks, timeline);
+        spawner.cooldownTicks = cooldownTicks;
       } else if (shortScore >= world.config.spawnThreshold) {
-        emitFood(world, spawner, "short", strength, horizon, timeline);
-        spawner.cooldown = cooldown;
+        emitFood(world, spawner, "short", strength, horizonTicks, timeline);
+        spawner.cooldownTicks = cooldownTicks;
       } else {
         spawner.lastAction = "wait";
       }
     }
 
-    const recentAverage =
-      spawner.recentPayoffs.reduce((sum, payoff) => sum + payoff, 0) / Math.max(1, spawner.recentPayoffs.length);
     if (
       world.spawners.length + newborns.length < world.config.maxSpawners &&
       spawner.energy >= world.config.reproductionEnergy &&
-      spawner.recentPayoffs.length >= world.config.reproductionMinResolved &&
-      recentAverage >= world.config.reproductionMinAveragePayoff
+      world.rng.next() < reproductionProbability
     ) {
       spawner.energy -= world.config.reproductionCost;
       spawner.children += 1;
@@ -134,6 +135,8 @@ function stepSpawnerWorld(world: SpawnerWorld, timeline: MarketTimeline) {
         spawnerId: spawner.id,
         lineageId: spawner.lineageId,
         childSpawnerId: child.id,
+        spawnerSnapshot: structuredClone(spawner),
+        childSpawnerSnapshot: structuredClone(child),
       });
     }
   }
@@ -141,8 +144,8 @@ function stepSpawnerWorld(world: SpawnerWorld, timeline: MarketTimeline) {
   world.spawners = world.spawners.concat(newborns);
   world.spawners = pruneDeadSpawners(world);
 
-  const minTime = world.time - world.config.foodHistorySeconds;
-  world.foods = world.foods.filter((food) => food.status === "pending" || food.resolveTime >= minTime);
+  const minTick = world.tick - world.config.foodHistoryTicks;
+  world.foods = world.foods.filter((food) => food.status === "pending" || food.resolveTick >= minTick);
   recordTelemetry(world);
 }
 
@@ -158,6 +161,7 @@ function pruneDeadSpawners(world: SpawnerWorld) {
         kind: "death",
         spawnerId: spawner.id,
         lineageId: spawner.lineageId,
+        spawnerSnapshot: structuredClone(spawner),
       });
     }
   }
@@ -187,8 +191,8 @@ function createSpawner(world: SpawnerWorld, genome: SpawnerGenome, lineageId?: n
     hiddenState: Object.fromEntries(genome.units.map((unit) => [unit.unitId, 0])),
     energy: world.config.initialEnergyMin + world.rng.next() * Math.max(0, world.config.initialEnergyMax - world.config.initialEnergyMin),
     health: world.config.initialHealth,
-    age: 0,
-    cooldown: world.rng.next() * world.config.initialCooldownMax,
+    ageTicks: 0,
+    cooldownTicks: Math.round(world.rng.next() * world.config.initialCooldownMaxTicks),
     spawnedCount: 0,
     resolvedCount: 0,
     wins: 0,

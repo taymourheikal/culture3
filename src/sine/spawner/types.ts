@@ -3,7 +3,7 @@ import type { SeededRng } from "./rng";
 export type SpawnerDirection = "long" | "short";
 export type FoodStatus = "pending" | "win" | "loss";
 export type GateType = "update" | "reset" | "candidate";
-export type OutputName = "long" | "short" | "strength" | "horizon" | "cooldown";
+export type OutputName = "long" | "short" | "strength" | "horizon" | "cooldown" | "reproduce";
 
 export type ConnectionSource =
   | { kind: "input"; index: number }
@@ -15,28 +15,50 @@ export type ConnectionTarget =
 
 export type SpawnerConfig = {
   initialSpawners: number;
-  tickSeconds: number;
   maxSpawners: number;
-  foodHistorySeconds: number;
+  foodHistoryTicks: number;
   initialEnergyMin: number;
   initialEnergyMax: number;
   initialHealth: number;
-  initialCooldownMax: number;
+  initialCooldownMaxTicks: number;
   spawnThreshold: number;
   spawnCost: number;
   minimumSpawnEnergySurplus: number;
   minSignalStrength: number;
-  pendingDensityDivisor: number;
-  metabolism: number;
+  defaultDeltaLag1FromTicks: number;
+  defaultDeltaLag1ToTicks: number;
+  defaultDeltaLag2FromTicks: number;
+  defaultDeltaLag2ToTicks: number;
+  defaultDeltaLag3FromTicks: number;
+  defaultDeltaLag3ToTicks: number;
+  defaultDeltaLag4FromTicks: number;
+  defaultDeltaLag4ToTicks: number;
+  defaultDeltaLag5FromTicks: number;
+  defaultDeltaLag5ToTicks: number;
+  defaultRollingWindowTicks: number;
+  defaultLocalScaleWindowTicks: number;
+  defaultLocalScaleSampleStepTicks: number;
+  defaultTrendWindowTicks: number;
+  defaultCycleWindowTicks: number;
+  defaultRoughnessSensitivity: number;
+  defaultPendingDensityScale: number;
+  founderPerceptionRandomizationTicks: number;
+  perceptionMutationRate: number;
+  perceptionLagMutationStdDev: number;
+  perceptionWindowMutationStdDev: number;
+  perceptionSensitivityMutationStdDev: number;
+  perceptionDensityScaleMutationStdDev: number;
+  mutationProfileMutationStdDev: number;
+  energyDrainPerTick: number;
   rewardScale: number;
   lossHealthScale: number;
   healthGainScale: number;
   recentResolvedPayoffWindow: number;
   agentRecentPayoffWindow: number;
+  uniquenessPopulationLimit: number;
   reproductionEnergy: number;
   reproductionCost: number;
-  reproductionMinResolved: number;
-  reproductionMinAveragePayoff: number;
+  initialReproductionOutputBias: number;
   deathEnergy: number;
   deathHealth: number;
   transactionCost: number;
@@ -67,30 +89,26 @@ export type SpawnerConfig = {
   brainEnergyCostPerActiveUnit: number;
   brainEnergyCostPerActiveConnection: number;
   brainEnergyCostPerActiveLayer: number;
-  cooldownOutputMultiplier: number;
-  baseMutationStdDev: number;
-  mutationStdDevMutationStdDev: number;
-  mutationStdDevMin: number;
-  mutationStdDevMax: number;
+  cooldownOutputMultiplierTicks: number;
   thresholdBiasInitialStdDev: number;
   thresholdBiasMutationStdDev: number;
   thresholdBiasMin: number;
   thresholdBiasMax: number;
-  initialMinHorizonMin: number;
-  initialMinHorizonMax: number;
-  initialMaxHorizonMin: number;
-  initialMaxHorizonMax: number;
-  minHorizonMutationStdDev: number;
-  maxHorizonMutationStdDev: number;
-  minHorizonClampMin: number;
-  minHorizonClampMax: number;
-  maxHorizonClampMin: number;
-  maxHorizonClampMax: number;
-  cooldownBaseInitialMin: number;
-  cooldownBaseInitialMax: number;
-  cooldownBaseMutationStdDev: number;
-  cooldownBaseClampMin: number;
-  cooldownBaseClampMax: number;
+  initialMinHorizonTicksMin: number;
+  initialMinHorizonTicksMax: number;
+  initialMaxHorizonTicksMin: number;
+  initialMaxHorizonTicksMax: number;
+  minHorizonTicksMutationStdDev: number;
+  maxHorizonTicksMutationStdDev: number;
+  minHorizonTicksClampMin: number;
+  minHorizonTicksClampMax: number;
+  maxHorizonTicksClampMin: number;
+  maxHorizonTicksClampMax: number;
+  cooldownBaseTicksInitialMin: number;
+  cooldownBaseTicksInitialMax: number;
+  cooldownBaseTicksMutationStdDev: number;
+  cooldownBaseTicksClampMin: number;
+  cooldownBaseTicksClampMax: number;
 };
 
 export type HiddenUnitGene = {
@@ -111,6 +129,49 @@ export type ConnectionGene = {
   enabled: boolean;
 };
 
+export type SpawnerPerceptionLagPair = {
+  fromTicks: number;
+  toTicks: number;
+};
+
+export type SpawnerPerception = {
+  deltaLagPairs: SpawnerPerceptionLagPair[];
+  rollingWindowTicks: number;
+  localScaleWindowTicks: number;
+  localScaleSampleStepTicks: number;
+  trendWindowTicks: number;
+  cycleWindowTicks: number;
+  roughnessSensitivity: number;
+  pendingDensityScale: number;
+};
+
+export type SpawnerMutationProfile = {
+  addUnitRate: number;
+  disableUnitRate: number;
+  reenableUnitRate: number;
+  addConnectionRate: number;
+  disableConnectionRate: number;
+  reenableConnectionRate: number;
+  weightMutationRate: number;
+  weightMutationStdDev: number;
+  weightReplaceRate: number;
+  newConnectionWeightStdDev: number;
+  gateBiasMutationRate: number;
+  gateBiasMutationStdDev: number;
+  outputBiasMutationRate: number;
+  outputBiasMutationStdDev: number;
+  perceptionMutationRate: number;
+  perceptionLagMutationStdDev: number;
+  perceptionWindowMutationStdDev: number;
+  perceptionSensitivityMutationStdDev: number;
+  perceptionDensityScaleMutationStdDev: number;
+  thresholdBiasMutationStdDev: number;
+  minHorizonTicksMutationStdDev: number;
+  maxHorizonTicksMutationStdDev: number;
+  cooldownBaseTicksMutationStdDev: number;
+  mutationProfileMutationStdDev: number;
+};
+
 export type InnovationRegistry = {
   nextInnovationId: number;
   connectionInnovations: Record<string, number>;
@@ -123,9 +184,11 @@ export type SpawnerGenome = {
   nextUnitId: number;
   mutationStd: number;
   thresholdBias: number;
-  minHorizon: number;
-  maxHorizon: number;
-  cooldownBase: number;
+  minHorizonTicks: number;
+  maxHorizonTicks: number;
+  cooldownBaseTicks: number;
+  perception: SpawnerPerception;
+  mutationProfile: SpawnerMutationProfile;
 };
 
 export type SpawnerAgent = {
@@ -138,8 +201,8 @@ export type SpawnerAgent = {
   hiddenState: Record<number, number>;
   energy: number;
   health: number;
-  age: number;
-  cooldown: number;
+  ageTicks: number;
+  cooldownTicks: number;
   spawnedCount: number;
   resolvedCount: number;
   wins: number;
@@ -154,13 +217,15 @@ export type SpawnerEvent = {
   id: number;
   kind: "spawn" | "resolve" | "reproduction" | "death";
   tick: number;
-  time: number;
   spawnerId: number;
   lineageId: number;
   foodId?: number;
   childSpawnerId?: number;
   status?: FoodStatus;
   payoff?: number;
+  spawnerSnapshot?: SpawnerAgent;
+  childSpawnerSnapshot?: SpawnerAgent;
+  foodSnapshot?: SpawnerFood;
 };
 
 export type SpawnerLineage = {
@@ -175,13 +240,15 @@ export type SpawnerFood = {
   creatorLineageId: number;
   spawnTick: number;
   resolveTick: number;
-  spawnTime: number;
-  resolveTime: number;
   direction: SpawnerDirection;
   strength: number;
-  horizon: number;
+  horizonTicks: number;
   entrySignal: number;
   exitSignal?: number;
+  entryPrice?: number;
+  exitPrice?: number;
+  sourceTimestamp?: number;
+  exitSourceTimestamp?: number;
   payoff?: number;
   status: FoodStatus;
 };
@@ -202,7 +269,6 @@ export type SpawnerWorld = {
   seed: number;
   rng: SeededRng;
   tick: number;
-  time: number;
   nextEventId: number;
   nextSpawnerId: number;
   nextLineageId: number;
@@ -210,6 +276,7 @@ export type SpawnerWorld = {
   spawners: SpawnerAgent[];
   foods: SpawnerFood[];
   recentEvents: SpawnerEvent[];
+  eventSink?: (event: SpawnerEvent) => void;
   lineages: Record<number, SpawnerLineage>;
   cumulativeLoss: number;
   cumulativeNetPayoff: number;

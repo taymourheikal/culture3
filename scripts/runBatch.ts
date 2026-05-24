@@ -2,9 +2,9 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-import { runBatchSimulations, type BatchOptions } from "../src/sim/batch.ts";
-import { DEFAULT_SIMULATION_PARAMETERS, mergeParameters, sanitizeParameters } from "../src/sim/parameters.ts";
-import type { SimulationParameters } from "../src/sim/types.ts";
+import { runBatchSimulations, type BatchOptions } from "../src/ant/sim/batch.ts";
+import { DEFAULT_SIMULATION_PARAMETERS, mergeParameters, sanitizeParameters } from "../src/ant/sim/parameters.ts";
+import type { SimulationParameters } from "../src/ant/sim/types.ts";
 
 type CliOptions = BatchOptions & {
   out: string;

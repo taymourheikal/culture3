@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { activeConnections, activeLayerIndexes, activeUnits, addRandomLegalConnection, alignHiddenState, architectureMetrics, connectionInnovationId, createSpawnerWorld, forwardSpawner, getOrCreateConnectionInnovationId, isLegalConnection, mutateGenome, SeededRng, validateGenome } from "../../src/sine/spawnerSimulation";
+import { activeConnections, activeLayerIndexes, activeUnits, addRandomLegalConnection, architectureMetrics, connectionInnovationId, createSpawnerWorld, forwardSpawner, getOrCreateConnectionInnovationId, INPUT_COUNT, isLegalConnection, mutateGenome, OUTPUT_COUNT, OUTPUT_INDEX, SeededRng } from "../../src/sine/spawnerSimulation";
 import { round, runTo, type SineTest } from "./helpers";
 
 function testFixedSpawnerForwardSnapshot() {
@@ -10,7 +10,7 @@ function testFixedSpawnerForwardSnapshot() {
   assert(firstSpawner);
   assert(secondSpawner);
 
-  const inputs = Array.from({ length: 15 }, (_, index) => Number(((index - 7) / 10).toFixed(3)));
+  const inputs = Array.from({ length: INPUT_COUNT }, (_, index) => Number(((index - 8) / 10).toFixed(3)));
   const hiddenState = Object.fromEntries(firstSpawner.genome.units.map((unit, index) => [unit.unitId, Number((index / 20).toFixed(3))]));
   firstSpawner.hiddenState = { ...hiddenState };
   secondSpawner.hiddenState = { ...hiddenState };
@@ -18,7 +18,7 @@ function testFixedSpawnerForwardSnapshot() {
   const firstOutput = forwardSpawner(firstSpawner, inputs).map(round);
   const secondOutput = forwardSpawner(secondSpawner, inputs).map(round);
   assert.deepEqual(firstOutput, secondOutput);
-  assert.equal(firstOutput.length, 5);
+  assert.equal(firstOutput.length, OUTPUT_COUNT);
   assert(firstOutput.every(Number.isFinite));
   assert(Object.values(firstSpawner.hiddenState).every(Number.isFinite));
 }
@@ -40,8 +40,55 @@ function testFounderUnitInnovationIdsAreWorldUnique() {
   assert.equal(new Set(ids).size, ids.length);
 }
 
+function testFounderTopologyCanConnectNewestInput() {
+  const world = createSpawnerWorld(101, {
+    initialSpawners: 1,
+    initialHiddenUnitsMin: 1,
+    initialHiddenUnitsMax: 1,
+    initialInputConnectionsPerUnit: INPUT_COUNT * 3,
+    initialRecurrentConnectionsPerUnit: 0,
+    initialOutputConnectionsPerOutput: 1,
+  });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  assert(
+    activeConnections(spawner.genome).some((connection) => connection.source.kind === "input" && connection.source.index === INPUT_COUNT - 1),
+    "founder sparse topology should be able to wire the 16th input",
+  );
+}
+
+function testOldFifteenInputGenomeRemainsForwardCompatible() {
+  const world = createSpawnerWorld(101, { initialSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  spawner.genome.connections = spawner.genome.connections.filter(
+    (connection) => connection.source.kind !== "input" || connection.source.index < INPUT_COUNT - 1,
+  );
+  const outputs = forwardSpawner(spawner, Array.from({ length: INPUT_COUNT }, () => 0));
+  assert.equal(outputs.length, OUTPUT_COUNT);
+  assert(outputs.every(Number.isFinite));
+}
+
 function testConnectionInnovationRegistryReusesIds() {
-  const world = createSpawnerWorld(101, { initialSpawners: 1, initialHiddenUnitsMin: 2, initialHiddenUnitsMax: 2 });
+  const world = createSpawnerWorld(101, {
+    initialSpawners: 1,
+    initialHiddenUnitsMin: 2,
+    initialHiddenUnitsMax: 2,
+    addUnitRate: 0,
+    disableUnitRate: 0,
+    reenableUnitRate: 0,
+    addConnectionRate: 0,
+    disableConnectionRate: 0,
+    reenableConnectionRate: 0,
+    weightMutationRate: 0,
+    biasMutationRate: 0,
+    thresholdBiasMutationStdDev: 0,
+    minHorizonTicksMutationStdDev: 0,
+    maxHorizonTicksMutationStdDev: 0,
+    cooldownBaseTicksMutationStdDev: 0,
+    perceptionMutationRate: 0,
+    mutationProfileMutationStdDev: 0,
+  });
   const spawner = world.spawners[0];
   assert(spawner);
   const unit = activeUnits(spawner.genome)[0];
@@ -64,11 +111,10 @@ function testConnectionInnovationRegistryReusesIds() {
     reenableConnectionRate: 0,
     weightMutationRate: 0,
     biasMutationRate: 0,
-    mutationStdDevMutationStdDev: 0,
     thresholdBiasMutationStdDev: 0,
-    minHorizonMutationStdDev: 0,
-    maxHorizonMutationStdDev: 0,
-    cooldownBaseMutationStdDev: 0,
+    minHorizonTicksMutationStdDev: 0,
+    maxHorizonTicksMutationStdDev: 0,
+    cooldownBaseTicksMutationStdDev: 0,
   }, world.innovations);
   assert.deepEqual(
     child.connections.map((connection) => connection.innovationId),
@@ -90,10 +136,30 @@ function testOutputConnectionLegalityRejectsPreviousHidden() {
     isLegalConnection(spawner.genome, { kind: "hidden", unitId: unit.unitId, mode: "current" }, { kind: "output", index: 0 }, world.config),
     true,
   );
+  assert.equal(
+    isLegalConnection(spawner.genome, { kind: "hidden", unitId: unit.unitId, mode: "current" }, { kind: "output", index: OUTPUT_INDEX.reproduce }, world.config),
+    true,
+  );
 }
 
 function testReenableConnectionSkipsIllegalConnections() {
-  const world = createSpawnerWorld(101, { initialSpawners: 1 });
+  const world = createSpawnerWorld(101, {
+    initialSpawners: 1,
+    addUnitRate: 0,
+    disableUnitRate: 0,
+    reenableUnitRate: 0,
+    addConnectionRate: 0,
+    disableConnectionRate: 0,
+    reenableConnectionRate: 1,
+    weightMutationRate: 0,
+    biasMutationRate: 0,
+    thresholdBiasMutationStdDev: 0,
+    minHorizonTicksMutationStdDev: 0,
+    maxHorizonTicksMutationStdDev: 0,
+    cooldownBaseTicksMutationStdDev: 0,
+    perceptionMutationRate: 0,
+    mutationProfileMutationStdDev: 0,
+  });
   const spawner = world.spawners[0];
   assert(spawner);
   const unit = activeUnits(spawner.genome)[0];
@@ -115,11 +181,10 @@ function testReenableConnectionSkipsIllegalConnections() {
     reenableConnectionRate: 1,
     weightMutationRate: 0,
     biasMutationRate: 0,
-    mutationStdDevMutationStdDev: 0,
     thresholdBiasMutationStdDev: 0,
-    minHorizonMutationStdDev: 0,
-    maxHorizonMutationStdDev: 0,
-    cooldownBaseMutationStdDev: 0,
+    minHorizonTicksMutationStdDev: 0,
+    maxHorizonTicksMutationStdDev: 0,
+    cooldownBaseTicksMutationStdDev: 0,
   }, world.innovations);
   const illegal = child.connections.find((connection) => connection.innovationId === 999_999);
   assert.equal(illegal?.enabled, false);
@@ -176,6 +241,8 @@ export const tests: SineTest[] = [
   { name: "Fixed Spawner Forward Snapshot", run: testFixedSpawnerForwardSnapshot },
   { name: "Sparse Innovation Ids Are Stable", run: testSparseInnovationIdsAreStable },
   { name: "Founder Unit Innovation Ids Are World Unique", run: testFounderUnitInnovationIdsAreWorldUnique },
+  { name: "Founder Topology Can Connect Newest Input", run: testFounderTopologyCanConnectNewestInput },
+  { name: "Old Fifteen Input Genome Remains Forward Compatible", run: testOldFifteenInputGenomeRemainsForwardCompatible },
   { name: "Connection Innovation Registry Reuses Ids", run: testConnectionInnovationRegistryReusesIds },
   { name: "Output Connection Legality Rejects Previous Hidden", run: testOutputConnectionLegalityRejectsPreviousHidden },
   { name: "Reenable Connection Skips Illegal Connections", run: testReenableConnectionSkipsIllegalConnections },

@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { markInterruptedBatchesFailed } from "./db.mjs";
+import { markInterruptedBatchesFailed } from "./antDb.mjs";
 import { routeRequest } from "./routes.mjs";
 
 markInterruptedBatchesFailed();

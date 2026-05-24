@@ -25,9 +25,9 @@ export function runSuite(name: string, tests: SineTest[]) {
 }
 
 export function runTo(endTime: number, seed = 101) {
-  const timeline = createMarketTimeline(INITIAL_SETTINGS, 0.18);
+  const timeline = createMarketTimeline(INITIAL_SETTINGS);
   const world = createSpawnerWorld(seed);
-  for (let target = 0; target <= endTime; target += timeline.tickSeconds) {
+  for (let target = 0; target <= endTime; target += 1) {
     advanceMarketTimeline(timeline, target, 100);
     advanceSpawnerWorldToTimeline(world, timeline, 100);
   }

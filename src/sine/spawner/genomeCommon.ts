@@ -1,5 +1,7 @@
 import type { ConnectionSource, ConnectionTarget, GateType, HiddenUnitGene, InnovationRegistry, SpawnerConfig, SpawnerGenome } from "./types";
 import type { SeededRng } from "./rng";
+import { sanitizeMutationProfile } from "./mutationProfile";
+import { sanitizePerception } from "./perception";
 
 export const GATES: GateType[] = ["update", "reset", "candidate"];
 
@@ -37,9 +39,11 @@ export function cloneGenome(genome: SpawnerGenome): SpawnerGenome {
     nextUnitId: genome.nextUnitId,
     mutationStd: genome.mutationStd,
     thresholdBias: genome.thresholdBias,
-    minHorizon: genome.minHorizon,
-    maxHorizon: genome.maxHorizon,
-    cooldownBase: genome.cooldownBase,
+    minHorizonTicks: genome.minHorizonTicks,
+    maxHorizonTicks: genome.maxHorizonTicks,
+    cooldownBaseTicks: genome.cooldownBaseTicks,
+    perception: sanitizePerception(genome.perception),
+    mutationProfile: sanitizeMutationProfile(genome.mutationProfile),
   };
 }
 

@@ -162,6 +162,40 @@ The weight analysis area helps compare surviving neural networks:
 
 These tools are meant to show whether survivors tend to converge toward similar agents, or whether different successful strategies remain meaningfully different.
 
+## Toy Market Simulator
+
+The Toy Market Simulator is separate from Emergent Ant World. It can play either a generated rate-of-change market signal or BTC/USD candle data, and it shows a population of food-spawner RNNs that try to mark possible long or short opportunities on that signal.
+
+The main chart shows the signal and the opportunity markers. A marker becomes green when the later move would have paid off, and red when it would have lost. The lower charts show noise, changing generator parameters, and the spawner population/loss history.
+
+Toy Market time is measured in **ticks**. In generated mode, one tick is one generated bar. In BTC mode, one tick is one candle. The only seconds-based controls are playback controls such as ticks per second or bars per second.
+
+Food-spawner agents do not trade directly. They are scouts. Each one reads recent market-shape inputs, keeps a small recurrent memory, and decides whether to spawn a long or short opportunity. The RNN also outputs a reproduction probability, horizon ticks, and cooldown ticks. If the spawner has enough energy and the population is below the cap, that probability can create a child. Founders start with a conservative reproduction bias so a new run does not instantly fill to the cap, but that bias can mutate in descendants. Good opportunities give the spawner energy and health. Bad opportunities drain them.
+
+Each spawner also has inherited **perception settings**. The 16 input slots stay fixed, but the tick windows used inside those inputs can vary by agent. One spawner may compare very recent ROC movement, while another may look across a longer window. Children inherit these settings, and mutation can shift them.
+
+Each spawner has an inherited **mutation profile** too. This controls how likely its children are to gain units, change connections, drift weights or biases, mutate perception windows, or change their own mutation profile. This is not backpropagation or a training loop during life. It is ordinary inheritance plus mutation at birth.
+
+## Toy Market RNN Inspection
+
+Every live food spawner can be inspected by ID. The roster includes an **Inspect spawner ID** field, so a spawner does not need to be visible in the capped roster to open its RNN. The same live inspection is also available programmatically from the browser console:
+
+```js
+await window.inspectFoodSpawner(471)
+```
+
+The response includes the spawner's genome, hidden state, gates, weights, active/disabled links, recent payoffs, recent food outcomes, and the current uniqueness score when available.
+
+The visible **Uniqueness** number is a population-relative percentile. It compares the spawner's functional RNN genome against the current living population using a versioned vector of architecture, wiring, weights, biases, output controls, recurrence, input/output usage, reachable graph structure, perception settings, and selected mutation-profile traits. Higher means farther from the current population center than more living peers at that comparison tick. Clicking the score shows the raw distance, nearest similar spawners, and the most typical and most unusual vector dimensions. The **Uniqueness population limit** setting controls when automatic uniqueness scoring pauses to protect responsiveness.
+
+## Toy Market Persistence
+
+Toy Market runs can now persist to the local SQLite backend when the server is running. The UI shows **Persistence: online/offline**. If persistence is offline, the simulation and live inspection still work, but historical inspection is unavailable.
+
+SQLite records Toy Market sessions, spawner births, deaths, genome snapshots, lightweight state snapshots, uniqueness snapshots, and food events. Full RNN genomes are saved at meaningful moments such as initial birth and child birth. Periodic state snapshots save changing values like energy, health, hidden state, last action, and payoff stats.
+
+Historical inspection uses a session ID plus spawner ID. This matters because spawner `#471` only identifies one agent inside one Toy Market session. The historical inspector can load a past or dead spawner from SQLite at the latest saved state or at a requested tick. When a requested tick falls between saved state snapshots, the inspector uses the nearest saved state at or before that tick and reports which tick was actually loaded.
+
 ## Help Page
 
 The question-mark tab opens a short in-app version of these explanations. It is there for quick reference while running Live or Batch.

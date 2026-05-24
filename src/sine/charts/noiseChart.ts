@@ -1,8 +1,8 @@
-import { buildTimelineSamples, getTimelineSampleAt, type MarketTimeline } from "../marketTimeline";
-import { drawGrid, prepareCanvas, valueToY } from "./canvas";
+import type { MarketChartPacket } from "../marketWorkerProtocol";
+import { centeredTickWindow, drawGrid, niceSymmetricBound, prepareCanvas, tickToX, valueToY } from "./canvas";
 import { formatSignedPercent } from "./format";
 
-export function drawNoiseChart(canvas: HTMLCanvasElement, timeline: MarketTimeline) {
+export function drawNoiseChart(canvas: HTMLCanvasElement, packet: MarketChartPacket) {
   const prepared = prepareCanvas(canvas);
   if (!prepared) return;
 
@@ -15,11 +15,10 @@ export function drawNoiseChart(canvas: HTMLCanvasElement, timeline: MarketTimeli
   };
   const chartWidth = bounds.right - bounds.left;
   const centerX = bounds.left + chartWidth / 2;
-  const secondsVisible = 16;
-  const centerTime = timeline.time;
-  const samples = buildTimelineSamples(timeline, centerTime, secondsVisible, Math.max(80, Math.floor(chartWidth / 2)));
-  const noiseValues = samples.map((sample) => sample.noise);
-  const noiseBound = Math.max(2, Math.max(...noiseValues.map(Math.abs)) * 1.22);
+  const { start, end } = centeredTickWindow(packet.renderTick, packet.ticksVisible);
+  const visibleSamples = packet.signalSamples.filter((sample) => sample.tick >= start && sample.tick <= end);
+  const noiseValues = visibleSamples.map((sample) => sample.noise);
+  const noiseBound = niceSymmetricBound(Math.max(2, Math.max(...noiseValues.map(Math.abs), Math.abs(packet.currentNoise)) * 1.22));
 
   context.fillStyle = "#0d1216";
   context.fillRect(0, 0, cssWidth, cssHeight);
@@ -34,8 +33,8 @@ export function drawNoiseChart(canvas: HTMLCanvasElement, timeline: MarketTimeli
   context.stroke();
 
   context.beginPath();
-  samples.forEach((sample, index) => {
-    const x = bounds.left + (chartWidth * index) / Math.max(1, samples.length - 1);
+  visibleSamples.forEach((sample, index) => {
+    const x = tickToX(sample.tick, start, end, bounds);
     const y = valueToY(sample.noise, -noiseBound, noiseBound, bounds);
     if (index === 0) context.moveTo(x, y);
     else context.lineTo(x, y);
@@ -47,8 +46,7 @@ export function drawNoiseChart(canvas: HTMLCanvasElement, timeline: MarketTimeli
   context.stroke();
   context.shadowBlur = 0;
 
-  const currentNoise = getTimelineSampleAt(timeline, centerTime).noise;
-  const currentY = valueToY(currentNoise, -noiseBound, noiseBound, bounds);
+  const currentY = valueToY(packet.currentNoise, -noiseBound, noiseBound, bounds);
   context.strokeStyle = "rgba(255, 214, 128, 0.95)";
   context.lineWidth = 2;
   context.beginPath();
@@ -64,6 +62,6 @@ export function drawNoiseChart(canvas: HTMLCanvasElement, timeline: MarketTimeli
   context.fillStyle = "#dce8e5";
   context.font = "700 12px Inter, system-ui, sans-serif";
   context.textAlign = "left";
-  context.fillText(formatSignedPercent(currentNoise), centerX + 10, currentY - 10);
+  context.fillText(formatSignedPercent(packet.currentNoise), centerX + 10, currentY - 10);
   context.restore();
 }

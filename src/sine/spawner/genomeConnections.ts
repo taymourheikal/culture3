@@ -38,13 +38,19 @@ export function isLegalConnection(genome: SpawnerGenome, source: ConnectionSourc
   return targetUnit.layerIndex === nextLayerAfter(genome, sourceUnit.layerIndex);
 }
 
-export function addRandomLegalConnection(genome: SpawnerGenome, rng: SeededRng, config: SpawnerConfig, innovations: InnovationRegistry) {
+export function addRandomLegalConnection(
+  genome: SpawnerGenome,
+  rng: SeededRng,
+  config: SpawnerConfig,
+  innovations: InnovationRegistry,
+  weightStdDev = config.newConnectionWeightStdDev,
+) {
   const candidates = legalConnectionCandidates(genome, config).filter(
     (candidate) => !genome.connections.some((connection) => connectionKey(connection) === connectionKey(candidate)),
   );
   const candidate = choose(candidates, rng);
   if (!candidate) return false;
-  addConnectionIfMissing(genome, candidate.source, candidate.target, rng.gaussian(0, config.newConnectionWeightStdDev), innovations);
+  addConnectionIfMissing(genome, candidate.source, candidate.target, rng.gaussian(0, weightStdDev), innovations);
   return true;
 }
 
@@ -54,13 +60,14 @@ export function addRandomConnectionTouchingUnit(
   rng: SeededRng,
   config: SpawnerConfig,
   innovations: InnovationRegistry,
+  weightStdDev = config.newConnectionWeightStdDev,
 ) {
   const candidates = legalConnectionCandidatesTouchingUnit(genome, unit, config).filter(
     (candidate) => !genome.connections.some((connection) => connectionKey(connection) === connectionKey(candidate)),
   );
   const candidate = choose(candidates, rng);
   if (!candidate) return false;
-  return addConnectionIfMissing(genome, candidate.source, candidate.target, rng.gaussian(0, config.newConnectionWeightStdDev), innovations);
+  return addConnectionIfMissing(genome, candidate.source, candidate.target, rng.gaussian(0, weightStdDev), innovations);
 }
 
 export function addConnectionIfMissing(

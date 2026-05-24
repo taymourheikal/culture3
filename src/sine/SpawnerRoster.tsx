@@ -1,47 +1,57 @@
-import { useMemo, useState } from "react";
-import { clamp } from "./charts/canvas";
+import { useState } from "react";
 import { formatSignedPercent } from "./charts/format";
-import {
-  architectureMetrics,
-  computeSpawnerUniqueness,
-  spawnerAveragePayoff,
-  spawnerHitRate,
-  type SpawnerAgent,
-  type SpawnerFood,
-  type SpawnerUniquenessScore,
-  type SpawnerWorld,
-} from "./spawnerSimulation";
+import type { RosterSpawnerSummary, SpawnerUniquenessDetailPacket } from "./marketWorkerProtocol";
 import { Metric } from "./SineMetric";
+import { SpawnerCard } from "./SpawnerCard";
+import { SpawnerUniquenessModal } from "./SpawnerUniquenessModal";
 
 export function SpawnerRoster({
   spawners,
-  foods,
-  world,
+  totalSpawnerCount,
+  tick,
   pendingFoods,
   totalWins,
   totalLosses,
+  visibleFoods,
+  energyMax,
+  healthMax,
+  recentDeathEvents,
   selectedSpawner,
   selectedSpawnerId,
+  uniquenessDetail,
+  uniquenessLoadingId,
   onSelect,
   onInspect,
+  onInspectById,
+  onRequestUniqueness,
 }: {
-  spawners: SpawnerAgent[];
-  foods: SpawnerFood[];
-  world: SpawnerWorld;
+  spawners: RosterSpawnerSummary[];
+  totalSpawnerCount: number;
+  tick: number;
   pendingFoods: number;
   totalWins: number;
   totalLosses: number;
-  selectedSpawner: SpawnerAgent | null;
+  visibleFoods: number;
+  energyMax: number;
+  healthMax: number;
+  recentDeathEvents: Array<{ id: number; spawnerId: number }>;
+  selectedSpawner: RosterSpawnerSummary | null;
   selectedSpawnerId: number | null;
+  uniquenessDetail: SpawnerUniquenessDetailPacket | null;
+  uniquenessLoadingId: number | null;
   onSelect: (id: number | null) => void;
   onInspect: (id: number) => void;
+  onInspectById: (id: number) => void;
+  onRequestUniqueness: (id: number) => void;
 }) {
   const [uniquenessModalOpen, setUniquenessModalOpen] = useState(false);
-  const visibleFoods = foods.length;
-  const selectedMetrics = selectedSpawner ? architectureMetrics(selectedSpawner.genome) : null;
-  const uniquenessScores = useMemo(() => computeSpawnerUniqueness(spawners, world.config), [spawners, world.config, world.tick]);
-  const selectedUniqueness = selectedSpawner ? uniquenessScores.get(selectedSpawner.id) ?? null : null;
-  const recentDeathEvents = world.recentEvents.filter((event) => event.kind === "death").slice(-4);
+  const [inspectId, setInspectId] = useState("");
+  const uniquenessModalSpawnerId = selectedSpawner?.id ?? selectedSpawnerId;
+
+  const openUniqueness = (spawnerId: number) => {
+    setUniquenessModalOpen(true);
+    onRequestUniqueness(spawnerId);
+  };
 
   return (
     <section className="spawner-panel">
@@ -51,7 +61,8 @@ export function SpawnerRoster({
           <h2>Opportunity scouts</h2>
         </div>
         <div className="spawner-summary">
-          <span>{spawners.length} active</span>
+          <span>{totalSpawnerCount} active</span>
+          {spawners.length < totalSpawnerCount ? <span>{spawners.length} shown</span> : null}
           <span>{pendingFoods} pending</span>
           <span>{totalWins} wins</span>
           <span>{totalLosses} losses</span>
@@ -67,12 +78,36 @@ export function SpawnerRoster({
         )}
       </div>
 
+      <form
+        className="spawner-inspect-by-id"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const parsed = Math.floor(Number(inspectId));
+          if (Number.isFinite(parsed) && parsed > 0) onInspectById(parsed);
+        }}
+      >
+        <label>
+          Inspect spawner ID
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={inspectId}
+            placeholder="471"
+            onChange={(event) => setInspectId(event.target.value)}
+          />
+        </label>
+        <button type="submit">Inspect RNN</button>
+      </form>
+
       <div className="spawner-roster" aria-label="Food spawner agents">
         {spawners.map((spawner) => (
           <SpawnerCard
             key={spawner.id}
             spawner={spawner}
-            world={world}
+            tick={tick}
+            energyMax={energyMax}
+            healthMax={healthMax}
             selected={selectedSpawnerId === spawner.id}
             onSelect={() => onSelect(selectedSpawnerId === spawner.id ? null : spawner.id)}
           />
@@ -85,118 +120,56 @@ export function SpawnerRoster({
           <Metric label="Spawned" value={String(selectedSpawner.spawnedCount)} />
           <Metric label="Resolved" value={String(selectedSpawner.resolvedCount)} />
           <Metric label="Children" value={String(selectedSpawner.children)} />
-          <Metric label="Hit rate" value={`${Math.round(spawnerHitRate(selectedSpawner) * 100)}%`} />
-          <Metric label="Avg payoff" value={formatSignedPercent(spawnerAveragePayoff(selectedSpawner))} />
-          {selectedMetrics ? (
-            <>
-              <Metric label="Active units" value={String(selectedMetrics.activeUnits)} />
-              <Metric label="Active layers" value={String(selectedMetrics.activeLayers)} />
-              <Metric label="Active links" value={String(selectedMetrics.activeConnections)} />
-              <Metric label="Disabled genes" value={`${selectedMetrics.disabledUnits}u / ${selectedMetrics.disabledConnections}l`} />
-              <Metric label="Recurrent links" value={String(selectedMetrics.recurrentConnections)} />
-              <Metric label="Skip links" value={String(selectedMetrics.skipConnections)} />
-              <Metric label="Mutation std" value={selectedSpawner.genome.mutationStd.toFixed(3)} />
-              {selectedUniqueness ? (
-                <button type="button" className="uniqueness-open-card" onClick={() => setUniquenessModalOpen(true)}>
-                  <span>Uniqueness</span>
-                  <strong>{formatScore(selectedUniqueness.overall)}</strong>
-                </button>
-              ) : null}
-              <button type="button" className="architecture-open-card" onClick={() => onInspect(selectedSpawner.id)}>
-                Inspect RNN
-              </button>
-            </>
-          ) : null}
+          <Metric label="Hit rate" value={`${Math.round(selectedSpawner.hitRate * 100)}%`} />
+          <Metric label="Avg payoff" value={formatSignedPercent(selectedSpawner.averagePayoff)} />
+          <Metric label="Active units" value={String(selectedSpawner.activeUnits)} />
+          <Metric label="Active layers" value={String(selectedSpawner.activeLayers)} />
+          <Metric label="Active links" value={String(selectedSpawner.activeConnections)} />
+          <Metric label="Disabled genes" value={`${selectedSpawner.disabledUnits}u / ${selectedSpawner.disabledConnections}l`} />
+          <Metric label="Recurrent links" value={String(selectedSpawner.recurrentConnections)} />
+          <Metric label="Skip links" value={String(selectedSpawner.skipConnections)} />
+          <Metric label="Avg perception lag" value={`${selectedSpawner.averagePerceptionLag.toFixed(1)} ticks`} />
+          <Metric label="Longest window" value={`${Math.round(selectedSpawner.longestPerceptionWindow)} ticks`} />
+          <Metric label="Pending scale" value={`${Math.round(selectedSpawner.pendingDensityScale)} ticks`} />
+          <Metric label="Perception mutation" value={selectedSpawner.perceptionMutationRate.toFixed(3)} />
+          <Metric label="Topology mutation" value={selectedSpawner.topologyMutationRate.toFixed(3)} />
+          <Metric label="Weight mutation" value={selectedSpawner.weightMutationActivity.toFixed(3)} />
+          <Metric label="Profile drift" value={selectedSpawner.mutationProfileDrift.toFixed(3)} />
+          <button type="button" className="uniqueness-open-card" onClick={() => openUniqueness(selectedSpawner.id)}>
+            <span>{uniquenessLoadingId === selectedSpawner.id ? "Loading uniqueness" : "Uniqueness percentile"}</span>
+            <strong>{selectedSpawner.uniqueness !== null ? formatScore(selectedSpawner.uniqueness) : "detail"}</strong>
+            {selectedSpawner.uniquenessComparisonTick !== null ? <small>tick {selectedSpawner.uniquenessComparisonTick}</small> : null}
+          </button>
+          <button type="button" className="architecture-open-card" onClick={() => onInspect(selectedSpawner.id)}>
+            Inspect RNN
+          </button>
+        </div>
+      ) : selectedSpawnerId !== null ? (
+        <div className="spawner-detail">
+          <Metric label="Selected" value={`#${selectedSpawnerId}`} />
+          <Metric label="Roster" value="outside visible list" />
+          <button type="button" className="uniqueness-open-card" onClick={() => openUniqueness(selectedSpawnerId)}>
+            <span>{uniquenessLoadingId === selectedSpawnerId ? "Loading uniqueness" : "Uniqueness percentile"}</span>
+            <strong>detail</strong>
+          </button>
+          <button type="button" className="architecture-open-card" onClick={() => onInspect(selectedSpawnerId)}>
+            Inspect RNN
+          </button>
         </div>
       ) : null}
 
-      {selectedSpawner && selectedUniqueness && uniquenessModalOpen ? (
-        <UniquenessModal spawner={selectedSpawner} score={selectedUniqueness} onClose={() => setUniquenessModalOpen(false)} />
+      {uniquenessModalSpawnerId !== null && uniquenessModalOpen ? (
+        <SpawnerUniquenessModal
+          spawnerId={uniquenessModalSpawnerId}
+          detail={uniquenessDetail?.spawnerId === uniquenessModalSpawnerId ? uniquenessDetail : null}
+          loading={uniquenessLoadingId === uniquenessModalSpawnerId}
+          onClose={() => setUniquenessModalOpen(false)}
+        />
       ) : null}
     </section>
   );
 }
 
-function SpawnerCard({ spawner, world, selected, onSelect }: { spawner: SpawnerAgent; world: SpawnerWorld; selected: boolean; onSelect: () => void }) {
-  const spawnerPendingFoods = world.foods.filter((food) => food.creatorSpawnerId === spawner.id && food.status === "pending").length;
-  const recentAverage = spawner.recentPayoffs.reduce((sum, payoff) => sum + payoff, 0) / Math.max(1, spawner.recentPayoffs.length);
-  const isNewborn = world.tick - spawner.birthTick <= Math.round(1.2 / world.config.tickSeconds);
-  return (
-    <div className={`spawner-card${selected ? " selected" : ""}${isNewborn ? " newborn" : ""}`}>
-      <button type="button" className="spawner-card-head" onClick={onSelect}>
-        <span className="spawner-avatar">{spawner.id}</span>
-        <span className="spawner-card-meta">
-          <small>L{spawner.lineageId} / gen {spawner.generation}</small>
-          <small>{spawner.cooldown.toFixed(1)}s cooldown</small>
-        </span>
-        <span className={`spawner-action ${spawner.lastAction}`}>{spawner.lastAction}</span>
-      </button>
-      <span className="spawner-bars">
-        <Meter label="Energy" value={spawner.energy} max={world.config.reproductionEnergy} color="#69d7d0" />
-        <Meter label="Health" value={spawner.health} max={world.config.initialHealth} color="#86d87a" />
-      </span>
-      <span className="spawner-card-stats">
-        <span>{spawnerPendingFoods} pending</span>
-        <span>alive</span>
-        <span>{Math.round(spawnerHitRate(spawner) * 100)}% hit</span>
-        <span>{formatSignedPercent(recentAverage)} recent</span>
-      </span>
-    </div>
-  );
-}
-
-function Meter({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const percent = clamp(value / Math.max(1, max), 0, 1) * 100;
-  return (
-    <span className="spawner-meter">
-      <span>
-        {label}
-        <strong>{value.toFixed(label === "Health" ? 0 : 1)}</strong>
-      </span>
-      <span className="spawner-meter-track">
-        <span style={{ width: `${percent}%`, background: color }} />
-      </span>
-    </span>
-  );
-}
-
-function UniquenessModal({ spawner, score, onClose }: { spawner: SpawnerAgent; score: SpawnerUniquenessScore; onClose: () => void }) {
-  return (
-    <div className="uniqueness-modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="uniqueness-modal" role="dialog" aria-modal="true" aria-label={`Spawner ${spawner.id} uniqueness`} onClick={(event) => event.stopPropagation()}>
-        <div className="uniqueness-modal-head">
-          <div>
-            <span className="sine-eyebrow">Spawner #{spawner.id}</span>
-            <h3>Uniqueness</h3>
-          </div>
-          <button type="button" className="uniqueness-close" onClick={onClose} aria-label="Close uniqueness modal">
-            x
-          </button>
-        </div>
-        <div className="uniqueness-score-grid">
-          <UniquenessMetric label="Overall" value={score.overall} />
-          <UniquenessMetric label="Genome" value={score.genome} />
-          <UniquenessMetric label="Behavior" value={score.behavior} />
-          <UniquenessMetric label="Complexity" value={score.complexity} />
-        </div>
-        <div className="uniqueness-neighbors">
-          <span>Nearest neighbors</span>
-          <strong>{score.nearestNeighborIds.length > 0 ? score.nearestNeighborIds.map((id) => `#${id}`).join(", ") : "none"}</strong>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function UniquenessMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="uniqueness-metric">
-      <span>{label}</span>
-      <strong>{formatScore(value)}</strong>
-    </div>
-  );
-}
-
 function formatScore(value: number) {
-  return clamp(value, 0, 1).toFixed(2);
+  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
 }

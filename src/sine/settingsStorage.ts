@@ -1,29 +1,65 @@
 import { INITIAL_SETTINGS, type WaveSettings } from "./marketSignal";
 import { MARKET_SETTING_BOUNDS, clampToBounds } from "./marketSettingBounds";
+import {
+  INITIAL_MARKET_RUNTIME_CONFIG,
+  sanitizeGeneratedSettings,
+  sanitizeMarketRuntimeConfig,
+  type MarketPlaybackSettings,
+  type MarketRuntimeConfig,
+} from "./marketRuntimeConfig";
 
 const STORAGE_KEY = "roc-signal-lab.settings.v1";
+const RUNTIME_STORAGE_KEY = "roc-signal-lab.runtime-settings.v1";
 
 export function loadSavedMarketSettings(): WaveSettings {
+  return loadSavedMarketRuntimeConfig().generated;
+}
+
+export function loadSavedMarketRuntimeConfig(): MarketRuntimeConfig {
   const storage = browserStorage();
-  if (!storage) return { ...INITIAL_SETTINGS };
+  if (!storage) return structuredClone(INITIAL_MARKET_RUNTIME_CONFIG);
 
   try {
-    const saved = storage.getItem(STORAGE_KEY);
-    if (!saved) return { ...INITIAL_SETTINGS };
-    return sanitizeSettings({ ...INITIAL_SETTINGS, ...(JSON.parse(saved) as Partial<WaveSettings>) });
+    const savedRuntime = storage.getItem(RUNTIME_STORAGE_KEY);
+    if (savedRuntime) return sanitizeMarketRuntimeConfig(JSON.parse(savedRuntime));
+    const legacy = storage.getItem(STORAGE_KEY);
+    if (legacy) {
+      return sanitizeMarketRuntimeConfig({
+        ...INITIAL_MARKET_RUNTIME_CONFIG,
+        generated: sanitizeGeneratedSettings({ ...INITIAL_SETTINGS, ...(JSON.parse(legacy) as Partial<WaveSettings>) }, true),
+      });
+    }
+    return structuredClone(INITIAL_MARKET_RUNTIME_CONFIG);
   } catch {
-    return { ...INITIAL_SETTINGS };
+    return structuredClone(INITIAL_MARKET_RUNTIME_CONFIG);
   }
 }
 
 export function saveMarketSettingsGroup(settings: WaveSettings, keys: Array<keyof WaveSettings>) {
-  const current = loadSavedMarketSettings();
-  const next = { ...current };
+  const current = loadSavedMarketRuntimeConfig();
+  const next = { ...current.generated };
   for (const key of keys) {
     next[key] = settings[key];
   }
-  const sanitized = sanitizeSettings(next);
-  browserStorage()?.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+  const sanitized = sanitizeMarketRuntimeConfig({ ...current, generated: next });
+  saveRuntimeConfig(sanitized);
+  return sanitized.generated;
+}
+
+export function savePlaybackSettingsGroup(playback: MarketPlaybackSettings, keys: Array<keyof MarketPlaybackSettings>) {
+  const current = loadSavedMarketRuntimeConfig();
+  const next: Record<keyof MarketPlaybackSettings, string | number> = { ...current.playback };
+  for (const key of keys) {
+    next[key] = playback[key];
+  }
+  const sanitized = sanitizeMarketRuntimeConfig({ ...current, playback: next });
+  saveRuntimeConfig(sanitized);
+  return sanitized;
+}
+
+export function saveMarketSourceDefault(config: MarketRuntimeConfig) {
+  const sanitized = sanitizeMarketRuntimeConfig(config);
+  saveRuntimeConfig(sanitized);
   return sanitized;
 }
 
@@ -32,7 +68,6 @@ export function sanitizeSettings(settings: WaveSettings): WaveSettings {
     amplitude: sanitizeSetting("amplitude", settings.amplitude),
     frequency: sanitizeSetting("frequency", settings.frequency),
     phase: sanitizeSetting("phase", settings.phase),
-    speed: sanitizeSetting("speed", settings.speed),
     slope: sanitizeSetting("slope", settings.slope),
     noiseAmplitude: sanitizeSetting("noiseAmplitude", settings.noiseAmplitude),
     noiseFrequency: sanitizeSetting("noiseFrequency", settings.noiseFrequency),
@@ -58,4 +93,10 @@ type BrowserStorage = {
 
 function browserStorage(): BrowserStorage | null {
   return (globalThis as { localStorage?: BrowserStorage }).localStorage ?? null;
+}
+
+function saveRuntimeConfig(config: MarketRuntimeConfig) {
+  const storage = browserStorage();
+  if (!storage) return;
+  storage.setItem(RUNTIME_STORAGE_KEY, JSON.stringify(config));
 }

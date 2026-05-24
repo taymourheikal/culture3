@@ -1,4 +1,4 @@
-export { DEFAULT_SPAWNER_CONFIG, INPUT_COUNT, OUTPUT_COUNT } from "./spawner/config";
+export { DEFAULT_SPAWNER_CONFIG, INPUT_COUNT, OUTPUT_COUNT, OUTPUT_INDEX, OUTPUT_LABELS } from "./spawner/config";
 export { alignHiddenState, forwardSpawner } from "./spawner/brain";
 export {
   activeConnections,
@@ -12,10 +12,14 @@ export {
   getOrCreateConnectionInnovationId,
   isLegalConnection,
   mutateGenome,
+  normalizeSpawnerGenomeForCurrentContract,
   validateGenome,
 } from "./spawner/genome";
 export { SeededRng } from "./spawner/rng";
+export { mutationProfileDetailGroups, summarizeMutationProfile } from "./spawner/mutationProfile";
+export { perceptionDetailRows, summarizePerception } from "./spawner/perception";
 export { computeSpawnerUniqueness, type SpawnerUniquenessScore } from "./spawner/uniqueness";
+export { buildFunctionalGenomeVector } from "./spawner/uniquenessVector";
 export {
   advanceSpawnerWorldToTimeline,
   createSpawnerWorld,
@@ -40,6 +44,9 @@ export type {
   SpawnerFood,
   SpawnerLineage,
   SpawnerGenome,
+  SpawnerMutationProfile,
+  SpawnerPerception,
+  SpawnerPerceptionLagPair,
   SpawnerTelemetrySample,
   SpawnerWorld,
 } from "./spawner/types";

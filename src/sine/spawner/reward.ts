@@ -9,8 +9,15 @@ export function resolveFoods(world: SpawnerWorld, timeline: MarketTimeline) {
     const exitSample = getTimelineSampleByTick(timeline, food.resolveTick);
     const exitSignal = exitSample.signal;
     const direction = food.direction === "long" ? 1 : -1;
-    const payoff = direction * (exitSignal - food.entrySignal) * food.strength - world.config.transactionCost;
+    const exitPrice = exitSample.price;
+    const payoff =
+      food.entryPrice !== undefined && exitPrice !== undefined
+        ? direction * ((exitPrice - food.entryPrice) / Math.max(0.000001, food.entryPrice)) * 100 * food.strength -
+          world.config.transactionCost
+        : direction * (exitSignal - food.entrySignal) * food.strength - world.config.transactionCost;
     food.exitSignal = exitSignal;
+    food.exitPrice = exitPrice;
+    food.exitSourceTimestamp = exitSample.sourceTimestamp;
     food.payoff = payoff;
     food.status = payoff > 0 ? "win" : "loss";
     recordSpawnerEvent(world, {
@@ -21,7 +28,7 @@ export function resolveFoods(world: SpawnerWorld, timeline: MarketTimeline) {
       status: food.status,
       payoff,
       tick: food.resolveTick,
-      time: food.resolveTime,
+      foodSnapshot: structuredClone(food),
     });
     world.cumulativeNetPayoff += payoff;
     world.totalResolved += 1;
@@ -61,12 +68,12 @@ export function emitFood(
   spawner: SpawnerAgent,
   direction: SpawnerDirection,
   strength: number,
-  horizon: number,
+  horizonTicks: number,
   timeline: MarketTimeline,
 ) {
   const entrySample = getTimelineSampleByTick(timeline, world.tick);
-  const horizonTicks = Math.max(1, Math.round(horizon / timeline.tickSeconds));
-  const resolveTick = world.tick + horizonTicks;
+  const resolvedHorizonTicks = Math.max(1, Math.round(horizonTicks));
+  const resolveTick = world.tick + resolvedHorizonTicks;
   const foodId = world.nextFoodId;
   world.foods.push({
     id: foodId,
@@ -74,12 +81,12 @@ export function emitFood(
     creatorLineageId: spawner.lineageId,
     spawnTick: world.tick,
     resolveTick,
-    spawnTime: entrySample.time,
-    resolveTime: resolveTick * timeline.tickSeconds,
     direction,
     strength,
-    horizon: horizonTicks * timeline.tickSeconds,
+    horizonTicks: resolvedHorizonTicks,
     entrySignal: entrySample.signal,
+    entryPrice: entrySample.price,
+    sourceTimestamp: entrySample.sourceTimestamp,
     status: "pending",
   });
   world.nextFoodId += 1;
@@ -89,7 +96,7 @@ export function emitFood(
     lineageId: spawner.lineageId,
     foodId,
     tick: world.tick,
-    time: entrySample.time,
+    foodSnapshot: structuredClone(world.foods[world.foods.length - 1]),
   });
   spawner.spawnedCount += 1;
   spawner.energy -= world.config.spawnCost * (0.55 + strength);

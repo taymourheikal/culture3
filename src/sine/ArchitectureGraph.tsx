@@ -1,6 +1,13 @@
-import { INPUT_COUNT, OUTPUT_COUNT, type SpawnerAgent } from "./spawnerSimulation";
 import {
+  INPUT_COUNT,
+  OUTPUT_COUNT,
   OUTPUT_LABELS,
+  mutationProfileDetailGroups,
+  perceptionDetailRows,
+  summarizeMutationProfile,
+  type SpawnerAgent,
+} from "./spawnerSimulation";
+import {
   connectionSummary,
   isPreviousConnection,
   type ArchitectureGraphModel,
@@ -22,6 +29,10 @@ export function ArchitectureGraph({
   onFocusUnit: (unitId: number) => void;
   onSelectConnection: (innovationId: number) => void;
 }) {
+  const mutation = summarizeMutationProfile(spawner.genome.mutationProfile);
+  const perceptionRows = perceptionDetailRows(spawner.genome.perception);
+  const mutationGroups = mutationProfileDetailGroups(spawner.genome.mutationProfile);
+
   return (
     <div className="architecture-body-grid">
       <div className="architecture-graph-scroll">
@@ -59,10 +70,24 @@ export function ArchitectureGraph({
         <MetricRow label="Outputs" value={String(OUTPUT_COUNT)} />
         <MetricRow label="Total units" value={String(spawner.genome.units.length)} />
         <MetricRow label="Total connections" value={String(spawner.genome.connections.length)} />
-        <MetricRow label="Mutation std" value={spawner.genome.mutationStd.toFixed(3)} />
+        <MetricRow label="Topology mutation" value={mutation.topologyRate.toFixed(3)} />
+        <MetricRow label="Weight mutation" value={mutation.weightActivity.toFixed(3)} />
+        <MetricRow label="Profile drift" value={mutation.mutationProfileMutationStdDev.toFixed(3)} />
         <MetricRow label="Threshold bias" value={spawner.genome.thresholdBias.toFixed(3)} />
-        <MetricRow label="Horizon" value={`${spawner.genome.minHorizon.toFixed(2)}-${spawner.genome.maxHorizon.toFixed(2)}s`} />
-        <MetricRow label="Cooldown base" value={`${spawner.genome.cooldownBase.toFixed(2)}s`} />
+        <MetricRow label="Horizon" value={`${Math.round(spawner.genome.minHorizonTicks)}-${Math.round(spawner.genome.maxHorizonTicks)} ticks`} />
+        <MetricRow label="Cooldown base" value={`${Math.round(spawner.genome.cooldownBaseTicks)} ticks`} />
+        <div className="architecture-panel-title">Perception</div>
+        {perceptionRows.map((row) => (
+          <MetricRow key={row.label} label={row.label} value={row.value} />
+        ))}
+        {mutationGroups.map((group) => (
+          <div key={group.title}>
+            <div className="architecture-panel-title">{group.title}</div>
+            {group.rows.map((row) => (
+              <MetricRow key={`${group.title}:${row.label}`} label={row.label} value={row.value} />
+            ))}
+          </div>
+        ))}
         <div className="architecture-panel-title">Output Biases</div>
         {OUTPUT_LABELS.map((label, index) => (
           <MetricRow key={label} label={label} value={(spawner.genome.outputBias[index] ?? 0).toFixed(3)} />

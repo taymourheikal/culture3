@@ -1,84 +1,149 @@
 import {
-  BASE_ROC,
   INITIAL_SETTINGS,
-  effectiveParametersAt,
-  noiseAt,
   type SignalSample,
   type WaveSettings,
 } from "./marketSignal";
+import { advanceCandleTimelineOneTick, appendCandlesToTimeline, candleTimelineBufferRemaining, createCandleSample, maximumLoadedCandleTick } from "./marketTimelineCandles";
+import {
+  advanceGeneratedTimelineOneTick,
+  createGeneratedSample,
+  getGeneratedFutureSampleAt,
+  interpolateGeneratedSample,
+} from "./marketTimelineGenerated";
+import type { MarketDataSource } from "./marketRuntimeConfig";
+
+export type MarketCandle = {
+  timestamp: number;
+  datetime: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  roc: number | null;
+  isStart?: boolean;
+};
 
 export type MarketTimeline = {
-  tickSeconds: number;
+  source: MarketDataSource;
   tick: number;
-  time: number;
   phase: number;
   trend: number;
   settings: WaveSettings;
   samples: SignalSample[];
   sampleLimit: number;
+  candles?: MarketCandle[];
+  candleStartIndex?: number;
+  candleSource?: Exclude<MarketDataSource, "generated">;
+  candleEndReached?: boolean;
+  snappedStartTimestamp?: number;
+  snappedStartDatetime?: string;
 };
 
 export type MarketAdvanceResult = {
   processedTicks: number;
   remainingTicks: number;
+  ended?: boolean;
 };
 
 export function createMarketTimeline(
   settings: WaveSettings = INITIAL_SETTINGS,
-  tickSeconds = 0.18,
   sampleLimit = 12000,
 ): MarketTimeline {
   const timeline: MarketTimeline = {
-    tickSeconds,
+    source: "generated",
     tick: 0,
-    time: 0,
     phase: settings.phase,
     trend: 0,
     settings,
     samples: [],
     sampleLimit,
   };
-  timeline.samples.push(createSample(timeline.time, timeline.phase, timeline.trend, timeline.settings));
+  timeline.samples.push(createGeneratedSample(timeline.tick, timeline.phase, timeline.trend, timeline.settings));
+  return timeline;
+}
+
+export function createCandleMarketTimeline({
+  candles,
+  source,
+  sampleLimit = 12000,
+  settings = INITIAL_SETTINGS,
+  snappedStartTimestamp,
+  snappedStartDatetime,
+}: {
+  candles: MarketCandle[];
+  source: Exclude<MarketDataSource, "generated">;
+  sampleLimit?: number;
+  settings?: WaveSettings;
+  snappedStartTimestamp?: number;
+  snappedStartDatetime?: string;
+}): MarketTimeline {
+  const startIndex = Math.max(0, candles.findIndex((candle) => candle.isStart));
+  const timeline: MarketTimeline = {
+    source,
+    tick: 0,
+    phase: 0,
+    trend: 0,
+    settings,
+    samples: [],
+    sampleLimit,
+    candles,
+    candleStartIndex: startIndex,
+    candleSource: source,
+    candleEndReached: candles.length <= startIndex + 1,
+    snappedStartTimestamp,
+    snappedStartDatetime,
+  };
+  timeline.samples.push(createCandleSample(timeline, 0));
   return timeline;
 }
 
 export function applyTimelineSettings(timeline: MarketTimeline, settings: WaveSettings) {
+  if (timeline.source !== "generated") {
+    timeline.settings = settings;
+    return;
+  }
   timeline.phase += settings.phase - timeline.settings.phase;
   timeline.settings = settings;
 }
 
-export function advanceMarketTimeline(timeline: MarketTimeline, targetTime: number, maxTicks: number): MarketAdvanceResult {
-  const owedTicks = Math.max(0, Math.floor((targetTime - timeline.time) / timeline.tickSeconds));
-  const processedTicks = Math.min(maxTicks, owedTicks);
+export function advanceMarketTimeline(timeline: MarketTimeline, targetTick: number, maxTicks: number): MarketAdvanceResult {
+  const owedTicks = Math.max(0, Math.floor(targetTick - timeline.tick));
+  let processedTicks = 0;
 
-  for (let index = 0; index < processedTicks; index += 1) {
+  for (let index = 0; index < Math.min(maxTicks, owedTicks); index += 1) {
+    const previousTick = timeline.tick;
     advanceOneTick(timeline);
+    if (timeline.tick === previousTick) break;
+    processedTicks += 1;
   }
 
   return {
     processedTicks,
-    remainingTicks: owedTicks - processedTicks,
+    remainingTicks: timeline.candleEndReached ? 0 : owedTicks - processedTicks,
+    ended: timeline.candleEndReached,
   };
 }
 
-export function getTimelineSampleAt(timeline: MarketTimeline, time: number): SignalSample {
-  if (timeline.samples.length === 0) return createSample(0, 0, 0, timeline.settings);
+export function getTimelineSampleAtRenderTick(timeline: MarketTimeline, renderTick: number): SignalSample {
+  if (timeline.source !== "generated") return getCandleSampleAtRenderTick(timeline, renderTick);
+  if (timeline.samples.length === 0) return createGeneratedSample(0, 0, 0, timeline.settings);
   const firstSample = timeline.samples[0] as SignalSample;
-  if (time <= firstSample.time) return firstSample;
-  if (time > timeline.time) {
-    return getFutureSampleAt(timeline, time);
+  if (renderTick <= firstSample.tick) return firstSample;
+  if (renderTick > timeline.tick) {
+    return getFutureSampleAt(timeline, renderTick);
   }
 
-  const rawIndex = time / timeline.tickSeconds;
-  const lowerTick = Math.floor(rawIndex);
-  const upperTick = Math.ceil(rawIndex);
+  const lowerTick = Math.floor(renderTick);
+  const upperTick = Math.ceil(renderTick);
   const lower = sampleByTick(timeline, lowerTick) ?? firstSample;
   const upper = sampleByTick(timeline, upperTick) ?? lower;
   if (lower === upper) return lower;
 
-  const amount = (time - lower.time) / Math.max(0.0001, upper.time - lower.time);
-  return interpolateSample(lower, upper, amount);
+  const amount = (renderTick - lower.tick) / Math.max(0.0001, upper.tick - lower.tick);
+  return interpolateGeneratedSample(lower, upper, amount);
 }
+
+export const getTimelineSampleAt = getTimelineSampleAtRenderTick;
 
 export function getTimelineSampleByTick(timeline: MarketTimeline, tick: number): SignalSample {
   const existing = sampleByTick(timeline, tick);
@@ -87,89 +152,79 @@ export function getTimelineSampleByTick(timeline: MarketTimeline, tick: number):
     const firstTick = firstRetainedTick(timeline);
     throw new Error(`Timeline sample for tick ${tick} has expired; first retained tick is ${firstTick}.`);
   }
-  return getFutureSampleAt(timeline, tick * timeline.tickSeconds);
+  return getFutureSampleAt(timeline, tick);
 }
 
 export function buildTimelineSamples(
   timeline: MarketTimeline,
-  centerTime: number,
-  secondsVisible: number,
+  centerTick: number,
+  ticksVisible: number,
   count: number,
 ): SignalSample[] {
-  const start = centerTime - secondsVisible / 2;
-  const end = centerTime + secondsVisible / 2;
+  const start = centerTick - ticksVisible / 2;
+  const end = centerTick + ticksVisible / 2;
   const samples: SignalSample[] = [];
   for (let index = 0; index < count; index += 1) {
-    const time = start + ((end - start) * index) / Math.max(1, count - 1);
-    samples.push(getTimelineSampleAt(timeline, time));
+    const renderTick = start + ((end - start) * index) / Math.max(1, count - 1);
+    samples.push(getTimelineSampleAtRenderTick(timeline, renderTick));
   }
   return samples;
 }
 
 function advanceOneTick(timeline: MarketTimeline) {
-  const dt = timeline.tickSeconds;
-  const midpointParameters = effectiveParametersAt(timeline.time + dt / 2, timeline.settings);
-  timeline.trend += midpointParameters.slope * dt;
-  timeline.phase += Math.PI * 2 * midpointParameters.frequency * dt;
-  timeline.time += dt;
-  timeline.tick += 1;
-  timeline.samples.push(createSample(timeline.time, timeline.phase, timeline.trend, timeline.settings));
+  if (timeline.source !== "generated") {
+    advanceCandleTick(timeline);
+    return;
+  }
+  advanceGeneratedTimelineOneTick(timeline);
 
   if (timeline.samples.length > timeline.sampleLimit) {
     timeline.samples.splice(0, timeline.samples.length - timeline.sampleLimit);
   }
 }
 
-function getFutureSampleAt(timeline: MarketTimeline, time: number): SignalSample {
-  let phase = timeline.phase;
-  let trend = timeline.trend;
-  let current = timeline.time;
-
-  while (current < time) {
-    const dt = Math.min(timeline.tickSeconds, time - current);
-    const midpointParameters = effectiveParametersAt(current + dt / 2, timeline.settings);
-    trend += midpointParameters.slope * dt;
-    phase += Math.PI * 2 * midpointParameters.frequency * dt;
-    current += dt;
+function getFutureSampleAt(timeline: MarketTimeline, renderTick: number): SignalSample {
+  if (timeline.source !== "generated") {
+    const tick = Math.max(0, Math.round(renderTick));
+    return createCandleSample(timeline, tick);
   }
-
-  return createSample(time, phase, trend, timeline.settings);
+  return getGeneratedFutureSampleAt(timeline, renderTick);
 }
 
-function createSample(time: number, phase: number, trend: number, settings: WaveSettings): SignalSample {
-  const parameters = effectiveParametersAt(time, settings);
-  const noise = noiseAt(time, settings, parameters);
-  return {
-    time,
-    phase,
-    trend,
-    parameters,
-    noise,
-    settings: { ...settings },
-    signal: BASE_ROC + trend + parameters.amplitude * Math.sin(phase) + noise,
-  };
+function getCandleSampleAtRenderTick(timeline: MarketTimeline, renderTick: number): SignalSample {
+  if (timeline.samples.length === 0) return createCandleSample(timeline, 0);
+  const tick = Math.max(0, Math.min(Math.round(renderTick), maximumLoadedCandleTick(timeline)));
+  return sampleByTick(timeline, tick) ?? createCandleSample(timeline, tick);
+}
+
+export function appendMarketCandles(timeline: MarketTimeline, candles: MarketCandle[]) {
+  appendCandlesToTimeline(timeline, candles);
+}
+
+export function candleBufferRemaining(timeline: MarketTimeline) {
+  return candleTimelineBufferRemaining(timeline);
+}
+
+export function latestLoadedCandle(timeline: MarketTimeline) {
+  return timeline.candles?.at(-1) ?? null;
+}
+
+function advanceCandleTick(timeline: MarketTimeline) {
+  advanceCandleTimelineOneTick(timeline);
+
+  if (timeline.samples.length > timeline.sampleLimit) {
+    timeline.samples.splice(0, timeline.samples.length - timeline.sampleLimit);
+  }
 }
 
 function sampleByTick(timeline: MarketTimeline, tick: number) {
-  const targetTime = tick * timeline.tickSeconds;
   const first = timeline.samples[0];
   if (!first) return undefined;
-  const index = Math.round((targetTime - first.time) / timeline.tickSeconds);
+  const index = Math.round(tick - first.tick);
   return timeline.samples[index];
 }
 
 function firstRetainedTick(timeline: MarketTimeline) {
   const first = timeline.samples[0];
-  return first ? Math.round(first.time / timeline.tickSeconds) : 0;
-}
-
-function interpolateSample(left: SignalSample, right: SignalSample, amount: number): SignalSample {
-  const time = left.time + (right.time - left.time) * amount;
-  const phase = lerp(left.phase, right.phase, amount);
-  const trend = lerp(left.trend, right.trend, amount);
-  return createSample(time, phase, trend, left.settings);
-}
-
-function lerp(left: number, right: number, amount: number) {
-  return left + (right - left) * amount;
+  return first ? Math.round(first.tick) : 0;
 }

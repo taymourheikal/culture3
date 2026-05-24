@@ -35,13 +35,16 @@
   .parameter-chart-wrap,
   .parameter-canvas,
   .telemetry-chart-wrap,
-  .telemetry-canvas {
+  .telemetry-canvas,
+  .uniqueness-chart-wrap,
+  .uniqueness-canvas {
     min-height: 210px;
     height: 210px;
   }
 
   .parameter-legend,
-  .telemetry-legend {
+  .telemetry-legend,
+  .uniqueness-legend {
     left: 14px;
   }
 
@@ -54,6 +57,12 @@
   }
 
   .spawner-roster {
+    grid-template-columns: 1fr;
+  }
+
+  .sine-history-header,
+  .sine-history-layout,
+  .sine-history-rnn-fields {
     grid-template-columns: 1fr;
   }
 

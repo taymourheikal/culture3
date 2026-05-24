@@ -1,5 +1,5 @@
 import { Worker } from "node:worker_threads";
-import { statements } from "./db.mjs";
+import { antStatements } from "./antDb.mjs";
 import {
   createQueuedBatchExperiment,
   saveBatchRun,
@@ -10,11 +10,11 @@ const BATCH_WORKER_COUNT = 6;
 const activeBatchJobs = new Map();
 
 export function listBatchJobs(limit) {
-  return statements.listBatchJobs.all(limit);
+  return antStatements.listBatchJobs.all(limit);
 }
 
 export function getBatchJob(id) {
-  return statements.getBatchJob.get(id) ?? null;
+  return antStatements.getBatchJob.get(id) ?? null;
 }
 
 export function hasActiveBatchJob() {
@@ -24,7 +24,7 @@ export function hasActiveBatchJob() {
 export function createServerBatchJob(options, parameters, label) {
   const now = new Date().toISOString();
   const experimentId = createQueuedBatchExperiment(options, parameters, label);
-  const jobResult = statements.insertBatchJob.run(
+  const jobResult = antStatements.insertBatchJob.run(
     experimentId,
     now,
     now,
@@ -64,7 +64,7 @@ export function requestBatchJobCancel(jobId) {
     active.cancelRequested = true;
     terminateActiveWorkers(active);
   }
-  statements.updateBatchJobProgress.run(
+  antStatements.updateBatchJobProgress.run(
     new Date().toISOString(),
     isTerminalStatus(job.status) ? job.status : "cancel_requested",
     active ? active.runs.length : job.completed_runs,
@@ -144,7 +144,7 @@ export async function runServerBatchJob(jobId) {
 function updateJob(job, status, completedRuns, currentRunIndex, currentTick, error) {
   job.currentRunIndex = currentRunIndex;
   job.currentTick = currentTick;
-  statements.updateBatchJobProgress.run(
+  antStatements.updateBatchJobProgress.run(
     new Date().toISOString(),
     status,
     completedRuns,

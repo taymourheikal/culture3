@@ -1,4 +1,6 @@
-import { INPUT_COUNT, OUTPUT_COUNT, type ConnectionGene, type HiddenUnitGene, type SpawnerAgent } from "./spawnerSimulation";
+import { INPUT_COUNT, OUTPUT_COUNT, OUTPUT_LABELS, type ConnectionGene, type HiddenUnitGene, type SpawnerAgent } from "./spawnerSimulation";
+import { connectionIsActive, createGenomeIndex } from "./spawner/genome";
+import { INPUT_LABELS } from "./spawner/inputMetadata";
 
 export type GraphNode = {
   id: string;
@@ -23,32 +25,12 @@ export type ArchitectureGraphModel = {
   connections: GraphConnection[];
 };
 
-export const INPUT_LABELS = [
-  "ROC",
-  "ROC delta 0.6s",
-  "ROC delta 1.2s",
-  "ROC delta 2.4s",
-  "ROC delta 4.8s",
-  "Rolling mean",
-  "Rolling volatility",
-  "Est. amplitude",
-  "Est. cycle freq",
-  "Est. trend slope",
-  "Est. residual vol",
-  "Est. roughness",
-  "Pending density",
-  "Energy ratio",
-  "Health ratio",
-];
-
-export const OUTPUT_LABELS = ["Long", "Short", "Strength", "Horizon", "Cooldown"];
-
 export function buildGraph(spawner: SpawnerAgent, includeDisabled: boolean, minWeight: number): ArchitectureGraphModel {
-  const activeUnitIds = new Set(spawner.genome.units.filter((unit) => unit.enabled).map((unit) => unit.unitId));
+  const genomeIndex = createGenomeIndex(spawner.genome);
   const units = spawner.genome.units
     .filter((unit) => includeDisabled || unit.enabled)
     .sort((left, right) => left.layerIndex - right.layerIndex || left.unitId - right.unitId);
-  const layerIndexes = [...new Set(units.map((unit) => unit.layerIndex))].sort((left, right) => left - right);
+  const layerIndexes = includeDisabled ? [...new Set(units.map((unit) => unit.layerIndex))].sort((left, right) => left - right) : genomeIndex.layerIndexes;
   const columnGap = 190;
   const rowGap = 66;
   const inputX = 80;
@@ -98,7 +80,7 @@ export function buildGraph(spawner: SpawnerAgent, includeDisabled: boolean, minW
 
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const connections = filteredConnections(spawner.genome.connections, includeDisabled, minWeight)
-    .filter((connection) => includeDisabled || connectionIsActive(connection, activeUnitIds))
+    .filter((connection) => includeDisabled || connectionIsActive(connection, genomeIndex.activeUnitIds))
     .map((connection) => {
       const from = nodeById.get(sourceNodeId(connection.source));
       const to = nodeById.get(targetNodeId(connection.target));
@@ -111,13 +93,6 @@ export function buildGraph(spawner: SpawnerAgent, includeDisabled: boolean, minW
 
 export function filteredConnections(connections: ConnectionGene[], includeDisabled: boolean, minWeight: number) {
   return connections.filter((connection) => (includeDisabled || connection.enabled) && Math.abs(connection.weight) >= minWeight);
-}
-
-export function connectionIsActive(connection: ConnectionGene, activeUnitIds: Set<number>) {
-  if (!connection.enabled) return false;
-  if (connection.source.kind === "hidden" && !activeUnitIds.has(connection.source.unitId)) return false;
-  if (connection.target.kind === "hidden" && !activeUnitIds.has(connection.target.unitId)) return false;
-  return true;
 }
 
 export function connectionSummary(connection: ConnectionGene) {

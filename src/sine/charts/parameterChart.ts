@@ -1,7 +1,7 @@
-import { buildTimelineSamples, type MarketTimeline } from "../marketTimeline";
-import { clamp, drawHorizontalGrid, prepareCanvas } from "./canvas";
+import type { MarketChartPacket } from "../marketWorkerProtocol";
+import { centeredTickWindow, clamp, drawHorizontalGrid, prepareCanvas, tickToX } from "./canvas";
 
-export function drawParameterChart(canvas: HTMLCanvasElement, timeline: MarketTimeline) {
+export function drawParameterChart(canvas: HTMLCanvasElement, packet: MarketChartPacket) {
   const prepared = prepareCanvas(canvas);
   if (!prepared) return;
 
@@ -14,9 +14,8 @@ export function drawParameterChart(canvas: HTMLCanvasElement, timeline: MarketTi
   };
   const chartWidth = bounds.right - bounds.left;
   const centerX = bounds.left + chartWidth / 2;
-  const secondsVisible = 16;
-  const centerTime = timeline.time;
-  const samples = buildTimelineSamples(timeline, centerTime, secondsVisible, Math.max(80, Math.floor(chartWidth / 3)));
+  const { start, end } = centeredTickWindow(packet.renderTick, packet.ticksVisible);
+  const visibleSamples = packet.signalSamples.filter((sample) => sample.tick >= start && sample.tick <= end);
   const series = [
     { key: "amplitude", color: "#69d7d0", min: 0, max: 8 },
     { key: "frequency", color: "#ffd680", min: 0.01, max: 1.2 },
@@ -31,10 +30,10 @@ export function drawParameterChart(canvas: HTMLCanvasElement, timeline: MarketTi
 
   for (const item of series) {
     context.beginPath();
-    samples.forEach((sample, index) => {
+    visibleSamples.forEach((sample, index) => {
       const value = sample.parameters[item.key];
       const normalized = (value - item.min) / Math.max(0.001, item.max - item.min);
-      const x = bounds.left + (chartWidth * index) / Math.max(1, samples.length - 1);
+      const x = tickToX(sample.tick, start, end, bounds);
       const y = bounds.bottom - clamp(normalized, 0, 1) * (bounds.bottom - bounds.top);
       if (index === 0) context.moveTo(x, y);
       else context.lineTo(x, y);

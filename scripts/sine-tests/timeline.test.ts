@@ -1,22 +1,29 @@
 import { strict as assert } from "node:assert";
 import { INITIAL_SETTINGS } from "../../src/sine/marketSignal";
-import { advanceMarketTimeline, applyTimelineSettings, createMarketTimeline, getTimelineSampleAt, getTimelineSampleByTick } from "../../src/sine/marketTimeline";
+import {
+  advanceMarketTimeline,
+  applyTimelineSettings,
+  createCandleMarketTimeline,
+  createMarketTimeline,
+  getTimelineSampleAt,
+  getTimelineSampleByTick,
+} from "../../src/sine/marketTimeline";
 import { advanceSpawnerWorldToTimeline, createSpawnerWorld } from "../../src/sine/spawnerSimulation";
 import { advanceSimulationToTarget, createSimulationState } from "../../src/sine/simulationRuntime";
 import { round, type SineTest } from "./helpers";
 
 function testTimelineHistoryIsProspective() {
-  const timeline = createMarketTimeline(INITIAL_SETTINGS, 0.18);
+  const timeline = createMarketTimeline(INITIAL_SETTINGS);
   advanceMarketTimeline(timeline, 10, 1000);
-  const currentBefore = getTimelineSampleAt(timeline, timeline.time).signal;
+  const currentBefore = getTimelineSampleAt(timeline, timeline.tick).signal;
   const historicalBefore = getTimelineSampleAt(timeline, 5).signal;
 
   applyTimelineSettings(timeline, { ...INITIAL_SETTINGS, amplitude: 7, slope: -0.5 });
 
-  assert.equal(getTimelineSampleAt(timeline, timeline.time).signal, currentBefore);
+  assert.equal(getTimelineSampleAt(timeline, timeline.tick).signal, currentBefore);
   assert.equal(getTimelineSampleAt(timeline, 5).signal, historicalBefore);
-  advanceMarketTimeline(timeline, 10.18, 1000);
-  assert.notEqual(getTimelineSampleAt(timeline, timeline.time).signal, currentBefore);
+  advanceMarketTimeline(timeline, 11, 1000);
+  assert.notEqual(getTimelineSampleAt(timeline, timeline.tick).signal, currentBefore);
 }
 
 function testFutureNoiseDoesNotSmoothAfterItBecomesHistory() {
@@ -31,42 +38,43 @@ function testFutureNoiseDoesNotSmoothAfterItBecomesHistory() {
     noiseFrequency: 6,
     noiseFrequencyDrift: 0,
   };
-  const timeline = createMarketTimeline(settings, 0.18);
+  const timeline = createMarketTimeline(settings);
   advanceMarketTimeline(timeline, 1.98, 100);
-  const offTickFutureTime = timeline.time + timeline.tickSeconds * 0.37;
+  const offTickFutureTime = timeline.tick + 1 * 0.37;
   const futureNoise = getTimelineSampleAt(timeline, offTickFutureTime).noise;
 
-  advanceMarketTimeline(timeline, offTickFutureTime + timeline.tickSeconds * 2, 100);
+  advanceMarketTimeline(timeline, offTickFutureTime + 1 * 2, 100);
   const historicalNoise = getTimelineSampleAt(timeline, offTickFutureTime).noise;
 
   assert.equal(round(historicalNoise), round(futureNoise));
 }
 
 function testBacklogDrainsWithoutSkippingTicks() {
-  const timeline = createMarketTimeline(INITIAL_SETTINGS, 0.18);
+  const timeline = createMarketTimeline(INITIAL_SETTINGS);
   const world = createSpawnerWorld(101);
-  const first = advanceMarketTimeline(timeline, 100, 100);
-  advanceSpawnerWorldToTimeline(world, timeline, 100);
-  assert.equal(first.processedTicks, 100);
+  const first = advanceMarketTimeline(timeline, 100, 50);
+  advanceSpawnerWorldToTimeline(world, timeline, 50);
+  assert.equal(first.processedTicks, 50);
   assert(first.remainingTicks > 0);
 
   let frames = 0;
-  while ((timeline.time + timeline.tickSeconds <= 100 || world.tick < timeline.tick) && frames < 10) {
-    advanceMarketTimeline(timeline, 100, 100);
-    advanceSpawnerWorldToTimeline(world, timeline, 100);
+  while ((timeline.tick + 1 <= 100 || world.tick < timeline.tick) && frames < 10) {
+    advanceMarketTimeline(timeline, 100, 50);
+    advanceSpawnerWorldToTimeline(world, timeline, 50);
     frames += 1;
   }
 
   assert.equal(world.tick, timeline.tick);
-  assert(Math.abs(100 - timeline.time) < timeline.tickSeconds);
+  assert(Math.abs(100 - timeline.tick) < 1);
 }
 
 function testLargeElapsedTimeCreatesBacklog() {
   const simulation = createSimulationState(INITIAL_SETTINGS);
   const first = advanceSimulationToTarget(simulation, 10, 5);
-  assert.equal(first.processedTicks, 10);
+  assert.equal(first.processedTicks, 5);
+  assert.equal(simulation.world.tick, 5);
   assert(first.remainingTicks > 0);
-  assert(simulation.timeline.time < 10);
+  assert(simulation.timeline.tick < 10);
 
   let result = first;
   let frames = 0;
@@ -77,14 +85,62 @@ function testLargeElapsedTimeCreatesBacklog() {
 
   assert.equal(result.remainingTicks, 0);
   assert.equal(simulation.world.tick, simulation.timeline.tick);
-  assert(Math.abs(10 - simulation.timeline.time) < simulation.timeline.tickSeconds);
+  assert(Math.abs(10 - simulation.timeline.tick) < 1);
 }
 
 function testExpiredTickLookupThrows() {
-  const timeline = createMarketTimeline(INITIAL_SETTINGS, 0.18, 3);
+  const timeline = createMarketTimeline(INITIAL_SETTINGS, 3);
   advanceMarketTimeline(timeline, 10, 1000);
   assert.throws(() => getTimelineSampleByTick(timeline, 1), /expired/);
   assert.doesNotThrow(() => getTimelineSampleByTick(timeline, timeline.tick));
+}
+
+function testCandleTimelineAdvancesOneCandlePerTick() {
+  const timeline = createCandleMarketTimeline({
+    source: "btcusd_5m",
+        candles: [
+      { timestamp: 1000, datetime: "1970-01-01T00:16:40.000Z", open: 100, high: 100, low: 100, close: 100, roc: 0, isStart: true },
+      { timestamp: 1300, datetime: "1970-01-01T00:21:40.000Z", open: 101, high: 101, low: 101, close: 101, roc: 1 },
+      { timestamp: 1600, datetime: "1970-01-01T00:26:40.000Z", open: 99, high: 99, low: 99, close: 99, roc: -1 },
+    ],
+  });
+
+  assert.equal(getTimelineSampleByTick(timeline, 0).price, 100);
+  advanceMarketTimeline(timeline, 1, 10);
+  assert.equal(timeline.tick, 1);
+  assert.equal(getTimelineSampleByTick(timeline, 1).price, 101);
+  assert.equal(getTimelineSampleByTick(timeline, 1).signal, 1);
+}
+
+function testCandleTimelineOffTickSamplingUsesCandleData() {
+  const timeline = createCandleMarketTimeline({
+    source: "btcusd_5m",
+        candles: [
+      { timestamp: 1000, datetime: "1970-01-01T00:16:40.000Z", open: 100, high: 100, low: 100, close: 100, roc: 10, isStart: true },
+      { timestamp: 1300, datetime: "1970-01-01T00:21:40.000Z", open: 110, high: 110, low: 110, close: 110, roc: 20 },
+    ],
+  });
+  advanceMarketTimeline(timeline, 1, 10);
+  const sample = getTimelineSampleAt(timeline, 0.9);
+
+  assert.equal(sample.price, 110);
+  assert.equal(sample.signal, 20);
+  assert.equal(sample.noise, 0);
+}
+
+function testCandleTimelineEndOfDataDoesNotLeaveBacklog() {
+  const timeline = createCandleMarketTimeline({
+    source: "btcusd_5m",
+        candles: [
+      { timestamp: 1000, datetime: "1970-01-01T00:16:40.000Z", open: 100, high: 100, low: 100, close: 100, roc: 0, isStart: true },
+    ],
+  });
+  const result = advanceMarketTimeline(timeline, 10, 100);
+
+  assert.equal(result.processedTicks, 0);
+  assert.equal(result.remainingTicks, 0);
+  assert.equal(result.ended, true);
+  assert.equal(timeline.candleEndReached, true);
 }
 
 export const tests: SineTest[] = [
@@ -93,4 +149,7 @@ export const tests: SineTest[] = [
   { name: "Backlog Drains Without Skipping Ticks", run: testBacklogDrainsWithoutSkippingTicks },
   { name: "Large Elapsed Time Creates Backlog", run: testLargeElapsedTimeCreatesBacklog },
   { name: "Expired Tick Lookup Throws", run: testExpiredTickLookupThrows },
+  { name: "Candle Timeline Advances One Candle Per Tick", run: testCandleTimelineAdvancesOneCandlePerTick },
+  { name: "Candle Timeline Off Tick Sampling Uses Candle Data", run: testCandleTimelineOffTickSamplingUsesCandleData },
+  { name: "Candle Timeline End Of Data Does Not Leave Backlog", run: testCandleTimelineEndOfDataDoesNotLeaveBacklog },
 ];

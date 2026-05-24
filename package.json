@@ -12,7 +12,10 @@
     "preview": "vite preview --host 127.0.0.1",
     "check": "tsc -b",
     "test:sine": "tsx scripts/testSine.ts",
-    "sim:batch": "tsx scripts/runBatch.ts"
+    "sim:batch": "tsx scripts/runBatch.ts",
+    "data:btc-bitstamp": "tsx scripts/downloadBitstampBtcusd.ts",
+    "db:split": "node scripts/splitDatabases.mjs",
+    "db:sine-reproduction-output": "node scripts/migrateToyMarketReproductionOutput.mjs"
   },
   "keywords": [],
   "author": "",

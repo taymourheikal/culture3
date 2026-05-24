@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { activeConnections, activeLayerIndexes, activeUnits, addRandomLegalConnection, alignHiddenState, architectureMetrics, connectionInnovationId, createSpawnerWorld, forwardSpawner, getOrCreateConnectionInnovationId, isLegalConnection, mutateGenome, SeededRng, validateGenome } from "../../src/sine/spawnerSimulation";
+import { activeConnections, activeLayerIndexes, activeUnits, addRandomLegalConnection, alignHiddenState, architectureMetrics, connectionInnovationId, createSpawnerWorld, forwardSpawner, getOrCreateConnectionInnovationId, isLegalConnection, mutateGenome, OUTPUT_COUNT, SeededRng, validateGenome } from "../../src/sine/spawnerSimulation";
 import { round, runTo, type SineTest } from "./helpers";
 
 function testAddUnitMutationWiresNewUnit() {
@@ -16,11 +16,10 @@ function testAddUnitMutationWiresNewUnit() {
     reenableConnectionRate: 0,
     weightMutationRate: 0,
     biasMutationRate: 0,
-    mutationStdDevMutationStdDev: 0,
     thresholdBiasMutationStdDev: 0,
-    minHorizonMutationStdDev: 0,
-    maxHorizonMutationStdDev: 0,
-    cooldownBaseMutationStdDev: 0,
+    minHorizonTicksMutationStdDev: 0,
+    maxHorizonTicksMutationStdDev: 0,
+    cooldownBaseTicksMutationStdDev: 0,
   });
   const parent = world.spawners[0];
   assert(parent);
@@ -64,11 +63,10 @@ function testDisableLastActiveUnitIsPrevented() {
     reenableConnectionRate: 0,
     weightMutationRate: 0,
     biasMutationRate: 0,
-    mutationStdDevMutationStdDev: 0,
     thresholdBiasMutationStdDev: 0,
-    minHorizonMutationStdDev: 0,
-    maxHorizonMutationStdDev: 0,
-    cooldownBaseMutationStdDev: 0,
+    minHorizonTicksMutationStdDev: 0,
+    maxHorizonTicksMutationStdDev: 0,
+    cooldownBaseTicksMutationStdDev: 0,
   });
   const parent = world.spawners[0];
   assert(parent);
@@ -87,11 +85,10 @@ function testDisableLastActiveUnitIsPrevented() {
     reenableConnectionRate: 0,
     weightMutationRate: 0,
     biasMutationRate: 0,
-    mutationStdDevMutationStdDev: 0,
     thresholdBiasMutationStdDev: 0,
-    minHorizonMutationStdDev: 0,
-    maxHorizonMutationStdDev: 0,
-    cooldownBaseMutationStdDev: 0,
+    minHorizonTicksMutationStdDev: 0,
+    maxHorizonTicksMutationStdDev: 0,
+    cooldownBaseTicksMutationStdDev: 0,
   });
   const multiParent = multiWorld.spawners[0];
   assert(multiParent);
@@ -113,11 +110,10 @@ function testAddUnitAfterAllDisabledStartsAtLayerOne() {
     reenableConnectionRate: 0,
     weightMutationRate: 0,
     biasMutationRate: 0,
-    mutationStdDevMutationStdDev: 0,
     thresholdBiasMutationStdDev: 0,
-    minHorizonMutationStdDev: 0,
-    maxHorizonMutationStdDev: 0,
-    cooldownBaseMutationStdDev: 0,
+    minHorizonTicksMutationStdDev: 0,
+    maxHorizonTicksMutationStdDev: 0,
+    cooldownBaseTicksMutationStdDev: 0,
   });
   const parent = world.spawners[0];
   assert(parent);
@@ -151,6 +147,61 @@ function testGenomeValidationCatchesInvalidTopology() {
   const result = validateGenome(invalid, world.config);
   assert.equal(result.valid, false);
   assert(result.errors.some((error) => error.includes("Illegal enabled connection")));
+
+  const invalidOutput = {
+    ...spawner.genome,
+    connections: [
+      ...spawner.genome.connections,
+      {
+        innovationId: 123457,
+        source: { kind: "hidden" as const, unitId: unit.unitId, mode: "current" as const },
+        target: { kind: "output" as const, index: OUTPUT_COUNT },
+        weight: 1,
+        enabled: true,
+      },
+    ],
+  };
+  const outputResult = validateGenome(invalidOutput, world.config);
+  assert.equal(outputResult.valid, false);
+  assert(outputResult.errors.some((error) => error.includes("Illegal enabled connection")));
+}
+
+function testGenomeValidationCatchesInvalidPerceptionAndMutationProfile() {
+  const world = createSpawnerWorld(101, { initialSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+
+  const invalidPerception = {
+    ...spawner.genome,
+    perception: {
+      ...spawner.genome.perception,
+      deltaLagPairs: [{ fromTicks: Number.NaN, toTicks: 2001 }],
+      localScaleSampleStepTicks: 0,
+      roughnessSensitivity: -1,
+      pendingDensityScale: Number.NaN,
+    },
+  };
+  const perceptionResult = validateGenome(invalidPerception, world.config);
+  assert.equal(perceptionResult.valid, false);
+  assert(perceptionResult.errors.some((error) => error.includes("Expected 5 perception lag pairs")));
+  assert(perceptionResult.errors.some((error) => error.includes("fromTicks")));
+  assert(perceptionResult.errors.some((error) => error.includes("local scale sample step")));
+  assert(perceptionResult.errors.some((error) => error.includes("roughness sensitivity")));
+
+  const invalidProfile = {
+    ...spawner.genome,
+    mutationProfile: {
+      ...spawner.genome.mutationProfile,
+      addUnitRate: 2,
+      weightMutationStdDev: -0.1,
+      mutationProfileMutationStdDev: Number.NaN,
+    },
+  };
+  const profileResult = validateGenome(invalidProfile, world.config);
+  assert.equal(profileResult.valid, false);
+  assert(profileResult.errors.some((error) => error.includes("addUnitRate")));
+  assert(profileResult.errors.some((error) => error.includes("weightMutationStdDev")));
+  assert(profileResult.errors.some((error) => error.includes("mutationProfileMutationStdDev")));
 }
 
 export const tests: SineTest[] = [
@@ -158,4 +209,5 @@ export const tests: SineTest[] = [
   { name: "Disable Last Active Unit Is Prevented", run: testDisableLastActiveUnitIsPrevented },
   { name: "Add Unit After All Disabled Starts At Layer One", run: testAddUnitAfterAllDisabledStartsAtLayerOne },
   { name: "Genome Validation Catches Invalid Topology", run: testGenomeValidationCatchesInvalidTopology },
+  { name: "Genome Validation Catches Invalid Perception And Mutation Profile", run: testGenomeValidationCatchesInvalidPerceptionAndMutationProfile },
 ];

@@ -1,0 +1,232 @@
+.sine-history-inspector {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(185, 137, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(185, 137, 255, 0.055);
+}
+
+.sine-history-inspector h2 {
+  margin: 3px 0 0;
+  color: #f7fbfa;
+  font-size: 1.05rem;
+}
+
+.sine-history-header,
+.sine-history-layout,
+.sine-history-rnn-fields,
+.sine-history-tables,
+.sine-run-summary-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.sine-history-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.sine-history-layout {
+  grid-template-columns: minmax(220px, 0.32fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.sine-run-list {
+  display: grid;
+  gap: 8px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.sine-run-list button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #dce8e5;
+  text-align: left;
+}
+
+.sine-run-list button.active {
+  border-color: rgba(244, 197, 104, 0.48);
+  background: rgba(244, 197, 104, 0.11);
+}
+
+.sine-run-list strong {
+  color: #f7fbfa;
+  font-size: 0.86rem;
+}
+
+.sine-run-list span {
+  color: #aebfbc;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.sine-run-analysis {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sine-run-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+}
+
+.sine-history-summary {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(5, 9, 12, 0.32);
+}
+
+.sine-history-summary span,
+.sine-history-rnn-fields label {
+  display: grid;
+  gap: 5px;
+  color: #b6c8c4;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sine-history-summary strong {
+  color: #f7fbfa;
+  font-size: 0.94rem;
+}
+
+.sine-history-rnn-fields {
+  grid-template-columns: minmax(120px, 0.5fr) minmax(120px, 0.5fr) auto;
+  align-items: end;
+}
+
+.sine-history-rnn-fields input {
+  min-height: 34px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: rgba(5, 9, 12, 0.72);
+  color: #f7fbfa;
+  font: inherit;
+}
+
+.sine-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sine-history-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-color: rgba(185, 137, 255, 0.34);
+  border-radius: 7px;
+  background: rgba(185, 137, 255, 0.13);
+  color: #eadcff;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.sine-history-actions button:disabled,
+.sine-history-rnn-fields button:disabled,
+.sine-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.sine-history-status,
+.sine-history-empty {
+  color: #aebfbc;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.sine-history-chart {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(5, 9, 12, 0.28);
+}
+
+.sine-history-chart svg {
+  width: 100%;
+  height: 150px;
+  overflow: visible;
+}
+
+.sine-history-chart path {
+  fill: none;
+  stroke-width: 3;
+}
+
+.history-population-line {
+  stroke: #69d7d0;
+}
+
+.history-loss-line {
+  stroke: #f4c568;
+}
+
+.sine-history-legend,
+.sine-history-section-title {
+  display: flex;
+  gap: 12px;
+  color: #c5d3cf;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sine-history-tables {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.sine-history-tables section {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(5, 9, 12, 0.28);
+  color: #c9d8d4;
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.sine-history-tables button,
+.sine-history-rnn-fields button {
+  min-height: 32px;
+  padding: 7px 9px;
+  border: 1px solid rgba(105, 215, 208, 0.25);
+  border-radius: 7px;
+  background: rgba(105, 215, 208, 0.08);
+  color: #dffbf8;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 850;
+  text-align: left;
+}
+
+.sine-history-rnn-fields button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-transform: uppercase;
+}
+

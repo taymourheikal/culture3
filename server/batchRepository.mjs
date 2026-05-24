@@ -1,8 +1,8 @@
-import { buildBatchSummary } from "../src/sim/batch.ts";
-import { db, statements } from "./db.mjs";
+import { buildBatchSummary } from "../src/ant/sim/batch.ts";
+import { antDb, antStatements } from "./antDb.mjs";
 
 export function listBatchExperiments(limit) {
-  return statements.listBatchExperiments.all(limit).map((row) => ({
+  return antStatements.listBatchExperiments.all(limit).map((row) => ({
     ...row,
     aggregate: JSON.parse(row.aggregate_json),
     aggregate_json: undefined,
@@ -10,22 +10,22 @@ export function listBatchExperiments(limit) {
 }
 
 export function getBatchExperimentSummary(id) {
-  const row = statements.getBatchExperiment.get(id);
+  const row = antStatements.getBatchExperiment.get(id);
   return row ? JSON.parse(row.summary_json) : null;
 }
 
 export function getBatchExperimentStatus(id) {
-  return statements.getBatchExperimentStatus.get(id) ?? null;
+  return antStatements.getBatchExperimentStatus.get(id) ?? null;
 }
 
 export function deleteBatchExperiment(id) {
-  return statements.deleteBatchExperiment.run(id);
+  return antStatements.deleteBatchExperiment.run(id);
 }
 
 export function createQueuedBatchExperiment(options, parameters, label) {
   const now = new Date().toISOString();
   const summary = buildBatchSummary(options, parameters, []);
-  const result = statements.insertBatchExperiment.run(
+  const result = antStatements.insertBatchExperiment.run(
     now,
     label,
     "queued",
@@ -43,7 +43,7 @@ export function createQueuedBatchExperiment(options, parameters, label) {
 export function saveBatchSummary(summary, status, label) {
   let experimentId;
   transaction(() => {
-    const experimentResult = statements.insertBatchExperiment.run(
+    const experimentResult = antStatements.insertBatchExperiment.run(
       new Date().toISOString(),
       label,
       status,
@@ -70,7 +70,7 @@ export function saveBatchRun(experimentId, run) {
 
 export function updateBatchExperimentSummary(experimentId, status, options, parameters, runs) {
   const summary = buildBatchSummary(options, parameters, runs);
-  statements.updateBatchExperiment.run(
+  antStatements.updateBatchExperiment.run(
     status,
     runs.length,
     JSON.stringify(summary.aggregate),
@@ -80,7 +80,7 @@ export function updateBatchExperimentSummary(experimentId, status, options, para
 }
 
 function insertBatchRunRows(experimentId, run) {
-  const runResult = statements.insertBatchRun.run(
+  const runResult = antStatements.insertBatchRun.run(
     experimentId,
     run.runIndex,
     run.seed,
@@ -99,7 +99,7 @@ function insertBatchRunRows(experimentId, run) {
 
   for (const lineage of run.survivingLineages) {
     const architecture = lineage.neuralWeights.architecture;
-    statements.insertBatchLineage.run(
+    antStatements.insertBatchLineage.run(
       experimentId,
       runId,
       run.runIndex,
@@ -134,12 +134,12 @@ function architectureKey(architecture) {
 
 function transaction(callback) {
   try {
-    db.exec("BEGIN");
+    antDb.exec("BEGIN");
     const result = callback();
-    db.exec("COMMIT");
+    antDb.exec("COMMIT");
     return result;
   } catch (error) {
-    db.exec("ROLLBACK");
+    antDb.exec("ROLLBACK");
     throw error;
   }
 }

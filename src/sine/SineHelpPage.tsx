@@ -1,4 +1,5 @@
 import { SineViewTabs } from "./SineViewTabs";
+import { SPAWNER_INPUT_METADATA } from "./spawner/inputMetadata";
 import type { SineView } from "./SineApp";
 
 export function SineHelpPage({ activeView, onViewChange }: { activeView: SineView; onViewChange: (view: SineView) => void }) {
@@ -23,8 +24,12 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
             <li>The market generator creates the moving ROC line.</li>
             <li>Food-spawner agents watch that signal and decide when it looks like an opportunity.</li>
             <li>When an agent acts, it drops a food marker on the chart: long if it expects ROC to rise, short if it expects ROC to fall.</li>
-            <li>The marker resolves after the agent&apos;s chosen horizon, then the agent gains or loses energy and health.</li>
+            <li>The marker resolves after the agent&apos;s chosen horizon in ticks, then the agent gains or loses energy and health.</li>
           </ul>
+          <p>
+            <strong>The simulator measures its own world in ticks.</strong> In generated mode, one tick is one generated bar.
+            In BTC mode, one tick is one candle. Seconds only describe playback speed, such as ticks per second or bars per second.
+          </p>
           <div className="sine-system-map" aria-label="Simulation system map">
             <div className="sine-map-node source">
               <span>1</span>
@@ -47,7 +52,7 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
             <div className="sine-map-node food">
               <span>4</span>
               <strong>Food marker</strong>
-              <small>Long or short marker with size, horizon, and cooldown.</small>
+              <small>Long or short marker with size, horizon ticks, and cooldown ticks.</small>
             </div>
             <div className="sine-map-arrow">-&gt;</div>
             <div className="sine-map-node outcome">
@@ -70,10 +75,14 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
             <strong>Agents do not know the future.</strong> They only see recent market conditions, their own energy and health,
             and how crowded the chart already is with unresolved opportunities.
           </p>
+          <p>
+            <strong>Spawner inputs are relative to recent local scale.</strong> A market moving from -2% to +2% and a market
+            moving from -10% to +10% should look similar to the RNN when their shapes match.
+          </p>
           <div className="sine-rnn-schematic" aria-label="Food spawner RNN schematic">
             <div className="sine-rnn-node">
               <span>Market history</span>
-              <strong>15 inputs</strong>
+              <strong>16 inputs</strong>
             </div>
             <div className="sine-rnn-arrow">-&gt;</div>
             <div className="sine-rnn-node primary">
@@ -83,7 +92,7 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
             <div className="sine-rnn-arrow">-&gt;</div>
             <div className="sine-rnn-node">
               <span>Decision layer</span>
-              <strong>5 outputs</strong>
+              <strong>6 outputs</strong>
             </div>
             <div className="sine-rnn-arrow">-&gt;</div>
             <div className="sine-rnn-node outcome">
@@ -96,12 +105,12 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
               <span className="sine-help-section-label">What the RNN can see</span>
               <div className="sine-chip-list">
                 <span>ROC now</span>
-                <span>Short changes</span>
-                <span>Average ROC</span>
-                <span>Volatility</span>
-                <span>Range estimate</span>
-                <span>Cycle estimate</span>
-                <span>Trend estimate</span>
+                <span>Relative changes</span>
+                <span>Relative mean</span>
+                <span>Relative volatility</span>
+                <span>Range position</span>
+                <span>Relative cycle</span>
+                <span>Relative trend</span>
                 <span>Residual roughness</span>
                 <span>Open marker density</span>
                 <span>Energy</span>
@@ -116,6 +125,7 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
                 <span>Strength</span>
                 <span>Horizon</span>
                 <span>Cooldown</span>
+                <span>Reproduce</span>
               </div>
             </div>
           </div>
@@ -129,24 +139,35 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
             can appear in deeper layers. Connections can also appear or disappear. Inputs and outputs stay fixed, lower layers
             can feed deeper layers, and recurrent links use previous-tick memory so there are no same-tick loops.
           </p>
+          <p>
+            <strong>Perception can evolve too.</strong> The 16 input slots keep the same broad meanings, but each agent can
+            inherit and mutate the tick windows used to calculate its relative changes, trend, roughness, cycle, and pending
+            density inputs.
+          </p>
+          <p>
+            <strong>Evolvability can also evolve.</strong> Each agent carries its own mutation profile: how likely its children
+            are to gain units, change links, shift weights, alter perception windows, or drift their own mutation settings.
+            These are inherited values, not a global training schedule.
+          </p>
         </article>
 
         <article className="sine-help-panel sine-help-panel-wide">
           <div className="sine-help-panel-title">Neural Network Inputs And Outputs</div>
           <p>
-            <strong>The spawner NNs do not receive the generator&apos;s hidden settings.</strong> Amplitude, frequency, slope,
-            and noise are estimated from recent observed ROC history, because a real market would not reveal those values directly.
+            <strong>The spawner NNs do not receive absolute amplitude as a decision input.</strong> Market inputs are divided
+            by recent local scale so agents learn the shape of the ROC movement, not whether the same shape happens to be
+            happening at a small or large absolute percent range.
           </p>
           <div className="sine-help-columns">
             <div>
               <p className="sine-help-section-label">Inputs</p>
-              <ul>
-                <li>Current ROC value.</li>
-                <li>Recent ROC changes across short lag windows.</li>
-                <li>Recent average ROC and recent volatility.</li>
-                <li>Estimated signal shape: local range, cycle rate, trend slope, residual volatility, and roughness.</li>
-                <li>Pending opportunity density, meaning how crowded the chart is with unresolved food markers.</li>
-                <li>The agent&apos;s energy ratio and health ratio.</li>
+              <ul className="sine-input-metadata-list">
+                {SPAWNER_INPUT_METADATA.map((input) => (
+                  <li key={input.index}>
+                    <strong>I{input.index + 1}: {input.label}</strong>
+                    <span>{input.description}</span>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
@@ -155,11 +176,19 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
                 <li><strong>Long score:</strong> whether to spawn a long opportunity.</li>
                 <li><strong>Short score:</strong> whether to spawn a short opportunity.</li>
                 <li><strong>Strength:</strong> how large the opportunity should be.</li>
-                <li><strong>Horizon:</strong> how long to wait before judging the opportunity.</li>
-                <li><strong>Cooldown:</strong> how long the agent waits before it can act again.</li>
+                <li><strong>Horizon:</strong> how many ticks to wait before judging the opportunity.</li>
+                <li><strong>Cooldown:</strong> how many ticks the agent waits before it can act again.</li>
+                <li><strong>Reproduce:</strong> the probability of trying to make a child this tick.</li>
               </ul>
             </div>
           </div>
+          <p>
+            <strong>Reproduction is the sixth output.</strong> The RNN does not trigger birth with a hard yes/no command.
+            Its reproduce output becomes a probability. The world still requires enough energy and room below the population
+            cap; if those are true, the probability decides whether a child is created on that tick.
+            Founders start with a conservative reproduction bias so the initial population does not instantly fill to the cap,
+            but that bias is part of the inherited brain and can mutate over generations.
+          </p>
         </article>
 
         <article className="sine-help-panel sine-help-panel-wide">
@@ -196,16 +225,18 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
                 <li>One connection can be added, disabled, or re-enabled.</li>
                 <li>A new unit can appear in a deeper layer by chance.</li>
                 <li>Each agent can end up with a different hidden graph.</li>
+                <li>Perception windows and mutation tendencies can drift from parent to child.</li>
               </ul>
             </div>
             <div className="sine-rule-card blocked">
               <strong>Not allowed</strong>
               <ul>
-                <li>The 15 input meanings do not change.</li>
-                <li>The 5 output meanings do not change.</li>
+                <li>The 16 input slots do not disappear or change order.</li>
+                <li>The 6 output meanings do not change.</li>
                 <li>Connections cannot point backward from deeper layers to earlier layers.</li>
                 <li>Hidden units cannot form same-tick cycles.</li>
                 <li>Outputs cannot feed back into the hidden memory.</li>
+                <li>Energy and health input scales do not mutate in this version.</li>
               </ul>
             </div>
           </div>
@@ -255,23 +286,54 @@ export function SineHelpPage({ activeView, onViewChange }: { activeView: SineVie
         </article>
 
         <article className="sine-help-panel sine-help-panel-wide">
+          <div className="sine-help-panel-title">Uniqueness Percentile</div>
+          <p>
+            <strong>Uniqueness asks how unusual one spawner&apos;s RNN design is compared with the living population.</strong>{" "}
+            The score uses one versioned vector that summarizes the brain&apos;s layer shape, active wiring, recurrence,
+            input usage, output usage, weights, biases, horizon ticks, cooldown ticks, perception settings, selected
+            mutation-profile traits, and reachable graph structure.
+          </p>
+          <p>
+            <strong>The visible number is a percentile.</strong> Higher means farther from the current population center
+            than more of the living peers at that comparison tick. Clicking it also shows the raw distance, nearest similar
+            spawners, and the vector dimensions that look most typical or most different.
+          </p>
+          <p>
+            <strong>The Uniqueness population limit setting controls when this calculation pauses.</strong> Raising it keeps
+            the chart active with more living spawners, but it asks the browser to compare more RNNs.
+          </p>
+        </article>
+
+        <article className="sine-help-panel sine-help-panel-wide">
           <div className="sine-help-panel-title">Evolution And Mutation</div>
           <p>
             <strong>Agents evolve by surviving long enough to reproduce.</strong> An agent can clone itself when it has enough
-            energy, enough resolved trades, and a good enough recent average payoff.
+            energy and the population is below the max population setting.
+          </p>
+          <p>
+            <strong>The brain controls reproduction probabilistically.</strong> Its reproduce output sets the chance of birth
+            on each eligible tick. Good food decisions still matter because they create the energy needed to become eligible.
           </p>
           <p>
             <strong>Energy is spendable fuel; health is damage tolerance.</strong> Newborn agents inherit the parent&apos;s
             brain, but they start with configured starting energy and health rather than copying the parent&apos;s current values.
+            Toy Market also has an energy drain per tick; that is upkeep for spawner agents, separate from Ant World's energy model.
           </p>
           <ul>
-            <li>Children inherit the parent&apos;s RNN units, connections, weights, biases, horizons, cooldown, and mutation size.</li>
+            <li>Children inherit the parent&apos;s RNN units, connections, weights, biases, horizons, cooldown, perception settings, and mutation profile.</li>
             <li>Small random mutations can change weights and biases at birth.</li>
+            <li>Perception mutations can change which tick windows are used to read market shape.</li>
+            <li>Mutation-profile drift can make one lineage&apos;s descendants more or less exploratory than another&apos;s.</li>
             <li>Structural mutations can add or disable one memory unit, or add, disable, or re-enable one connection.</li>
             <li>Layers are not added as full blocks. They emerge when a new unit appears deeper than the current deepest active layer.</li>
             <li>Bad entry behavior tends to lose energy or health, which prevents reproduction or kills the agent.</li>
             <li>Useful entry behavior tends to create more energy, which gives that lineage more chances to spread.</li>
           </ul>
+          <p>
+            <strong>This change does not add backpropagation, brain costs, or new trading risk rules.</strong> Reward, payoff,
+            death, reproduction eligibility, and position sizing stay as world rules. Bad perception or overly chaotic mutation
+            is allowed to fail naturally through poor opportunities, lost energy, and death.
+          </p>
           <div className="sine-lifecycle" aria-label="Spawner agent mutation lifecycle">
             <div className="sine-life-step">
               <span>1</span>

@@ -1,6 +1,6 @@
 export function formatSlope(value: number) {
   const prefix = value >= 0 ? "+" : "-";
-  return `${prefix}${Math.abs(value).toFixed(2)}%/s`;
+  return `${prefix}${Math.abs(value).toFixed(3)}%/tick`;
 }
 
 export function formatPercentAxis(value: number) {

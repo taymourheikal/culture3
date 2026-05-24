@@ -1,8 +1,8 @@
-import { db, statements } from "./db.mjs";
+import { antDb, antStatements } from "./antDb.mjs";
 
 export function getLatestWorld(worldId) {
-  const latest = statements.latestSnapshot.get(worldId);
-  const counts = statements.countRows.get(worldId, worldId, worldId);
+  const latest = antStatements.latestSnapshot.get(worldId);
+  const counts = antStatements.countRows.get(worldId, worldId, worldId);
   return {
     latest: latest ? JSON.parse(latest.payload) : null,
     counts,
@@ -10,13 +10,13 @@ export function getLatestWorld(worldId) {
 }
 
 export function saveSnapshot(worldId, snapshot) {
-  statements.insertSnapshot.run(worldId, snapshot.tick, new Date().toISOString(), JSON.stringify(snapshot));
+  antStatements.insertSnapshot.run(worldId, snapshot.tick, new Date().toISOString(), JSON.stringify(snapshot));
 }
 
 export function saveEvents(worldId, births, deaths) {
   transaction(() => {
     for (const event of births) {
-      statements.insertBirth.run(
+      antStatements.insertBirth.run(
         `${worldId}:birth:${event.tick}:${event.childId}`,
         worldId,
         event.tick,
@@ -29,7 +29,7 @@ export function saveEvents(worldId, births, deaths) {
       );
     }
     for (const event of deaths) {
-      statements.insertDeath.run(
+      antStatements.insertDeath.run(
         `${worldId}:death:${event.tick}:${event.agentId}`,
         worldId,
         event.tick,
@@ -45,12 +45,12 @@ export function saveEvents(worldId, births, deaths) {
 
 function transaction(callback) {
   try {
-    db.exec("BEGIN");
+    antDb.exec("BEGIN");
     const result = callback();
-    db.exec("COMMIT");
+    antDb.exec("COMMIT");
     return result;
   } catch (error) {
-    db.exec("ROLLBACK");
+    antDb.exec("ROLLBACK");
     throw error;
   }
 }

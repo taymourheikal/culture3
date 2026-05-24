@@ -7,9 +7,9 @@ const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const dataDir = join(rootDir, "data");
 mkdirSync(dataDir, { recursive: true });
 
-export const db = new DatabaseSync(join(dataDir, "ant-world.sqlite"));
+export const antDb = new DatabaseSync(join(dataDir, "ant-world.sqlite"));
 
-db.exec(`
+antDb.exec(`
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
 
@@ -126,44 +126,44 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS batch_jobs_status_idx ON batch_jobs (status);
 `);
 
-export const statements = {
-  insertSnapshot: db.prepare(`
+export const antStatements = {
+  insertSnapshot: antDb.prepare(`
     INSERT INTO world_snapshots (world_id, tick, created_at, payload)
     VALUES (?, ?, ?, ?)
   `),
-  insertBirth: db.prepare(`
+  insertBirth: antDb.prepare(`
     INSERT OR IGNORE INTO birth_events (
       event_key, world_id, tick, parent_id, child_id, lineage_id, generation, mutation_summary, payload
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
-  insertDeath: db.prepare(`
+  insertDeath: antDb.prepare(`
     INSERT OR IGNORE INTO death_events (
       event_key, world_id, tick, agent_id, lineage_id, cause, killed_by, payload
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `),
-  latestSnapshot: db.prepare(`
+  latestSnapshot: antDb.prepare(`
     SELECT tick, created_at, payload
     FROM world_snapshots
     WHERE world_id = ?
     ORDER BY tick DESC, id DESC
     LIMIT 1
   `),
-  countRows: db.prepare(`
+  countRows: antDb.prepare(`
     SELECT
       (SELECT COUNT(*) FROM world_snapshots WHERE world_id = ?) AS snapshots,
       (SELECT COUNT(*) FROM birth_events WHERE world_id = ?) AS births,
       (SELECT COUNT(*) FROM death_events WHERE world_id = ?) AS deaths
   `),
-  insertBatchExperiment: db.prepare(`
+  insertBatchExperiment: antDb.prepare(`
     INSERT INTO batch_experiments (
       created_at, label, status, requested_runs, completed_runs, stop_tick, base_seed,
       parameters_json, aggregate_json, summary_json
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
-  insertBatchRun: db.prepare(`
+  insertBatchRun: antDb.prepare(`
     INSERT INTO batch_runs (
       experiment_id, run_index, seed, stop_tick, final_tick, population, food,
       surviving_lineage_count, total_lineages_created, total_births, total_deaths,
@@ -171,7 +171,7 @@ export const statements = {
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
-  insertBatchLineage: db.prepare(`
+  insertBatchLineage: antDb.prepare(`
     INSERT INTO batch_lineages (
       experiment_id, run_id, run_index, lineage_id, founder_agent_id, founding_lineage,
       birth_tick, population, max_population, max_generation, total_born, total_killed,
@@ -180,7 +180,7 @@ export const statements = {
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
-  listBatchExperiments: db.prepare(`
+  listBatchExperiments: antDb.prepare(`
     SELECT
       id, created_at, label, status, requested_runs, completed_runs, stop_tick,
       base_seed, aggregate_json,
@@ -195,48 +195,48 @@ export const statements = {
     ORDER BY id DESC
     LIMIT ?
   `),
-  getBatchExperiment: db.prepare(`
+  getBatchExperiment: antDb.prepare(`
     SELECT summary_json
     FROM batch_experiments
     WHERE id = ?
   `),
-  getBatchExperimentStatus: db.prepare(`
+  getBatchExperimentStatus: antDb.prepare(`
     SELECT id, status
     FROM batch_experiments
     WHERE id = ?
   `),
-  deleteBatchExperiment: db.prepare(`
+  deleteBatchExperiment: antDb.prepare(`
     DELETE FROM batch_experiments
     WHERE id = ?
   `),
-  failInterruptedExperiments: db.prepare(`
+  failInterruptedExperiments: antDb.prepare(`
     UPDATE batch_experiments
     SET status = 'failed'
     WHERE status IN ('queued', 'running', 'cancel_requested')
   `),
-  failInterruptedJobs: db.prepare(`
+  failInterruptedJobs: antDb.prepare(`
     UPDATE batch_jobs
     SET status = 'failed', error = 'Server restarted before job completed', updated_at = ?
     WHERE status IN ('queued', 'running', 'cancel_requested')
   `),
-  updateBatchExperiment: db.prepare(`
+  updateBatchExperiment: antDb.prepare(`
     UPDATE batch_experiments
     SET status = ?, completed_runs = ?, aggregate_json = ?, summary_json = ?
     WHERE id = ?
   `),
-  insertBatchJob: db.prepare(`
+  insertBatchJob: antDb.prepare(`
     INSERT INTO batch_jobs (
       experiment_id, created_at, updated_at, status, requested_runs, completed_runs,
       stop_tick, base_seed, current_run_index, current_tick, parameters_json, error
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
-  updateBatchJobProgress: db.prepare(`
+  updateBatchJobProgress: antDb.prepare(`
     UPDATE batch_jobs
     SET updated_at = ?, status = ?, completed_runs = ?, current_run_index = ?, current_tick = ?, error = ?
     WHERE id = ?
   `),
-  listBatchJobs: db.prepare(`
+  listBatchJobs: antDb.prepare(`
     SELECT
       id, experiment_id, created_at, updated_at, status, requested_runs, completed_runs,
       stop_tick, base_seed, current_run_index, current_tick, error
@@ -244,7 +244,7 @@ export const statements = {
     ORDER BY id DESC
     LIMIT ?
   `),
-  getBatchJob: db.prepare(`
+  getBatchJob: antDb.prepare(`
     SELECT
       id, experiment_id, created_at, updated_at, status, requested_runs, completed_runs,
       stop_tick, base_seed, current_run_index, current_tick, error
@@ -254,6 +254,6 @@ export const statements = {
 };
 
 export function markInterruptedBatchesFailed() {
-  statements.failInterruptedExperiments.run();
-  statements.failInterruptedJobs.run(new Date().toISOString());
+  antStatements.failInterruptedExperiments.run();
+  antStatements.failInterruptedJobs.run(new Date().toISOString());
 }

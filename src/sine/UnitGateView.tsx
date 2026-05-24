@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import type { ConnectionGene, HiddenUnitGene, SpawnerAgent } from "./spawnerSimulation";
-import { connectionIsActive, filteredConnections, sourceLabel, targetLabel } from "./spawnerArchitectureModel";
+import { filteredConnections, sourceLabel, targetLabel } from "./spawnerArchitectureModel";
+import { connectionIsActive, createGenomeIndex } from "./spawner/genome";
 
 export function UnitGateView({
   unit,
@@ -19,9 +20,9 @@ export function UnitGateView({
   onBack: () => void;
   onSelectConnection: (innovationId: number) => void;
 }) {
-  const activeUnitIds = new Set(spawner.genome.units.filter((candidate) => candidate.enabled).map((candidate) => candidate.unitId));
+  const genomeIndex = createGenomeIndex(spawner.genome);
   const connections = filteredConnections(spawner.genome.connections, includeDisabled, minWeight).filter(
-    (connection) => includeDisabled || connectionIsActive(connection, activeUnitIds),
+    (connection) => includeDisabled || connectionIsActive(connection, genomeIndex.activeUnitIds),
   );
   const incoming = connections.filter((connection) => connection.target.kind === "hidden" && connection.target.unitId === unit.unitId);
   const outgoing = connections.filter((connection) => connection.source.kind === "hidden" && connection.source.unitId === unit.unitId);

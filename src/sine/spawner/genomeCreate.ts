@@ -1,6 +1,8 @@
-import { INPUT_COUNT, OUTPUT_COUNT } from "./config";
+import { INPUT_COUNT, OUTPUT_COUNT, OUTPUT_INDEX } from "./config";
 import { addFounderConnections, allocateInnovationId, choose, createUnitGene, randomGate, randomInt, randomRange, vector } from "./genomeCommon";
 import { addConnectionIfMissing } from "./genomeConnections";
+import { defaultMutationProfileFromConfig } from "./mutationProfile";
+import { randomizeFounderPerception } from "./perception";
 import type { InnovationRegistry, SpawnerConfig, SpawnerGenome } from "./types";
 import type { SeededRng } from "./rng";
 
@@ -15,12 +17,15 @@ export function createRandomGenome(rng: SeededRng, config: SpawnerConfig, innova
     connections: [],
     outputBias: vector(rng, OUTPUT_COUNT, config.outputBiasStdDev),
     nextUnitId: 1,
-    mutationStd: config.baseMutationStdDev,
+    mutationStd: 0,
     thresholdBias: rng.gaussian(0, config.thresholdBiasInitialStdDev),
-    minHorizon: randomRange(rng, config.initialMinHorizonMin, config.initialMinHorizonMax),
-    maxHorizon: randomRange(rng, config.initialMaxHorizonMin, config.initialMaxHorizonMax),
-    cooldownBase: randomRange(rng, config.cooldownBaseInitialMin, config.cooldownBaseInitialMax),
+    minHorizonTicks: randomRange(rng, config.initialMinHorizonTicksMin, config.initialMinHorizonTicksMax),
+    maxHorizonTicks: randomRange(rng, config.initialMaxHorizonTicksMin, config.initialMaxHorizonTicksMax),
+    cooldownBaseTicks: randomRange(rng, config.cooldownBaseTicksInitialMin, config.cooldownBaseTicksInitialMax),
+    perception: randomizeFounderPerception(config, rng),
+    mutationProfile: defaultMutationProfileFromConfig(config),
   };
+  genome.outputBias[OUTPUT_INDEX.reproduce] = (genome.outputBias[OUTPUT_INDEX.reproduce] ?? 0) + config.initialReproductionOutputBias;
 
   for (let index = 0; index < unitCount; index += 1) {
     genome.units.push(createUnitGene(genome.nextUnitId, allocateInnovationId(innovations), 1, rng, config));

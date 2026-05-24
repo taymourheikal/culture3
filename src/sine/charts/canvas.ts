@@ -5,6 +5,12 @@ export type ChartBounds = {
   bottom: number;
 };
 
+export type TimeAxisSample = {
+  tick: number;
+  sourceTimestamp?: number;
+  sourceDatetime?: string;
+};
+
 export function prepareCanvas(canvas: HTMLCanvasElement) {
   const rect = canvas.getBoundingClientRect();
   const pixelRatio = window.devicePixelRatio || 1;
@@ -52,6 +58,36 @@ export function drawGrid(
   }
 }
 
+export function drawMarketTimeAxis(
+  context: CanvasRenderingContext2D,
+  bounds: ChartBounds,
+  samples: TimeAxisSample[],
+  startTick: number,
+  ticksVisible: number,
+) {
+  const labels = buildMarketTimeLabels(bounds, samples, startTick, ticksVisible);
+  if (labels.length === 0) return;
+
+  context.save();
+  context.font = "650 11px Inter, system-ui, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "top";
+
+  for (const label of labels) {
+    context.strokeStyle = "rgba(255, 255, 255, 0.055)";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(label.x, bounds.top);
+    context.lineTo(label.x, bounds.bottom);
+    context.stroke();
+
+    context.fillStyle = "#9dafab";
+    context.fillText(label.text, label.x, bounds.bottom + 9);
+  }
+
+  context.restore();
+}
+
 export function drawHorizontalGrid(context: CanvasRenderingContext2D, bounds: ChartBounds, rows = 4) {
   context.strokeStyle = "rgba(255, 255, 255, 0.08)";
   context.lineWidth = 1;
@@ -88,4 +124,86 @@ export function firstTickAtOrAfter(startTick: number, step: number) {
 export function clamp(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
+}
+
+export function centeredTickWindow(tick: number, ticksVisible: number) {
+  const start = tick - ticksVisible / 2;
+  const end = tick + ticksVisible / 2;
+  return { start, end };
+}
+
+export function niceSymmetricBound(value: number, minimum = 2) {
+  if (!Number.isFinite(value) || value <= minimum) return minimum;
+  if (value <= 5) return Math.ceil(value * 2) / 2;
+  if (value <= 10) return Math.ceil(value);
+  return Math.ceil(value / 2) * 2;
+}
+
+function buildMarketTimeLabels(
+  bounds: ChartBounds,
+  samples: TimeAxisSample[],
+  startTick: number,
+  ticksVisible: number,
+) {
+  const endTick = startTick + ticksVisible;
+  const uniqueSamples: TimeAxisSample[] = [];
+  let lastTimestamp: number | undefined;
+
+  for (const sample of samples) {
+    if (sample.tick < startTick || sample.tick > endTick || sample.sourceTimestamp === undefined) continue;
+    if (sample.sourceTimestamp === lastTimestamp) continue;
+    lastTimestamp = sample.sourceTimestamp;
+    uniqueSamples.push(sample);
+  }
+
+  if (uniqueSamples.length === 0) return [];
+
+  const chartWidth = bounds.right - bounds.left;
+  const maxLabels = Math.max(2, Math.floor(chartWidth / 118));
+  const step = Math.max(1, Math.ceil(uniqueSamples.length / maxLabels));
+  const selected: TimeAxisSample[] = [];
+  for (let index = 0; index < uniqueSamples.length; index += step) {
+    const sample = uniqueSamples[index];
+    if (sample) selected.push(sample);
+  }
+  const last = uniqueSamples.at(-1);
+  if (last && selected.at(-1)?.sourceTimestamp !== last.sourceTimestamp) selected.push(last);
+
+  const firstSample = uniqueSamples[0] as TimeAxisSample;
+  const firstDateKey = marketDateKey(firstSample);
+  const crossesDays = uniqueSamples.some((sample) => marketDateKey(sample) !== firstDateKey);
+
+  return selected.map((sample) => ({
+    x: tickToX(sample.tick, startTick, endTick, bounds),
+    text: formatMarketTimeLabel(sample, crossesDays || sample === firstSample),
+  }));
+}
+
+function formatMarketTimeLabel(sample: TimeAxisSample, includeDate: boolean) {
+  const date = marketDate(sample);
+  if (!date) return "";
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: includeDate ? "short" : undefined,
+    day: includeDate ? "numeric" : undefined,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return formatter.format(date).replace(",", "");
+}
+
+function marketDateKey(sample: TimeAxisSample) {
+  const date = marketDate(sample);
+  if (!date) return "";
+  return `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`;
+}
+
+function marketDate(sample: TimeAxisSample) {
+  if (sample.sourceDatetime) {
+    const date = new Date(sample.sourceDatetime);
+    if (Number.isFinite(date.getTime())) return date;
+  }
+  if (sample.sourceTimestamp !== undefined) return new Date(sample.sourceTimestamp * 1000);
+  return null;
 }

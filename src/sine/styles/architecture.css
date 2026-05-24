@@ -106,6 +106,16 @@
   color: #f7fbfa;
 }
 
+.architecture-empty-state {
+  display: grid;
+  min-height: 360px;
+  place-items: center;
+  padding: 24px;
+  color: #b9c9c5;
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
 .architecture-body-grid {
   display: grid;
   min-height: 0;
@@ -207,12 +217,16 @@
 }
 
 .architecture-panel-title {
-  margin: 0 0 9px;
+  margin: 16px 0 9px;
   color: #f7fbfa;
   font-size: 0.76rem;
   font-weight: 950;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.architecture-side-panel > .architecture-panel-title:first-child {
+  margin-top: 0;
 }
 
 .architecture-metric-row,
@@ -232,8 +246,10 @@
 }
 
 .architecture-metric-row strong {
+  min-width: 0;
   color: #f7fbfa;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .architecture-detail-grid {

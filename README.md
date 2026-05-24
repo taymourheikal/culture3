@@ -6,6 +6,7 @@ The app has two main modes:
 
 - **Live**: watch one simulation unfold in the browser.
 - **Batch**: run many simulations on the local backend and compare survivor outcomes.
+- **Toy Market Simulator**: open `sine.html` to run a separate recurrent food-spawner experiment on a generated or BTC/USD market signal.
 
 ## Features
 
@@ -16,13 +17,15 @@ The app has two main modes:
 - Backend batch runner that continues running independently of browser tab throttling.
 - Batch visualizations for survivor populations, traits, NN architectures, pairwise NN distance, behavioral similarity, and clustered weight heatmaps.
 - In-app Help page explaining the simulation in non-technical terms.
+- Toy Market food-spawner RNN inspection by live ID, browser console helper, and historical SQLite lookup, including mutable perception and mutation-profile traits.
 
 ## Project Structure
 
 ```text
-src/sim/       Simulation core, genomes, neural networks, parameters
-src/render/    Canvas camera and rendering helpers
-src/client/    React UI panels, charts, persistence client, storage helpers
+src/ant/sim/       Ant World simulation core, genomes, neural networks, parameters
+src/ant/render/    Ant World canvas camera and rendering helpers
+src/ant/client/    Ant World React panels, charts, persistence client, storage helpers
+src/sine/          Toy Market Simulator, RNN food spawners, charts, and inspector UI
 server/        Local Node API, SQLite schema, batch job runner
 scripts/       Headless batch CLI
 data/          Generated local SQLite and analysis output, ignored by git
@@ -51,6 +54,7 @@ Open:
 
 ```text
 http://127.0.0.1:5173
+http://127.0.0.1:5173/sine.html
 ```
 
 Useful commands:
@@ -82,15 +86,46 @@ Batch output summarizes surviving lineages at `StopTick`, including average trai
 
 ## Persistence
 
-The backend creates `data/ant-world.sqlite` automatically. This is local runtime data and is intentionally ignored by git.
+The backend creates separate local SQLite databases. These are runtime data and are intentionally ignored by git.
 
-The database stores:
+```text
+data/ant-world.sqlite   # Emergent Ant World live snapshots and batch experiments
+data/toy-market.sqlite  # Toy Market sessions, spawners, genomes, states, food events, uniqueness
+```
+
+The Ant World database stores:
 
 - live-world snapshots and birth/death events
 - batch experiment metadata
 - completed batch runs
 - surviving lineage summaries
 - averaged neural weight vectors
+
+The Toy Market database stores sessions, spawner births/deaths, genome snapshots, state snapshots, food events, raw spawner events, and uniqueness snapshots. Genome snapshots include each spawner's RNN architecture, perception settings, and mutation profile. Uniqueness snapshots store the population-relative percentile and raw distance calculated from architecture, wiring, weights, perception settings, and selected mutation-profile traits.
+
+After upgrading an existing Toy Market database from the old deterministic reproduction gates, run:
+
+```bash
+npm run db:sine-reproduction-output
+```
+
+This removes obsolete reproduction gate keys from saved session config JSON.
+
+To split older shared databases, stop the local API server and run:
+
+```bash
+npm run db:split
+```
+
+The migration copies `sine_*` tables into `data/toy-market.sqlite`, verifies row counts and foreign keys, then removes the old `sine_*` tables from `data/ant-world.sqlite`.
+
+Toy Market live inspection is available in the browser UI by spawner ID. Inspection shows the RNN graph, input labels, current perception windows, mutation profile, recent state, and uniqueness detail. For programmatic inspection while a run is live:
+
+```js
+await window.inspectFoodSpawner(471)
+```
+
+Historical Toy Market inspection uses a SQLite session ID plus spawner ID, because spawner IDs are scoped to one session.
 
 ## Notes
 

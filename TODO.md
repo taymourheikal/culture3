@@ -103,3 +103,29 @@
   - lineage convergence: do successful spawners end up with similar weights/behavior?
 
   The strongest next build, in my view: Toy Market Batch Runner + Random/Heuristic Baselines.
+
+
+MORE:
+- How do food-spawners reproduce?
+    - (Now fixed: reproduce as NN output)
+- Is Strength (output) tied to anything? Is there any learning or evolutionary pressure on Strength?
+    - Yes. But take a second look and make sure the right incentives are in place.
+
+- How can scarcity affect complexity of the species?
+
+- How do they actually learn? Are the results fed to the RNNs?
+    - Answer: they currently don't
+
+- Take a second look at the inputs
+    - (Done - parameters now mutate and amplitude is now relative)
+- What does health bar do exactly?
+- What do we do when a population dies, or is close to dying? Seeds?
+- Slippage and fees?
+
+- Horizon is fixed - should mutate. Same with spawn threshold. Long and short should have their own spawn thresholds.
+
+LATER:
+
+- HLOA when mutating/birthing to prevent lack of diversity
+- Saved "seeds" to prevent lack of diversity and boost performance for familiar market regimes
+- Sizing, risk, sigma

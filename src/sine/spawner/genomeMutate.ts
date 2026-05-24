@@ -1,65 +1,81 @@
 import { clamp } from "./math";
 import { activeUnits, activeLayerIndexes, allocateInnovationId, choose, cloneGenome, createUnitGene } from "./genomeCommon";
 import { addRandomConnectionTouchingUnit, addRandomLegalConnection, isLegalConnection } from "./genomeConnections";
-import type { InnovationRegistry, SpawnerConfig, SpawnerGenome } from "./types";
+import { driftMutationProfile, sanitizeMutationProfile } from "./mutationProfile";
+import { mutatePerception } from "./perception";
+import type { InnovationRegistry, SpawnerConfig, SpawnerGenome, SpawnerMutationProfile } from "./types";
 import type { SeededRng } from "./rng";
 
 export function mutateGenome(genome: SpawnerGenome, rng: SeededRng, config: SpawnerConfig, innovations: InnovationRegistry): SpawnerGenome {
   const child = cloneGenome(genome);
-  mutateNumericGenes(child, rng, config);
-  if (rng.next() < config.addUnitRate) addRandomUnit(child, rng, config, innovations);
-  if (rng.next() < config.disableUnitRate) setRandomUnitEnabled(child, rng, false);
-  if (rng.next() < config.reenableUnitRate) setRandomUnitEnabled(child, rng, true);
-  if (rng.next() < config.addConnectionRate) addRandomLegalConnection(child, rng, config, innovations);
-  if (rng.next() < config.disableConnectionRate) setRandomConnectionEnabled(child, rng, false);
-  if (rng.next() < config.reenableConnectionRate) setRandomConnectionEnabled(child, rng, true, config);
+  const profile = sanitizeMutationProfile(child.mutationProfile);
+  mutateNumericGenes(child, rng, profile);
+  if (rng.next() < profile.addUnitRate) addRandomUnit(child, rng, config, innovations, profile);
+  if (rng.next() < profile.disableUnitRate) setRandomUnitEnabled(child, rng, false);
+  if (rng.next() < profile.reenableUnitRate) setRandomUnitEnabled(child, rng, true);
+  if (rng.next() < profile.addConnectionRate) {
+    addRandomLegalConnection(child, rng, config, innovations, profile.newConnectionWeightStdDev);
+  }
+  if (rng.next() < profile.disableConnectionRate) setRandomConnectionEnabled(child, rng, false);
+  if (rng.next() < profile.reenableConnectionRate) setRandomConnectionEnabled(child, rng, true, config);
 
-  child.mutationStd = clamp(
-    child.mutationStd + rng.gaussian(0, config.mutationStdDevMutationStdDev),
-    config.mutationStdDevMin,
-    config.mutationStdDevMax,
-  );
   child.thresholdBias = clamp(
-    child.thresholdBias + rng.gaussian(0, config.thresholdBiasMutationStdDev),
+    child.thresholdBias + rng.gaussian(0, profile.thresholdBiasMutationStdDev),
     config.thresholdBiasMin,
     config.thresholdBiasMax,
   );
   const minHorizon = clamp(
-    child.minHorizon + rng.gaussian(0, config.minHorizonMutationStdDev),
-    config.minHorizonClampMin,
-    config.minHorizonClampMax,
+    child.minHorizonTicks + rng.gaussian(0, profile.minHorizonTicksMutationStdDev),
+    config.minHorizonTicksClampMin,
+    config.minHorizonTicksClampMax,
   );
-  child.minHorizon = minHorizon;
-  child.maxHorizon = clamp(
-    Math.max(minHorizon + 0.5, child.maxHorizon + rng.gaussian(0, config.maxHorizonMutationStdDev)),
-    config.maxHorizonClampMin,
-    config.maxHorizonClampMax,
+  child.minHorizonTicks = minHorizon;
+  child.maxHorizonTicks = clamp(
+    Math.max(minHorizon + 1, child.maxHorizonTicks + rng.gaussian(0, profile.maxHorizonTicksMutationStdDev)),
+    config.maxHorizonTicksClampMin,
+    config.maxHorizonTicksClampMax,
   );
-  child.cooldownBase = clamp(
-    child.cooldownBase + rng.gaussian(0, config.cooldownBaseMutationStdDev),
-    config.cooldownBaseClampMin,
-    config.cooldownBaseClampMax,
+  child.cooldownBaseTicks = clamp(
+    child.cooldownBaseTicks + rng.gaussian(0, profile.cooldownBaseTicksMutationStdDev),
+    config.cooldownBaseTicksClampMin,
+    config.cooldownBaseTicksClampMax,
   );
+  child.perception = mutatePerception(child.perception, rng, {
+    rate: profile.perceptionMutationRate,
+    lagStdDev: profile.perceptionLagMutationStdDev,
+    windowStdDev: profile.perceptionWindowMutationStdDev,
+    sensitivityStdDev: profile.perceptionSensitivityMutationStdDev,
+    densityScaleStdDev: profile.perceptionDensityScaleMutationStdDev,
+  });
+  child.mutationProfile = driftMutationProfile(profile, rng);
   return child;
 }
 
-function mutateNumericGenes(genome: SpawnerGenome, rng: SeededRng, config: SpawnerConfig) {
+function mutateNumericGenes(genome: SpawnerGenome, rng: SeededRng, profile: SpawnerMutationProfile) {
   for (const connection of genome.connections) {
-    if (rng.next() > config.weightMutationRate) continue;
+    if (rng.next() > profile.weightMutationRate) continue;
     connection.weight =
-      rng.next() < config.weightReplaceRate
-        ? rng.gaussian(0, config.newConnectionWeightStdDev)
-        : connection.weight + rng.gaussian(0, config.weightMutationStdDev);
+      rng.next() < profile.weightReplaceRate
+        ? rng.gaussian(0, profile.newConnectionWeightStdDev)
+        : connection.weight + rng.gaussian(0, profile.weightMutationStdDev);
   }
   for (const unit of genome.units) {
-    if (rng.next() < config.biasMutationRate) unit.updateBias += rng.gaussian(0, config.biasMutationStdDev);
-    if (rng.next() < config.biasMutationRate) unit.resetBias += rng.gaussian(0, config.biasMutationStdDev);
-    if (rng.next() < config.biasMutationRate) unit.candidateBias += rng.gaussian(0, config.biasMutationStdDev);
+    if (rng.next() < profile.gateBiasMutationRate) unit.updateBias += rng.gaussian(0, profile.gateBiasMutationStdDev);
+    if (rng.next() < profile.gateBiasMutationRate) unit.resetBias += rng.gaussian(0, profile.gateBiasMutationStdDev);
+    if (rng.next() < profile.gateBiasMutationRate) unit.candidateBias += rng.gaussian(0, profile.gateBiasMutationStdDev);
   }
-  genome.outputBias = genome.outputBias.map((bias) => (rng.next() < config.biasMutationRate ? bias + rng.gaussian(0, config.biasMutationStdDev) : bias));
+  genome.outputBias = genome.outputBias.map((bias) =>
+    rng.next() < profile.outputBiasMutationRate ? bias + rng.gaussian(0, profile.outputBiasMutationStdDev) : bias,
+  );
 }
 
-function addRandomUnit(genome: SpawnerGenome, rng: SeededRng, config: SpawnerConfig, innovations: InnovationRegistry) {
+function addRandomUnit(
+  genome: SpawnerGenome,
+  rng: SeededRng,
+  config: SpawnerConfig,
+  innovations: InnovationRegistry,
+  profile: SpawnerMutationProfile,
+) {
   const layers = activeLayerIndexes(genome);
   const maxLayer = layers.at(-1) ?? 0;
   const existingChance = config.newUnitExistingLayerChance;
@@ -72,7 +88,7 @@ function addRandomUnit(genome: SpawnerGenome, rng: SeededRng, config: SpawnerCon
 
   const attempts = Math.max(0, Math.round(config.newUnitInitialConnections));
   for (let index = 0; index < attempts; index += 1) {
-    addRandomConnectionTouchingUnit(genome, unit, rng, config, innovations);
+    addRandomConnectionTouchingUnit(genome, unit, rng, config, innovations, profile.newConnectionWeightStdDev);
   }
 }
 

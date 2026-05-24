@@ -2,8 +2,8 @@
 
 ## Project Structure & Module Organization
 
-- `src/sim/`: Emergent Ant World deterministic simulation core. Keep React, DOM, and persistence out of this layer.
-- `src/client/`, `src/render/`, `src/App.tsx`: Ant World React UI, canvas rendering, batch visualizations, parameter panels, and persistence client.
+- `src/ant/sim/`: Emergent Ant World deterministic simulation core. Keep React, DOM, and persistence out of this layer.
+- `src/ant/client/`, `src/ant/render/`, `src/ant/App.tsx`: Ant World React UI, canvas rendering, batch visualizations, parameter panels, and persistence client.
 - `src/sine/`: standalone Toy Market Simulator frontend and food-spawner RNN/NEAT-like logic. It is intentionally separate from Ant World.
 - `server/`: local HTTP API, SQLite repositories, and worker-thread batch job orchestration.
 - `scripts/runBatch.ts`: headless Ant World batch runner.
@@ -24,7 +24,7 @@
 
 ## Coding Style & Naming Conventions
 
-Use strict TypeScript, two-space indentation, `camelCase` for values/functions, and `PascalCase` for React components and exported types. Prefer domain types in `src/sim/types.ts` and `src/sine/spawner/types.ts`. Centralize tunable defaults and bounds; avoid duplicated slider limits.
+Use strict TypeScript, two-space indentation, `camelCase` for values/functions, and `PascalCase` for React components and exported types. Prefer domain types in `src/ant/sim/types.ts` and `src/sine/spawner/types.ts`. Centralize tunable defaults and bounds; avoid duplicated slider limits.
 
 Keep simulation cores deterministic where practical. UI components should call typed APIs rather than reaching into simulation internals.
 
@@ -48,4 +48,4 @@ Pull requests should include behavior changed, commands run, screenshots for UI 
 
 ## Architecture Notes
 
-Ant World batch runs are server-backed and persisted to SQLite. Toy Market is a separate frontend with its own settings storage, market generator, GRU-like spawner brains, mutation settings, and help content. Avoid coupling the two unless explicitly requested.
+Ant World batch runs are server-backed and persisted to `data/ant-world.sqlite`. Toy Market is a separate frontend with its own settings storage, market generator, GRU-like spawner brains, mutation settings, help content, and `data/toy-market.sqlite` persistence. Avoid coupling the two unless explicitly requested.

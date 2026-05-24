@@ -3,7 +3,7 @@ import {
   advanceBatchSimulation,
   createBatchSimulation,
   summarizeBatchSimulation,
-} from "../src/sim/batch.ts";
+} from "../src/ant/sim/batch.ts";
 
 if (!parentPort) {
   throw new Error("Batch worker must run inside a worker thread");
