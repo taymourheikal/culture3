@@ -18,12 +18,12 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-weight: 850;
+  font-weight: 760;
 }
 
 .sine-button.primary {
-  border-color: rgba(105, 215, 208, 0.45);
-  background: rgba(105, 215, 208, 0.14);
+  border-color: rgb(var(--sine-accent-rgb) / 0.42);
+  background: rgb(var(--sine-accent-rgb) / 0.12);
   color: #d9fffb;
 }
 
@@ -32,9 +32,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: var(--sine-radius);
+  background: var(--sine-bg-soft);
 }
 
 .sine-control-mode-tabs button {
@@ -43,14 +43,14 @@
   padding: 6px 8px;
   border-color: transparent;
   border-radius: 6px;
-  color: #aebfbc;
+  color: var(--sine-text-muted);
   font-size: 0.76rem;
-  font-weight: 850;
+  font-weight: 750;
 }
 
 .sine-control-mode-tabs button.active {
-  border-color: rgba(105, 215, 208, 0.42);
-  background: rgba(105, 215, 208, 0.14);
+  border-color: rgb(var(--sine-accent-rgb) / 0.42);
+  background: rgb(var(--sine-accent-rgb) / 0.12);
   color: #d9fffb;
 }
 
@@ -63,11 +63,11 @@
 .sine-control-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: var(--sine-radius);
+  background: color-mix(in srgb, var(--sine-surface-raised) 72%, transparent);
 }
 
 .sine-control-group-head {
@@ -78,9 +78,9 @@
 }
 
 .sine-control-group-title {
-  color: #f7fbfa;
+  color: var(--sine-text-strong);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 760;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -96,21 +96,21 @@
   flex-direction: column;
   gap: 8px;
   padding: 13px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.055);
-  color: #dce8e5;
+  border-radius: var(--sine-radius);
+  background: var(--sine-surface-muted);
+  color: var(--sine-text);
   font-size: 0.78rem;
-  font-weight: 850;
+  font-weight: 740;
 }
 
 .sine-select-field select,
 .sine-select-field input {
   width: 100%;
   min-height: 36px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--sine-border);
   border-radius: 7px;
-  background: rgba(7, 13, 16, 0.86);
-  color: #f7fbfa;
+  background: var(--sine-bg);
+  color: var(--sine-text-strong);
   font: inherit;
 }
 
@@ -122,14 +122,14 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border-color: rgba(255, 214, 128, 0.28);
-  color: #ffd680;
+  border-color: rgb(var(--sine-amber-rgb) / 0.24);
+  color: var(--sine-amber);
 }
 
 .saved-defaults {
-  color: #9ee6a1;
+  color: var(--sine-positive);
   font-size: 0.72rem;
-  font-weight: 850;
+  font-weight: 740;
 }
 
 .sine-readonly-grid {
@@ -141,16 +141,17 @@
 .sine-slider {
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 13px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.055);
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: var(--sine-radius);
+  background: var(--sine-surface-muted);
 }
 
 .sine-slider div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   gap: 10px;
 }
 
@@ -159,6 +160,8 @@
   min-width: 0;
   align-items: center;
   gap: 5px;
+  line-height: 1.15;
+  white-space: normal;
 }
 
 .sine-help {
@@ -167,7 +170,7 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: #ffd680;
+  color: var(--sine-amber);
   cursor: help;
 }
 
@@ -182,11 +185,11 @@
   right: -4px;
   width: min(260px, calc(100vw - 48px));
   padding: 9px 10px;
-  border: 1px solid rgba(255, 214, 128, 0.28);
-  border-radius: 8px;
-  background: rgba(13, 18, 20, 0.98);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
-  color: #ecf3f1;
+  border: 1px solid rgb(var(--sine-amber-rgb) / 0.28);
+  border-radius: var(--sine-radius);
+  background: var(--sine-surface);
+  box-shadow: var(--sine-shadow);
+  color: var(--sine-text);
   font-size: 0.74rem;
   font-weight: 750;
   line-height: 1.35;
@@ -211,32 +214,36 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
 }
 
 .sine-slider strong {
-  color: #f7fbfa;
+  color: var(--sine-text-strong);
   font-size: 0.9rem;
+  font-weight: 760;
+  line-height: 1.15;
+  text-align: right;
 }
 
 .sine-slider input {
   width: 100%;
-  accent-color: #69d7d0;
+  accent-color: var(--sine-accent);
 }
 
 .sine-slider input[type="number"] {
   width: 88px;
   min-width: 0;
   padding: 6px 7px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--sine-border);
   border-radius: 7px;
-  background: rgba(0, 0, 0, 0.24);
-  color: #f7fbfa;
-  font-weight: 800;
+  background: var(--sine-bg-soft);
+  color: var(--sine-text-strong);
+  font-weight: 760;
   text-align: right;
   accent-color: auto;
 }
 
 .sine-slider input[type="number"]:focus {
-  border-color: rgba(105, 215, 208, 0.65);
+  border-color: rgb(var(--sine-accent-rgb) / 0.62);
   outline: none;
 }

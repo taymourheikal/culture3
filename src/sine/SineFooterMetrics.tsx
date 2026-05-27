@@ -31,6 +31,7 @@ export function SineFooterMetrics({
       <Metric label="Spawners" value={String(stats.spawnerCount)} />
       <Metric label="Food markers" value={`${pendingFoods} pending / ${resolvedFoods} resolved`} />
       <Metric label="Catch-up backlog" value={`${backlogTicks} ticks`} />
+      <Metric label="Brain eval" value={stats.brainEvalMode} />
       <Metric label="Persistence" value={persistenceStatus} />
       <Metric label="Chart packet" value={`${stats.packetSizesKb.chart?.toFixed(1) ?? "0.0"} KB`} />
       <Metric label="Roster packet" value={`${stats.packetSizesKb.roster?.toFixed(1) ?? "0.0"} KB`} />

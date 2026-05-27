@@ -2,7 +2,7 @@ import type { MarketWorkerSessionId, SinePersistencePacket } from "../marketWork
 import type { WaveSettings } from "../marketSignal";
 import type { MarketRuntimeConfig } from "../marketRuntimeConfig";
 import type { MarketSimulationState } from "../simulationRuntime";
-import type { SpawnerConfig, SpawnerEvent, SpawnerUniquenessScore } from "../spawnerSimulation";
+import type { SpawnerAgent, SpawnerConfig, SpawnerEvent, SpawnerUniquenessScore } from "../spawnerSimulation";
 import { buildSinePersistencePacket, type PendingUniquenessSnapshot } from "./buildSinePersistencePacket";
 
 type InFlightPersistence = {
@@ -10,6 +10,7 @@ type InFlightPersistence = {
   packet: SinePersistencePacket;
   eventIds: number[];
   stateTick: number | null;
+  status: SinePersistencePacket["status"];
   initialIncluded: boolean;
   pendingUniquenessCount: number;
   fullUniquenessTick: number | null;
@@ -28,7 +29,9 @@ export function createPersistenceOutbox() {
   let pendingUniquenessSnapshots: PendingUniquenessSnapshot[] = [];
   let lastPersistedStateTick = Number.NEGATIVE_INFINITY;
   let lastPersistedUniquenessTick = Number.NEGATIVE_INFINITY;
+  let pendingStatus: SinePersistencePacket["status"] | null = null;
   let inFlight: InFlightPersistence | null = null;
+  let initialSpawners: SpawnerAgent[] | null = null;
 
   return {
     reset() {
@@ -38,7 +41,13 @@ export function createPersistenceOutbox() {
       pendingUniquenessSnapshots = [];
       lastPersistedStateTick = Number.NEGATIVE_INFINITY;
       lastPersistedUniquenessTick = Number.NEGATIVE_INFINITY;
+      pendingStatus = null;
       inFlight = null;
+      initialSpawners = null;
+    },
+
+    captureInitialSpawners(simulation: MarketSimulationState) {
+      initialSpawners = simulation.world.spawners.map((spawner) => structuredClone(spawner));
     },
 
     enqueueEvent(event: SpawnerEvent) {
@@ -75,15 +84,18 @@ export function createPersistenceOutbox() {
       stateSnapshotIntervalTicks: number;
     }): PersistenceDelivery | null {
       if (inFlight) {
+        if (force || status !== "running" || pendingStatus !== null) pendingStatus = mergePendingStatus(pendingStatus, status);
         if (!inFlight.needsRetry) return null;
         inFlight.needsRetry = false;
         return { id: inFlight.id, packet: inFlight.packet };
       }
 
+      const statusToSend = pendingStatus ?? status;
       const shouldSnapshotState =
         force || simulation.world.tick - lastPersistedStateTick >= stateSnapshotIntervalTicks || pendingInitial;
       const shouldSnapshotUniqueness = lastUniquenessTick > lastPersistedUniquenessTick;
       if (
+        pendingStatus === null &&
         !pendingInitial &&
         pendingEvents.length === 0 &&
         !shouldSnapshotState &&
@@ -94,10 +106,13 @@ export function createPersistenceOutbox() {
       }
 
       const pendingUniquenessCount = pendingUniquenessSnapshots.length;
+      if (pendingInitial && initialSpawners === null) {
+        initialSpawners = simulation.world.spawners.map((spawner) => structuredClone(spawner));
+      }
       const packet = buildSinePersistencePacket({
         sessionId,
         persistentSessionId,
-        status,
+        status: statusToSend,
         simulation,
         settings,
         marketConfig,
@@ -108,6 +123,7 @@ export function createPersistenceOutbox() {
         pendingUniquenessSnapshots,
         uniquenessScores,
         includeFullUniquenessTick: shouldSnapshotUniqueness ? lastUniquenessTick : null,
+        initialSpawners: initialSpawners ?? undefined,
       });
       const id = nextPacketId;
       nextPacketId += 1;
@@ -116,6 +132,7 @@ export function createPersistenceOutbox() {
         packet,
         eventIds: pendingEvents.map((event) => event.id),
         stateTick: shouldSnapshotState ? simulation.world.tick : null,
+        status: statusToSend,
         initialIncluded: pendingInitial,
         pendingUniquenessCount,
         fullUniquenessTick: shouldSnapshotUniqueness ? lastUniquenessTick : null,
@@ -131,6 +148,7 @@ export function createPersistenceOutbox() {
         pendingEvents = pendingEvents.filter((event) => !sentEventIds.has(event.id));
         if (inFlight.stateTick !== null) lastPersistedStateTick = Math.max(lastPersistedStateTick, inFlight.stateTick);
         if (inFlight.initialIncluded) pendingInitial = false;
+        if (pendingStatus === inFlight.status) pendingStatus = null;
         if (inFlight.pendingUniquenessCount > 0) pendingUniquenessSnapshots.splice(0, inFlight.pendingUniquenessCount);
         if (inFlight.fullUniquenessTick !== null) {
           lastPersistedUniquenessTick = Math.max(lastPersistedUniquenessTick, inFlight.fullUniquenessTick);
@@ -142,4 +160,12 @@ export function createPersistenceOutbox() {
       return true;
     },
   };
+}
+
+function mergePendingStatus(
+  current: SinePersistencePacket["status"] | null,
+  next: SinePersistencePacket["status"],
+): SinePersistencePacket["status"] {
+  if (current === "stopped" || next === "stopped") return "stopped";
+  return next;
 }

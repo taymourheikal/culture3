@@ -1,75 +1,252 @@
 import { OUTPUT_COUNT } from "./config";
-import { activeConnections, activeLayerIndexes, activeUnits } from "./genome";
+import { createEffectiveBrainValues, type EffectiveBrainValues, type EffectiveGenomeView } from "./effectiveGenome";
+import { compileBrainPlan, ensureCompiledBrainPlan, type CompiledBrainPlan, type CompiledBrainUnit } from "./brainPlan";
+import { alignedHiddenStateRecord, hiddenArrayToCurrentRecord, hiddenRecordToArray, type HiddenStateArray } from "./brainState";
 import { sigmoid } from "./math";
-import type { ConnectionGene, GateType, HiddenUnitGene, SpawnerAgent } from "./types";
+import type { ConnectionGene, GateType, HiddenUnitGene, SpawnerAgent, SpawnerGenome, SpawnerLearnedState } from "./types";
 
 export function forwardSpawner(spawner: SpawnerAgent, inputs: number[]) {
-  alignHiddenState(spawner);
-  const genome = spawner.genome;
-  const previousState = { ...spawner.hiddenState };
-  const currentState: Record<number, number> = {};
-  const enabledUnits = activeUnits(genome);
-  const unitById = new Map(enabledUnits.map((unit) => [unit.unitId, unit]));
-  const connections = activeConnections(genome);
+  const evaluation = evaluateSpawnerBrain(spawner, inputs);
+  applyBrainEvaluation(spawner, evaluation);
+  return evaluation.outputs;
+}
 
-  for (const layerIndex of activeLayerIndexes(genome)) {
-    const layerUnits = enabledUnits.filter((unit) => unit.layerIndex === layerIndex);
-    for (const unit of layerUnits) {
-      const update = sigmoid(gateSum(unit, "update", connections, inputs, previousState, currentState, unitById));
-      const reset = sigmoid(gateSum(unit, "reset", connections, inputs, previousState, currentState, unitById));
-      const candidate = Math.tanh(gateSum(unit, "candidate", connections, inputs, previousState, currentState, unitById, reset));
-      currentState[unit.unitId] = (1 - update) * (previousState[unit.unitId] ?? 0) + update * candidate;
-    }
-  }
+export type BrainEvaluation = {
+  outputs: number[];
+  previousState: Record<number, number>;
+  currentState: Record<number, number>;
+  activeConnectionIds: number[];
+  connectionActivations: Record<string, { source: number; target: number }>;
+};
 
-  spawner.hiddenState = { ...previousState, ...currentState };
+export type BrainEvaluationOptions = {
+  plan?: CompiledBrainPlan;
+  useCachedPlan?: boolean;
+  includeActivations?: boolean;
+  includePreviousState?: boolean;
+};
+
+export type PureBrainEvaluationInput = {
+  genome: SpawnerGenome;
+  learnedState?: Partial<SpawnerLearnedState>;
+  hiddenState: Record<number, number>;
+  inputs: number[];
+  plan?: CompiledBrainPlan;
+  useCachedPlan?: boolean;
+  includeActivations?: boolean;
+  includePreviousState?: boolean;
+};
+
+export function evaluateSpawnerBrain(
+  spawner: SpawnerAgent,
+  inputs: number[],
+  effectiveGenome?: EffectiveGenomeView,
+  options: BrainEvaluationOptions = {},
+): BrainEvaluation {
   alignHiddenState(spawner);
-  return Array.from({ length: OUTPUT_COUNT }, (_, outputIndex) => {
-    const sum = connections
-      .filter((connection) => connection.target.kind === "output" && connection.target.index === outputIndex)
-      .reduce((total, connection) => total + connection.weight * sourceValue(connection, inputs, previousState, currentState), 0);
-    return sum + (genome.outputBias[outputIndex] ?? 0);
+  const effectiveValues = effectiveGenome ?? createEffectiveBrainValues(spawner.genome, spawner.learnedState, { assumeNormalizedLearnedState: true });
+  return evaluateBrainKernel({
+    genome: effectiveValues.genome,
+    learnedState: spawner.learnedState,
+    hiddenState: spawner.hiddenState,
+    inputs,
+    plan: options.plan,
+    useCachedPlan: options.useCachedPlan,
+    includeActivations: options.includeActivations,
+    includePreviousState: options.includePreviousState,
+    effectiveValues,
   });
 }
 
-export function alignHiddenState(spawner: SpawnerAgent) {
-  const nextState = { ...spawner.hiddenState };
-  for (const unit of spawner.genome.units) {
-    if (!Number.isFinite(nextState[unit.unitId])) nextState[unit.unitId] = 0;
-  }
-  spawner.hiddenState = nextState;
+export function evaluateSpawnerBrainPure({
+  genome,
+  learnedState,
+  hiddenState,
+  inputs,
+  plan,
+  useCachedPlan,
+  includeActivations,
+  includePreviousState,
+}: PureBrainEvaluationInput): BrainEvaluation {
+  return evaluateBrainKernel({
+    genome,
+    learnedState,
+    hiddenState,
+    inputs,
+    plan,
+    useCachedPlan,
+    includeActivations,
+    includePreviousState,
+    effectiveValues: createEffectiveBrainValues(genome, learnedState),
+  });
 }
 
-function gateSum(
+function evaluateBrainKernel({
+  genome,
+  hiddenState,
+  inputs,
+  plan: providedPlan,
+  useCachedPlan,
+  includeActivations = true,
+  includePreviousState = true,
+  effectiveValues,
+}: PureBrainEvaluationInput & { effectiveValues: EffectiveBrainValues }): BrainEvaluation {
+  const connectionActivations: BrainEvaluation["connectionActivations"] | undefined = includeActivations ? {} : undefined;
+  const plan = providedPlan ?? (useCachedPlan === false ? compileBrainPlan(effectiveValues.genome) : ensureCompiledBrainPlan(effectiveValues.genome));
+  const previousArray = hiddenRecordToArray(plan, hiddenState);
+  const currentArray = new Array(plan.unitIds.length).fill(0);
+
+  evaluateHiddenLayers({ plan, inputs, previousState: previousArray, currentState: currentArray, effectiveValues, connectionActivations });
+  const outputs = evaluateOutputs({ plan, inputs, previousState: previousArray, currentState: currentArray, effectiveValues, connectionActivations });
+
+  return {
+    outputs,
+    previousState: includePreviousState ? alignedHiddenState(genome, hiddenState) : {},
+    currentState: hiddenArrayToCurrentRecord(plan, currentArray),
+    activeConnectionIds: includeActivations ? [...plan.activeConnectionIds] : [],
+    connectionActivations: connectionActivations ?? {},
+  };
+}
+
+export function applyBrainEvaluation(spawner: SpawnerAgent, evaluation: BrainEvaluation) {
+  spawner.hiddenState = { ...evaluation.previousState, ...evaluation.currentState };
+  alignHiddenState(spawner);
+}
+
+export function alignHiddenState(spawner: SpawnerAgent) {
+  spawner.hiddenState = alignedHiddenState(spawner.genome, spawner.hiddenState);
+}
+
+export function alignedHiddenState(genome: Pick<SpawnerGenome, "units">, hiddenState: Record<number, number>) {
+  return alignedHiddenStateRecord(genome, hiddenState);
+}
+
+function evaluateHiddenLayers({
+  plan,
+  inputs,
+  previousState,
+  currentState,
+  effectiveValues,
+  connectionActivations,
+}: {
+  plan: CompiledBrainPlan;
+  inputs: number[];
+  previousState: HiddenStateArray;
+  currentState: HiddenStateArray;
+  effectiveValues: EffectiveBrainValues;
+  connectionActivations: BrainEvaluation["connectionActivations"] | undefined;
+}) {
+  for (const layer of plan.layers) {
+    for (const unitPlan of layer.units) evaluateHiddenUnit({ unitPlan, plan, inputs, previousState, currentState, effectiveValues, connectionActivations });
+  }
+}
+
+function evaluateHiddenUnit({
+  unitPlan,
+  plan,
+  inputs,
+  previousState,
+  currentState,
+  effectiveValues,
+  connectionActivations,
+}: {
+  unitPlan: CompiledBrainUnit;
+  plan: CompiledBrainPlan;
+  inputs: number[];
+  previousState: HiddenStateArray;
+  currentState: HiddenStateArray;
+  effectiveValues: EffectiveBrainValues;
+  connectionActivations: BrainEvaluation["connectionActivations"] | undefined;
+}) {
+  const unit = unitPlan.unit;
+  const update = sigmoid(evaluateGateSum(unit, "update", unitPlan.updateInputs, plan, inputs, previousState, currentState, effectiveValues, connectionActivations));
+  const reset = sigmoid(evaluateGateSum(unit, "reset", unitPlan.resetInputs, plan, inputs, previousState, currentState, effectiveValues, connectionActivations));
+  const candidate = Math.tanh(
+    evaluateGateSum(unit, "candidate", unitPlan.candidateInputs, plan, inputs, previousState, currentState, effectiveValues, connectionActivations, reset),
+  );
+  currentState[unitPlan.unitIndex] = (1 - update) * (previousState[unitPlan.unitIndex] ?? 0) + update * candidate;
+}
+
+function evaluateOutputs({
+  plan,
+  inputs,
+  previousState,
+  currentState,
+  effectiveValues,
+  connectionActivations,
+}: {
+  plan: CompiledBrainPlan;
+  inputs: number[];
+  previousState: HiddenStateArray;
+  currentState: HiddenStateArray;
+  effectiveValues: EffectiveBrainValues;
+  connectionActivations: BrainEvaluation["connectionActivations"] | undefined;
+}) {
+  return Array.from({ length: OUTPUT_COUNT }, (_, outputIndex) => {
+    const outputConnections = plan.outputInputs[outputIndex] ?? [];
+    let output = effectiveValues.getOutputBias(outputIndex);
+    for (const connection of outputConnections) {
+      output += effectiveValues.getConnectionWeight(connection) * sourceValue(connection, plan, inputs, previousState, currentState);
+    }
+    if (connectionActivations) {
+      for (const connection of outputConnections) {
+        recordConnectionActivation(connectionActivations, connection, sourceValue(connection, plan, inputs, previousState, currentState), output);
+      }
+    }
+    return output;
+  });
+}
+
+function evaluateGateSum(
   unit: HiddenUnitGene,
   gate: GateType,
   connections: ConnectionGene[],
+  plan: CompiledBrainPlan,
   inputs: number[],
-  previousState: Record<number, number>,
-  currentState: Record<number, number>,
-  unitById: Map<number, HiddenUnitGene>,
+  previousState: HiddenStateArray,
+  currentState: HiddenStateArray,
+  effectiveValues: EffectiveBrainValues,
+  connectionActivations: BrainEvaluation["connectionActivations"] | undefined,
   reset = 1,
 ) {
-  const bias = gate === "update" ? unit.updateBias : gate === "reset" ? unit.resetBias : unit.candidateBias;
-  return connections
-    .filter((connection) => connection.target.kind === "hidden" && connection.target.unitId === unit.unitId && connection.target.gate === gate)
-    .reduce((total, connection) => {
-      const value = sourceValue(connection, inputs, previousState, currentState, unitById);
+  let sum = effectiveValues.getGateBias(unit, gate);
+  for (const connection of connections) {
+    const value = sourceValue(connection, plan, inputs, previousState, currentState);
+    const gatedValue = gate === "candidate" && connection.source.kind === "hidden" && connection.source.mode === "previous" ? value * reset : value;
+    sum += effectiveValues.getConnectionWeight(connection) * gatedValue;
+  }
+  const target = gate === "candidate" ? Math.tanh(sum) : sigmoid(sum);
+  if (connectionActivations) {
+    for (const connection of connections) {
+      const value = sourceValue(connection, plan, inputs, previousState, currentState);
       const gatedValue = gate === "candidate" && connection.source.kind === "hidden" && connection.source.mode === "previous" ? value * reset : value;
-      return total + connection.weight * gatedValue;
-    }, bias);
+      recordConnectionActivation(connectionActivations, connection, gatedValue, target);
+    }
+  }
+  return sum;
+}
+
+function recordConnectionActivation(
+  connectionActivations: BrainEvaluation["connectionActivations"] | undefined,
+  connection: ConnectionGene,
+  source: number,
+  target: number,
+) {
+  if (!connectionActivations) return;
+  connectionActivations[String(connection.innovationId)] = { source, target };
 }
 
 function sourceValue(
   connection: ConnectionGene,
+  plan: CompiledBrainPlan,
   inputs: number[],
-  previousState: Record<number, number>,
-  currentState: Record<number, number>,
-  unitById?: Map<number, HiddenUnitGene>,
+  previousState: HiddenStateArray,
+  currentState: HiddenStateArray,
 ) {
   const source = connection.source;
   if (source.kind === "input") return inputs[source.index] ?? 0;
-  if (source.mode === "previous") return previousState[source.unitId] ?? 0;
-  if (unitById && !unitById.has(source.unitId)) return 0;
-  return currentState[source.unitId] ?? 0;
+  const unitIndex = plan.unitIndexById.get(source.unitId);
+  if (unitIndex === undefined) return 0;
+  if (source.mode === "previous") return previousState[unitIndex] ?? 0;
+  return currentState[unitIndex] ?? 0;
 }

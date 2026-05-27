@@ -1,4 +1,5 @@
 import type { LeanTelemetrySample } from "../marketWorkerProtocol";
+import { downsampleByTick, firstSampleAtOrAfter } from "./seriesWindow";
 
 export const TELEMETRY_SAMPLE_LIMIT = 180;
 
@@ -19,19 +20,15 @@ export function createTelemetryWindow(telemetry: LeanTelemetrySample[], renderTi
     };
   }
 
-  const tickStep = Math.ceil((lastTick - firstTick) / Math.max(1, TELEMETRY_SAMPLE_LIMIT - 1));
-  const samples: LeanTelemetrySample[] = [];
   const byTick = new Map(telemetry.map((sample) => [sample.tick, sample]));
-  const first = telemetry[0];
-  if (first) samples.push(toLeanTelemetry(first));
-
-  for (let tick = firstTickAtOrAfter(firstTick, tickStep); tick < lastTick; tick += tickStep) {
-    const sample = byTick.get(tick) ?? firstSampleAtOrAfter(telemetry, tick);
-    if (sample && samples.at(-1)?.tick !== sample.tick) samples.push(toLeanTelemetry(sample));
-  }
-
-  const last = telemetry.at(-1);
-  if (last && samples.at(-1)?.tick !== last.tick) samples.push(toLeanTelemetry(last));
+  const samples = downsampleByTick({
+    samples: telemetry,
+    firstTick,
+    lastTick,
+    limit: TELEMETRY_SAMPLE_LIMIT,
+    cloneSample: toLeanTelemetry,
+    sampleAtTick: (candidates, tick) => byTick.get(tick) ?? firstSampleAtOrAfter(candidates, tick),
+  });
   return {
     telemetrySamples: samples,
     telemetryStartTick: firstTick,
@@ -47,26 +44,4 @@ function toLeanTelemetry(sample: LeanTelemetrySample): LeanTelemetrySample {
     population: sample.population,
     rollingLoss: sample.rollingLoss,
   };
-}
-
-function firstTickAtOrAfter(tick: number, step: number) {
-  return Math.ceil(tick / step) * step;
-}
-
-function firstSampleAtOrAfter(samples: LeanTelemetrySample[], tick: number) {
-  let low = 0;
-  let high = samples.length - 1;
-  let match: LeanTelemetrySample | undefined;
-  while (low <= high) {
-    const middle = Math.floor((low + high) / 2);
-    const sample = samples[middle];
-    if (!sample) break;
-    if (sample.tick >= tick) {
-      match = sample;
-      high = middle - 1;
-    } else {
-      low = middle + 1;
-    }
-  }
-  return match;
 }

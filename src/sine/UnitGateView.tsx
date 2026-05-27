@@ -1,7 +1,8 @@
 import { ArrowLeft } from "lucide-react";
-import type { ConnectionGene, HiddenUnitGene, SpawnerAgent } from "./spawnerSimulation";
+import { getEffectiveGateBiasDetail, type ConnectionGene, type HiddenUnitGene, type SpawnerAgent } from "./spawnerSimulation";
 import { filteredConnections, sourceLabel, targetLabel } from "./spawnerArchitectureModel";
 import { connectionIsActive, createGenomeIndex } from "./spawner/genome";
+import { connectionRowClass, connectionRowParts } from "./architectureConnectionPresentation";
 
 export function UnitGateView({
   unit,
@@ -56,10 +57,10 @@ export function UnitGateView({
           ))}
         </div>
         <div className="gate-internal-column">
-          <GateNode title="Update gate" value={unit.updateBias} count={incomingByGate.update.length} />
-          <GateNode title="Reset gate" value={unit.resetBias} count={incomingByGate.reset.length} />
-          <GateNode title="Candidate gate" value={unit.candidateBias} count={incomingByGate.candidate.length} />
-          <GateNode title="Hidden state" value={spawner.hiddenState[unit.unitId] ?? 0} count={outgoing.length} />
+          <GateNode title="Update gate" detail={getEffectiveGateBiasDetail(spawner.genome, unit, "update", spawner.learnedState)} count={incomingByGate.update.length} />
+          <GateNode title="Reset gate" detail={getEffectiveGateBiasDetail(spawner.genome, unit, "reset", spawner.learnedState)} count={incomingByGate.reset.length} />
+          <GateNode title="Candidate gate" detail={getEffectiveGateBiasDetail(spawner.genome, unit, "candidate", spawner.learnedState)} count={incomingByGate.candidate.length} />
+          <StateNode title="Hidden state" value={spawner.hiddenState[unit.unitId] ?? 0} count={outgoing.length} />
         </div>
         <div className="gate-source-column">
           {uniqueTargets(outgoing).map((target) => (
@@ -97,24 +98,48 @@ function ConnectionGroup({
       {connections.length === 0 ? (
         <p>No visible connections.</p>
       ) : (
-        connections.map((connection) => (
-          <button
-            type="button"
-            className={`connection-row${selectedId === connection.innovationId ? " selected" : ""}${connection.enabled ? "" : " disabled"}`}
-            key={connection.innovationId}
-            onClick={() => onSelect(connection.innovationId)}
-          >
-            <span>{sourceLabel(connection.source)}</span>
-            <strong>{connection.weight.toFixed(3)}</strong>
-            <span>{targetLabel(connection.target)}</span>
-          </button>
-        ))
+        connections.map((connection) => {
+          const row = connectionRowParts(connection);
+          return (
+            <button
+              type="button"
+              className={connectionRowClass(connection, selectedId === connection.innovationId)}
+              key={connection.innovationId}
+              onClick={() => onSelect(connection.innovationId)}
+            >
+              <span>{row.source}</span>
+              <strong>{row.weight}</strong>
+              <span>{row.target}</span>
+            </button>
+          );
+        })
       )}
     </section>
   );
 }
 
-function GateNode({ title, value, count }: { title: string; value: number; count: number }) {
+function GateNode({
+  title,
+  detail,
+  count,
+}: {
+  title: string;
+  detail: { base: number; learnedDelta: number; effective: number };
+  count: number;
+}) {
+  return (
+    <div className="gate-node">
+      <span>{title}</span>
+      <strong>{detail.effective.toFixed(3)}</strong>
+      <small>
+        base {detail.base.toFixed(3)} · learned {detail.learnedDelta.toFixed(3)}
+      </small>
+      <small>{count} visible links</small>
+    </div>
+  );
+}
+
+function StateNode({ title, value, count }: { title: string; value: number; count: number }) {
   return (
     <div className="gate-node">
       <span>{title}</span>

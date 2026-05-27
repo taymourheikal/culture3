@@ -1,18 +1,16 @@
-import type { ConnectionGene } from "./spawnerSimulation";
-import { sourceLabel, targetLabel } from "./spawnerArchitectureModel";
+import type { ConnectionGene, SpawnerAgent } from "./spawnerSimulation";
+import { connectionDetailRows } from "./architectureConnectionPresentation";
 import { MetricRow } from "./ArchitectureShared";
 
-export function ConnectionDetail({ connection }: { connection: ConnectionGene | null }) {
+export function ConnectionDetail({ connection, spawner }: { connection: ConnectionGene | null; spawner: SpawnerAgent | null }) {
   return (
     <section className="architecture-connection-detail">
       <div className="architecture-panel-title">Selected Connection</div>
       {connection ? (
         <div className="architecture-detail-grid">
-          <MetricRow label="Innovation" value={String(connection.innovationId)} />
-          <MetricRow label="Source" value={sourceLabel(connection.source)} />
-          <MetricRow label="Target" value={targetLabel(connection.target)} />
-          <MetricRow label="Weight" value={connection.weight.toFixed(5)} />
-          <MetricRow label="State" value={connection.enabled ? "enabled" : "disabled"} />
+          {connectionDetailRows(connection, spawner).map((row) => (
+            <MetricRow key={row.label} label={row.label} value={row.value} />
+          ))}
         </div>
       ) : (
         <p>Click any connection line or connection row to inspect its exact weight and metadata.</p>

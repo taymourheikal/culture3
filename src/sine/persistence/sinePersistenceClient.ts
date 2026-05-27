@@ -1,10 +1,5 @@
-import { sineApiUrl } from "../sineApi";
+import { postSineJson } from "../sineApi";
 
 export async function postSineSnapshot(packet: unknown) {
-  const response = await fetch(sineApiUrl("/api/sine/snapshots"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(packet),
-  });
-  if (!response.ok) throw new Error(`Persistence failed: ${response.status}`);
+  await postSineJson("/api/sine/snapshots", packet, { errorMessage: (status) => `Persistence failed: ${status}` });
 }

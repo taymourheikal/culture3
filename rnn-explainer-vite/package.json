@@ -1,0 +1,23 @@
+{
+  "name": "rnn-explainer-vite",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "check": "tsc -b",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
+    "vite": "^8.0.13",
+    "typescript": "^6.0.3",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "playwright": "^1.60.0"
+  },
+  "devDependencies": {}
+}

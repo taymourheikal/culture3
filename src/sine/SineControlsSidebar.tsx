@@ -1,6 +1,7 @@
 import { Pause, Play, RotateCcw, Square } from "lucide-react";
 import type { WaveSettings } from "./marketSignal";
 import type { MarketDataSource, MarketPlaybackSettings, MarketRuntimeConfig } from "./marketRuntimeConfig";
+import type { MarketStatsPacket } from "./marketWorkerProtocol";
 import type { SpawnerConfig } from "./spawnerSimulation";
 import { MarketControlGroups } from "./controls/MarketControlGroups";
 import { SpawnerControlGroups } from "./controls/SpawnerControlGroups";
@@ -9,6 +10,7 @@ export function SineControlsSidebar({
   settings,
   marketConfig,
   spawnerConfig,
+  stats,
   playing,
   runState,
   savedGroup,
@@ -29,6 +31,7 @@ export function SineControlsSidebar({
   settings: WaveSettings;
   marketConfig: MarketRuntimeConfig;
   spawnerConfig: SpawnerConfig;
+  stats?: MarketStatsPacket | null;
   playing: boolean;
   runState: "idle" | "running" | "paused" | "stopped";
   savedGroup: string | null;
@@ -90,6 +93,7 @@ export function SineControlsSidebar({
       ) : (
         <SpawnerControlGroups
           spawnerConfig={spawnerConfig}
+          stats={stats}
           savedGroup={savedGroup}
           setSavedGroup={setSavedGroup}
           updateSpawnerConfig={updateSpawnerConfig}

@@ -12,6 +12,17 @@ function testPersistencePacketBuilderMapsAllRowFamilies() {
   const second = simulation.world.spawners[1];
   assert.ok(parent);
   assert.ok(second);
+  parent.learnedState.connectionDeltas["123"] = 0.5;
+  parent.learnedState.recentLearningSignal = 0.25;
+  parent.learnedState.learningUpdateCount = 2;
+  parent.traceStore.traces["1"] = {
+    id: 1,
+    tick: 1,
+    action: "long",
+    strength: 0.5,
+    activeConnectionIds: [123],
+    connectionActivations: { "123": { source: 1, target: 0 } },
+  };
   const child = structuredClone(parent);
   child.id = 99;
   child.parentSpawnerId = parent.id;
@@ -27,11 +38,14 @@ function testPersistencePacketBuilderMapsAllRowFamilies() {
     horizonTicks: 2,
     entrySignal: 1,
     exitSignal: 1.5,
+    entryPayoffScale: 0.75,
+    payoffScaleWindowTicks: 21,
+    payoffScaleSampleStepTicks: 2,
     payoff: 0.3,
     status: "win",
   };
   const events: SpawnerEvent[] = [
-    { id: 1, kind: "spawn", tick: 1, spawnerId: parent.id, lineageId: parent.lineageId, foodId: food.id, foodSnapshot: food },
+    { id: 1, kind: "spawn", tick: 1, spawnerId: parent.id, lineageId: parent.lineageId, foodId: food.id, foodEvent: food },
     {
       id: 2,
       kind: "resolve",
@@ -41,7 +55,7 @@ function testPersistencePacketBuilderMapsAllRowFamilies() {
       foodId: food.id,
       status: "win",
       payoff: 0.3,
-      foodSnapshot: food,
+      foodEvent: food,
     },
     {
       id: 3,
@@ -82,13 +96,33 @@ function testPersistencePacketBuilderMapsAllRowFamilies() {
   assert.equal(packet.births.length, 3);
   assert.equal(packet.deaths.length, 1);
   assert.equal(packet.foodEvents.length, 2);
+  assert.equal(packet.foodEvents[0]?.food.entryPayoffScale, 0.75);
+  assert.equal(packet.foodEvents[0]?.food.payoffScaleWindowTicks, 21);
+  assert.equal(packet.foodEvents[0]?.food.payoffScaleSampleStepTicks, 2);
   assert.equal(packet.genomeSnapshots.length, 3);
   assert.equal(packet.stateSnapshots.length, simulation.world.spawners.length);
   assert.equal(packet.events.length, events.length);
   assert.equal(packet.marketConfig?.source, "btcusd_5m");
   assert.equal(packet.marketConfig?.playback.rocLengthBars, 50);
   assert.equal(packet.uniquenessSnapshots.filter((snapshot) => snapshot.spawnerId === parent.id).length, 1);
+  const parentUniquenessSnapshot = packet.uniquenessSnapshots.find((snapshot) => snapshot.spawnerId === parent.id);
+  assert.ok(parentUniquenessSnapshot);
+  const originalNearestNeighborIds = [...parentUniquenessSnapshot.nearestNeighborIds];
+  parentUniqueness.nearestNeighborIds.push(999);
+  if (parentUniqueness.mostSimilarFeatures[0]) parentUniqueness.mostSimilarFeatures[0].value += 100;
+  assert.deepEqual(parentUniquenessSnapshot.nearestNeighborIds, originalNearestNeighborIds);
   assert.equal(packet.births.some((birth) => birth.spawner.id === child.id && birth.parentSpawnerId === parent.id), true);
+  assert.deepEqual(packet.births.find((birth) => birth.spawner.id === parent.id)?.spawner.traceStore.traces, {});
+  assert.deepEqual(packet.genomeSnapshots.find((snapshot) => snapshot.spawner.id === parent.id)?.spawner.traceStore.traces, {});
+  assert.deepEqual(packet.deaths[0]?.spawner.traceStore.traces, {});
+  const parentState = packet.stateSnapshots.find((snapshot) => snapshot.spawnerId === parent.id);
+  assert.ok(parentState);
+  assert.equal(parentState.learnedState.connectionDeltas["123"], 0.5);
+  assert.equal(parentState.learnedDeltaNorm, 0.5);
+  assert.equal(parentState.recentLearningSignal, 0.25);
+  assert.equal(parentState.learningUpdateCount, 2);
+  assert.equal(parentState.reproductionLearningCount, 0);
+  assert.equal(parentState.plasticityLearningRateMean, 0.009000000000000001);
 }
 
 export const tests: SineTest[] = [

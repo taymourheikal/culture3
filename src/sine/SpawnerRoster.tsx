@@ -135,6 +135,14 @@ export function SpawnerRoster({
           <Metric label="Topology mutation" value={selectedSpawner.topologyMutationRate.toFixed(3)} />
           <Metric label="Weight mutation" value={selectedSpawner.weightMutationActivity.toFixed(3)} />
           <Metric label="Profile drift" value={selectedSpawner.mutationProfileDrift.toFixed(3)} />
+          <Metric label="Learned delta norm" value={selectedSpawner.learnedDeltaNorm.toFixed(3)} />
+          <Metric label="Recent learning" value={selectedSpawner.recentLearningSignal.toFixed(3)} />
+          <Metric label="Learning updates" value={String(selectedSpawner.learningUpdateCount)} />
+          <Metric label="Repro learning" value={String(selectedSpawner.reproductionLearningCount)} />
+          <Metric label="Learning rate" value={selectedSpawner.plasticityLearningRateMean.toFixed(3)} />
+          <Metric label="Learning decay" value={selectedSpawner.plasticityDecayRate.toFixed(3)} />
+          <Metric label="Max learned delta" value={selectedSpawner.plasticityMaxLearnedDelta.toFixed(2)} />
+          <Metric label="Plasticity drift" value={selectedSpawner.plasticityMutationStdDev.toFixed(3)} />
           <button type="button" className="uniqueness-open-card" onClick={() => openUniqueness(selectedSpawner.id)}>
             <span>{uniquenessLoadingId === selectedSpawner.id ? "Loading uniqueness" : "Uniqueness percentile"}</span>
             <strong>{selectedSpawner.uniqueness !== null ? formatScore(selectedSpawner.uniqueness) : "detail"}</strong>

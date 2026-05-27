@@ -11,7 +11,7 @@ export type SpawnerInputMetadata = {
   description: string;
 };
 
-export const SPAWNER_INPUT_VERSION = "mutable-perception-v1";
+export const SPAWNER_INPUT_VERSION = "population-room-v2";
 
 export const SPAWNER_INPUT_METADATA: SpawnerInputMetadata[] = [
   input(0, "Relative ROC", "Rel. ROC", "market-derived", "Current observed ROC divided by the agent's recent local scale."),
@@ -108,6 +108,7 @@ export const SPAWNER_INPUT_METADATA: SpawnerInputMetadata[] = [
   ),
   input(14, "Energy ratio", "Energy ratio", "agent-state", "Agent energy divided by reproduction energy."),
   input(15, "Health ratio", "Health ratio", "agent-state", "Agent health divided by 100."),
+  input(16, "Population room ratio", "Pop. room", "context-derived", "Living population room divided by max population, where 1 is empty/open and 0 is full."),
 ];
 
 export const INPUT_LABELS = SPAWNER_INPUT_METADATA.map((input) => input.label);

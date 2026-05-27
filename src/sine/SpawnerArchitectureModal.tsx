@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { architectureMetrics, type SpawnerAgent } from "./spawnerSimulation";
+import { architectureMetrics, learnedStateNorm, plasticitySummary, type SpawnerAgent } from "./spawnerSimulation";
 import { ArchitectureGraph } from "./ArchitectureGraph";
 import { UnitGateView } from "./UnitGateView";
 import { ConnectionDetail } from "./ArchitectureConnectionDetail";
@@ -25,6 +25,8 @@ export function SpawnerArchitectureModal({ spawnerId, spawner, loading, modeLabe
   const focusedUnit = focusedUnitId === null || !spawner ? null : spawner.genome.units.find((unit) => unit.unitId === focusedUnitId) ?? null;
   const selectedConnection = spawner?.genome.connections.find((connection) => connection.innovationId === selectedConnectionId) ?? null;
   const metrics = spawner ? architectureMetrics(spawner.genome) : null;
+  const learnedDeltaNorm = spawner ? learnedStateNorm(spawner.learnedState, spawner.genome.plasticityProfile.maxLearnedDelta) : 0;
+  const plasticity = spawner ? plasticitySummary(spawner.genome.plasticityProfile) : null;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -61,6 +63,8 @@ export function SpawnerArchitectureModal({ spawnerId, spawner, loading, modeLabe
               <span>gen {spawner.generation}</span>
               <span>{metrics.activeUnits} units</span>
               <span>{metrics.activeConnections} active links</span>
+              <span>learned {learnedDeltaNorm.toFixed(3)}</span>
+              {plasticity ? <span>lr {plasticity.learningRateMean.toFixed(3)}</span> : null}
               {uniqueness ? <span>unique pct {Math.round(uniqueness.score * 100)}%</span> : null}
             </div>
           ) : null}
@@ -101,7 +105,7 @@ export function SpawnerArchitectureModal({ spawnerId, spawner, loading, modeLabe
               />
             )}
 
-            <ConnectionDetail connection={selectedConnection} />
+            <ConnectionDetail connection={selectedConnection} spawner={spawner} />
           </>
         )}
       </section>

@@ -1,0 +1,36 @@
+import type { WaveSettings } from "../marketSignal";
+import type { MarketRuntimeConfig } from "../marketRuntimeConfig";
+import type { SpawnerConfig } from "../spawnerSimulation";
+import type { BrainEvaluationMode } from "./brainEvalProtocol";
+import type { MarketRunState, MarketWorkerSessionId } from "./workerCommandProtocol";
+
+export type MarketStatsPacket = {
+  sessionId: MarketWorkerSessionId;
+  version: number;
+  playing: boolean;
+  runState: MarketRunState;
+  persistentSessionId: string | null;
+  tick: number;
+  renderTick: number;
+  currentSignal: number;
+  currentNoise: number;
+  backlogTicks: number;
+  spawnerCount: number;
+  populationRoomRatio: number;
+  reproductionCostMultiplier: number;
+  currentReproductionCost: number;
+  currentReproductionEnergyRequirement: number;
+  pendingFoods: number;
+  resolvedFoods: number;
+  totalWins: number;
+  totalLosses: number;
+  brainEvalMode: BrainEvaluationMode;
+  settings: WaveSettings;
+  marketConfig: MarketRuntimeConfig;
+  activeMarketConfig: MarketRuntimeConfig;
+  pendingMarketConfig: MarketRuntimeConfig;
+  spawnerConfig: SpawnerConfig;
+  activeSpawnerConfig: SpawnerConfig;
+  pendingSpawnerConfig: SpawnerConfig;
+  packetSizesKb: Partial<Record<"chart" | "roster" | "stats" | "architecture" | "inspection" | "uniqueness" | "persistence", number>>;
+};

@@ -73,6 +73,16 @@ function testMarketInputResolverCachesIdenticalPerception() {
   assert.equal(resolver.getCacheSize(), 2);
 }
 
+function testMarketInputsGoldenVector() {
+  const values = Array.from({ length: 96 }, (_, tick) => Math.sin(tick / 5) * 1.7 + Math.cos(tick / 11) * 0.35 + (tick % 9) / 30);
+  const inputs = inputsForRocValues(values, 17).map((value) => Number(value.toFixed(6)));
+
+  assert.deepEqual(inputs, [
+    0.091386, 0.53224, 0.307437, -0.269525, -1.512023, 0.31149, 0.109721, 0.624531, -0.115911, -0.395696, 0.629749, 0.119127,
+    0.084175, 0.2125,
+  ]);
+}
+
 function inputsForRocValues(values: number[], pendingFoodCount = 20, perception = defaultPerceptionFromConfig(DEFAULT_SPAWNER_CONFIG)) {
   const timeline = createTimeline(values);
   return buildMarketInputs(timeline, timeline.tick, pendingFoodCount, perception);
@@ -101,4 +111,5 @@ export const tests: SineTest[] = [
   { name: "Market Inputs Stay Finite For Flat History", run: testMarketInputsStayFiniteForFlatHistory },
   { name: "Market Inputs Use Per Agent Perception", run: testMarketInputsUsePerAgentPerception },
   { name: "Market Input Resolver Caches Identical Perception", run: testMarketInputResolverCachesIdenticalPerception },
+  { name: "Market Inputs Golden Vector", run: testMarketInputsGoldenVector },
 ];

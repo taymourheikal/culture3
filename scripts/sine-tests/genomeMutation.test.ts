@@ -50,6 +50,56 @@ function testAddUnitMutationWiresNewUnit() {
   assert.equal(sawNewUnitToOutput, true);
 }
 
+function testAddUnitMutationRequiresIncomingAndOutgoingLinks() {
+  const world = createSpawnerWorld(101, {
+    initialSpawners: 1,
+    initialHiddenUnitsMin: 2,
+    initialHiddenUnitsMax: 2,
+    newUnitInitialConnections: 2,
+    newUnitExistingLayerChance: 0,
+    newUnitNewLayerChance: 1,
+    addUnitRate: 1,
+    addConnectionRate: 0,
+    disableUnitRate: 0,
+    reenableUnitRate: 0,
+    disableConnectionRate: 0,
+    reenableConnectionRate: 0,
+    weightMutationRate: 0,
+    biasMutationRate: 0,
+    thresholdBiasMutationStdDev: 0,
+    minHorizonTicksMutationStdDev: 0,
+    maxHorizonTicksMutationStdDev: 0,
+    cooldownBaseTicksMutationStdDev: 0,
+  });
+  const parent = world.spawners[0];
+  assert(parent);
+
+  for (let seed = 1; seed <= 50; seed += 1) {
+    const child = mutateGenome(parent.genome, new SeededRng(seed), world.config, world.innovations);
+    const newestUnitId = Math.max(...child.units.map((unit) => unit.unitId));
+    const newestUnit = child.units.find((unit) => unit.unitId === newestUnitId);
+    assert(newestUnit);
+    const active = activeConnections(child);
+    const incoming = active.filter((connection) => {
+      if (connection.target.kind !== "hidden" || connection.target.unitId !== newestUnitId) return false;
+      if (connection.source.kind === "input") return true;
+      if (connection.source.kind !== "hidden" || connection.source.mode !== "current") return false;
+      const source = connection.source;
+      return (child.units.find((unit) => unit.unitId === source.unitId)?.layerIndex ?? 0) < newestUnit.layerIndex;
+    });
+    const outgoing = active.filter((connection) => {
+      if (connection.source.kind !== "hidden" || connection.source.unitId !== newestUnitId || connection.source.mode !== "current") return false;
+      if (connection.target.kind === "output") return true;
+      if (connection.target.kind !== "hidden") return false;
+      const target = connection.target;
+      return (child.units.find((unit) => unit.unitId === target.unitId)?.layerIndex ?? 0) > newestUnit.layerIndex;
+    });
+
+    assert(incoming.length >= 1, `seed ${seed} missing required incoming link`);
+    assert(outgoing.length >= 1, `seed ${seed} missing required outgoing link`);
+  }
+}
+
 function testDisableLastActiveUnitIsPrevented() {
   const world = createSpawnerWorld(101, {
     initialSpawners: 1,
@@ -188,12 +238,41 @@ function testGenomeValidationCatchesInvalidPerceptionAndMutationProfile() {
   assert(perceptionResult.errors.some((error) => error.includes("local scale sample step")));
   assert(perceptionResult.errors.some((error) => error.includes("roughness sensitivity")));
 
+  const invalidPayoffProfile = {
+    ...spawner.genome,
+    payoffProfile: {
+      ...spawner.genome.payoffProfile,
+      scaleWindowTicks: Number.NaN,
+      scaleSampleStepTicks: 0,
+    },
+  };
+  const payoffProfileResult = validateGenome(invalidPayoffProfile, world.config);
+  assert.equal(payoffProfileResult.valid, false);
+  assert(payoffProfileResult.errors.some((error) => error.includes("Payoff profile scaleWindowTicks")));
+  assert(payoffProfileResult.errors.some((error) => error.includes("scale sample step")));
+
+  const invalidTradingPolicy = {
+    ...spawner.genome,
+    tradingPolicy: {
+      ...spawner.genome.tradingPolicy,
+      spawnThreshold: Number.NaN,
+      minSignalStrength: 2,
+    },
+  };
+  const tradingPolicyResult = validateGenome(invalidTradingPolicy, world.config);
+  assert.equal(tradingPolicyResult.valid, false);
+  assert(tradingPolicyResult.errors.some((error) => error.includes("Trading policy spawnThreshold")));
+  assert(tradingPolicyResult.errors.some((error) => error.includes("Trading policy minSignalStrength")));
+
   const invalidProfile = {
     ...spawner.genome,
     mutationProfile: {
       ...spawner.genome.mutationProfile,
       addUnitRate: 2,
       weightMutationStdDev: -0.1,
+      payoffScaleMutationRate: 2,
+      tradingPolicyMutationRate: 2,
+      spawnThresholdMutationStdDev: -0.1,
       mutationProfileMutationStdDev: Number.NaN,
     },
   };
@@ -201,11 +280,32 @@ function testGenomeValidationCatchesInvalidPerceptionAndMutationProfile() {
   assert.equal(profileResult.valid, false);
   assert(profileResult.errors.some((error) => error.includes("addUnitRate")));
   assert(profileResult.errors.some((error) => error.includes("weightMutationStdDev")));
+  assert(profileResult.errors.some((error) => error.includes("payoffScaleMutationRate")));
+  assert(profileResult.errors.some((error) => error.includes("tradingPolicyMutationRate")));
+  assert(profileResult.errors.some((error) => error.includes("spawnThresholdMutationStdDev")));
   assert(profileResult.errors.some((error) => error.includes("mutationProfileMutationStdDev")));
+
+  const invalidPlasticity = {
+    ...spawner.genome,
+    plasticityProfile: {
+      ...spawner.genome.plasticityProfile,
+      weightLearningRate: 2,
+      reproductionRewardStrength: 2,
+      maxLearnedDelta: 0,
+      plasticityMutationStdDev: Number.NaN,
+    },
+  };
+  const plasticityResult = validateGenome(invalidPlasticity, world.config);
+  assert.equal(plasticityResult.valid, false);
+  assert(plasticityResult.errors.some((error) => error.includes("weightLearningRate")));
+  assert(plasticityResult.errors.some((error) => error.includes("reproductionRewardStrength")));
+  assert(plasticityResult.errors.some((error) => error.includes("maxLearnedDelta")));
+  assert(plasticityResult.errors.some((error) => error.includes("plasticityMutationStdDev")));
 }
 
 export const tests: SineTest[] = [
   { name: "Add Unit Mutation Wires New Unit", run: testAddUnitMutationWiresNewUnit },
+  { name: "Add Unit Mutation Requires Incoming And Outgoing Links", run: testAddUnitMutationRequiresIncomingAndOutgoingLinks },
   { name: "Disable Last Active Unit Is Prevented", run: testDisableLastActiveUnitIsPrevented },
   { name: "Add Unit After All Disabled Starts At Layer One", run: testAddUnitAfterAllDisabledStartsAtLayerOne },
   { name: "Genome Validation Catches Invalid Topology", run: testGenomeValidationCatchesInvalidTopology },

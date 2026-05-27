@@ -53,11 +53,35 @@ function testFounderTopologyCanConnectNewestInput() {
   assert(spawner);
   assert(
     activeConnections(spawner.genome).some((connection) => connection.source.kind === "input" && connection.source.index === INPUT_COUNT - 1),
-    "founder sparse topology should be able to wire the 16th input",
+    "founder sparse topology should be able to wire the newest input",
   );
 }
 
-function testOldFifteenInputGenomeRemainsForwardCompatible() {
+function testFounderOutputConnectionsFollowConfig() {
+  const configuredConnectionsPerOutput = 3;
+  const world = createSpawnerWorld(101, {
+    initialSpawners: 1,
+    initialHiddenUnitsMin: 8,
+    initialHiddenUnitsMax: 8,
+    initialInputConnectionsPerUnit: 0,
+    initialRecurrentConnectionsPerUnit: 0,
+    initialOutputConnectionsPerOutput: configuredConnectionsPerOutput,
+  });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  const connections = activeConnections(spawner.genome).filter(
+    (connection) => connection.source.kind === "hidden" && connection.source.mode === "current" && connection.target.kind === "output",
+  );
+
+  for (let output = 0; output < OUTPUT_COUNT; output += 1) {
+    assert.equal(
+      connections.filter((connection) => connection.target.kind === "output" && connection.target.index === output).length,
+      configuredConnectionsPerOutput,
+    );
+  }
+}
+
+function testGenomeWithoutNewestInputRemainsForwardCompatible() {
   const world = createSpawnerWorld(101, { initialSpawners: 1 });
   const spawner = world.spawners[0];
   assert(spawner);
@@ -87,6 +111,9 @@ function testConnectionInnovationRegistryReusesIds() {
     maxHorizonTicksMutationStdDev: 0,
     cooldownBaseTicksMutationStdDev: 0,
     perceptionMutationRate: 0,
+    payoffScaleMutationRate: 0,
+    payoffScaleWindowMutationStdDev: 0,
+    payoffScaleSampleStepMutationStdDev: 0,
     mutationProfileMutationStdDev: 0,
   });
   const spawner = world.spawners[0];
@@ -158,6 +185,9 @@ function testReenableConnectionSkipsIllegalConnections() {
     maxHorizonTicksMutationStdDev: 0,
     cooldownBaseTicksMutationStdDev: 0,
     perceptionMutationRate: 0,
+    payoffScaleMutationRate: 0,
+    payoffScaleWindowMutationStdDev: 0,
+    payoffScaleSampleStepMutationStdDev: 0,
     mutationProfileMutationStdDev: 0,
   });
   const spawner = world.spawners[0];
@@ -242,7 +272,8 @@ export const tests: SineTest[] = [
   { name: "Sparse Innovation Ids Are Stable", run: testSparseInnovationIdsAreStable },
   { name: "Founder Unit Innovation Ids Are World Unique", run: testFounderUnitInnovationIdsAreWorldUnique },
   { name: "Founder Topology Can Connect Newest Input", run: testFounderTopologyCanConnectNewestInput },
-  { name: "Old Fifteen Input Genome Remains Forward Compatible", run: testOldFifteenInputGenomeRemainsForwardCompatible },
+  { name: "Founder Output Connections Follow Config", run: testFounderOutputConnectionsFollowConfig },
+  { name: "Genome Without Newest Input Remains Forward Compatible", run: testGenomeWithoutNewestInputRemainsForwardCompatible },
   { name: "Connection Innovation Registry Reuses Ids", run: testConnectionInnovationRegistryReusesIds },
   { name: "Output Connection Legality Rejects Previous Hidden", run: testOutputConnectionLegalityRejectsPreviousHidden },
   { name: "Reenable Connection Skips Illegal Connections", run: testReenableConnectionSkipsIllegalConnections },

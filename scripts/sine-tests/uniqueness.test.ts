@@ -5,6 +5,7 @@ import {
   createSpawnerWorld,
   type SpawnerAgent,
 } from "../../src/sine/spawnerSimulation";
+import { finiteZero, median, percentileRank, populationStdDev } from "../../src/sine/stats";
 import type { SineTest } from "./helpers";
 
 function testFunctionalVectorKeysAreStableAndFinite() {
@@ -15,6 +16,14 @@ function testFunctionalVectorKeysAreStableAndFinite() {
   assert.ok(keys.length > 60);
   assert.equal(new Set(keys).size, keys.length);
   assert.ok(keys.includes("output.reproduce.bias"));
+  assert.ok(keys.includes("payoffProfile.scaleWindowTicks"));
+  assert.ok(keys.includes("payoffProfile.scaleSampleStepTicks"));
+  assert.ok(keys.includes("tradingPolicy.spawnThreshold"));
+  assert.ok(keys.includes("tradingPolicy.minSignalStrength"));
+  assert.ok(keys.includes("mutationProfile.payoffScaleMutationRate"));
+  assert.ok(keys.includes("mutationProfile.tradingPolicyMutationRate"));
+  assert.ok(keys.includes("plasticity.weightLearningRate"));
+  assert.ok(keys.includes("plasticity.plasticityMutationStdDev"));
   for (const vector of vectors) {
     assert.deepEqual(vector.map((feature) => feature.key), keys);
     for (const feature of vector) assert.equal(Number.isFinite(feature.value), true, feature.key);
@@ -28,7 +37,7 @@ function testSingleSpawnerPopulationReturnsZeroScore() {
   assert(spawner);
   const score = scores.get(spawner.id);
   assert(score);
-  assert.equal(score.vectorVersion, "functional-genome-v3");
+  assert.equal(score.vectorVersion, "functional-genome-v8");
   assert.equal(score.score, 0);
   assert.equal(score.rawDistance, 0);
   assert.equal(score.comparisonPopulationSize, 1);
@@ -179,6 +188,83 @@ function testMutationProfileFeatureCanExplainUniqueness() {
   assert.ok(score.mostDissimilarFeatures.some((feature) => feature.key.startsWith("mutationProfile.")));
 }
 
+function testTradingPolicyFeatureCanExplainUniqueness() {
+  const world = createSpawnerWorld(812, { initialSpawners: 1 });
+  const base = world.spawners[0];
+  assert(base);
+  const firstClone = cloneSpawner(base, 2);
+  const secondClone = cloneSpawner(base, 3);
+  const unusual = cloneSpawner(base, 4);
+  unusual.genome.tradingPolicy = {
+    spawnThreshold: 1.2,
+    minSignalStrength: 0.8,
+  };
+  unusual.genome.mutationProfile = {
+    ...unusual.genome.mutationProfile,
+    tradingPolicyMutationRate: 0.9,
+  };
+  world.spawners = [base, firstClone, secondClone, unusual];
+
+  const score = computeSpawnerUniqueness(world.spawners, world.tick, { detailSpawnerId: unusual.id }).get(unusual.id);
+
+  assert(score);
+  assert.ok(score.mostDissimilarFeatures.some((feature) => feature.key.startsWith("tradingPolicy.")));
+}
+
+function testPlasticityProfileFeatureCanExplainUniqueness() {
+  const world = createSpawnerWorld(818, { initialSpawners: 1 });
+  const base = world.spawners[0];
+  assert(base);
+  const firstClone = cloneSpawner(base, 2);
+  const secondClone = cloneSpawner(base, 3);
+  const unusual = cloneSpawner(base, 4);
+  unusual.genome.plasticityProfile = {
+    ...unusual.genome.plasticityProfile,
+    weightLearningRate: 0.9,
+    biasLearningRate: 0.8,
+    plasticityMutationStdDev: 0.7,
+  };
+  world.spawners = [base, firstClone, secondClone, unusual];
+
+  const score = computeSpawnerUniqueness(world.spawners, world.tick, { detailSpawnerId: unusual.id }).get(unusual.id);
+
+  assert(score);
+  assert.ok(score.mostDissimilarFeatures.some((feature) => feature.key.startsWith("plasticity.")));
+}
+
+function testLearnedDeltasAffectLiveUniquenessVector() {
+  const world = createSpawnerWorld(909, { initialSpawners: 1 });
+  const base = world.spawners[0];
+  assert(base);
+  const firstClone = cloneSpawner(base, 2);
+  const secondClone = cloneSpawner(base, 3);
+  const learned = cloneSpawner(base, 4);
+  const connection = learned.genome.connections.find((item) => item.target.kind === "output");
+  assert(connection);
+  learned.learnedState.connectionDeltas[String(connection.innovationId)] = 3;
+  world.spawners = [base, firstClone, secondClone, learned];
+
+  const baseVector = buildFunctionalGenomeVector(base);
+  const learnedVector = buildFunctionalGenomeVector(learned);
+  assert.notDeepEqual(learnedVector.map((feature) => feature.value), baseVector.map((feature) => feature.value));
+
+  const score = computeSpawnerUniqueness(world.spawners, world.tick).get(learned.id);
+  assert(score);
+  assert(score.rawDistance > 0);
+}
+
+function testSharedStatsPreserveSineSemantics() {
+  assert.equal(finiteZero(Number.NaN), 0);
+  assert.equal(finiteZero(Number.POSITIVE_INFINITY), 0);
+  assert.equal(finiteZero(-2), -2);
+  assert.equal(populationStdDev([]), 0);
+  assert.equal(populationStdDev([1, 2, 3]), Math.sqrt(2 / 3));
+  assert.equal(median([]), 0);
+  assert.equal(median([3, Number.NaN, 1]), 1);
+  assert.equal(median([1, 4, 2, 3]), 2.5);
+  assert.equal(percentileRank(2, [1, 2, 2, 4]), 0.5);
+}
+
 function cloneSpawner(spawner: SpawnerAgent, id: number): SpawnerAgent {
   return {
     ...spawner,
@@ -196,8 +282,20 @@ function cloneSpawner(spawner: SpawnerAgent, id: number): SpawnerAgent {
         ...spawner.genome.perception,
         deltaLagPairs: spawner.genome.perception.deltaLagPairs.map((pair) => ({ ...pair })),
       },
+      payoffProfile: { ...spawner.genome.payoffProfile },
+      tradingPolicy: { ...spawner.genome.tradingPolicy },
       mutationProfile: { ...spawner.genome.mutationProfile },
+      plasticityProfile: { ...spawner.genome.plasticityProfile },
     },
+    learnedState: {
+      connectionDeltas: { ...spawner.learnedState.connectionDeltas },
+      outputBiasDeltas: { ...spawner.learnedState.outputBiasDeltas },
+      gateBiasDeltas: { ...spawner.learnedState.gateBiasDeltas },
+      recentLearningSignal: spawner.learnedState.recentLearningSignal,
+      learningUpdateCount: spawner.learnedState.learningUpdateCount,
+      reproductionLearningCount: spawner.learnedState.reproductionLearningCount,
+    },
+    traceStore: { nextTraceId: spawner.traceStore.nextTraceId, traces: structuredClone(spawner.traceStore.traces) },
     hiddenState: { ...spawner.hiddenState },
     recentPayoffs: [...spawner.recentPayoffs],
   };
@@ -213,4 +311,8 @@ export const tests: SineTest[] = [
   { name: "Typical Feature Explanations Prefer Active Dimensions", run: testTypicalFeatureExplanationsPreferActiveDimensions },
   { name: "Perception Feature Can Explain Uniqueness", run: testPerceptionFeatureCanExplainUniqueness },
   { name: "Mutation Profile Feature Can Explain Uniqueness", run: testMutationProfileFeatureCanExplainUniqueness },
+  { name: "Trading Policy Feature Can Explain Uniqueness", run: testTradingPolicyFeatureCanExplainUniqueness },
+  { name: "Plasticity Profile Feature Can Explain Uniqueness", run: testPlasticityProfileFeatureCanExplainUniqueness },
+  { name: "Learned Deltas Affect Live Uniqueness Vector", run: testLearnedDeltasAffectLiveUniquenessVector },
+  { name: "Shared Stats Preserve Sine Semantics", run: testSharedStatsPreserveSineSemantics },
 ];

@@ -1,10 +1,11 @@
-import { Save } from "lucide-react";
 import type { WaveSettings } from "../marketSignal";
 import type { MarketDataSource, MarketPlaybackSettings, MarketRuntimeConfig } from "../marketRuntimeConfig";
 import { isBtcSource, PLAYBACK_SETTING_BOUNDS, sourceLabel } from "../marketRuntimeConfig";
 import { saveMarketSettingsGroup, saveMarketSourceDefault, savePlaybackSettingsGroup } from "../settingsStorage";
 import { CONTROL_GROUPS, type ControlConfig } from "../sineControlGroups";
+import { ControlGroupSection } from "./ControlGroupSection";
 import { ControlSlider } from "./ControlSlider";
+import { NumberControlGroups } from "./NumberControlGroups";
 
 export function MarketControlGroups({
   settings,
@@ -27,22 +28,16 @@ export function MarketControlGroups({
 }) {
   return (
     <div className="sine-parameters-stack">
-      <section className="sine-control-group">
-        <div className="sine-control-group-head">
-          <div className="sine-control-group-title">Data Source</div>
-          <button
-            type="button"
-            className="save-group-button"
-            title="Save data source"
-            onClick={() => {
-              const saved = saveMarketSourceDefault(marketConfig);
-              replaceMarketConfig(saved);
-              setSavedGroup("market:source");
-            }}
-          >
-            <Save size={16} />
-          </button>
-        </div>
+      <ControlGroupSection
+        title="Data Source"
+        saveTitle="Save data source"
+        saved={savedGroup === "market:source"}
+        onSave={() => {
+          const saved = saveMarketSourceDefault(marketConfig);
+          replaceMarketConfig(saved);
+          setSavedGroup("market:source");
+        }}
+      >
         <label className="sine-select-field">
           <span>Source</span>
           <select value={marketConfig.source} onChange={(event) => updateMarketSource(event.target.value as MarketDataSource)}>
@@ -51,25 +46,18 @@ export function MarketControlGroups({
             <option value="btcusd_5m">{sourceLabel("btcusd_5m")}</option>
           </select>
         </label>
-        {savedGroup === "market:source" ? <div className="saved-defaults">Saved defaults</div> : null}
-      </section>
+      </ControlGroupSection>
 
       {isBtcSource(marketConfig.source) ? (
-        <section className="sine-control-group">
-          <div className="sine-control-group-head">
-            <div className="sine-control-group-title">BTC Playback</div>
-            <button
-              type="button"
-              className="save-group-button"
-              title="Save BTC playback"
-              onClick={() => {
-                savePlaybackSettingsGroup(marketConfig.playback, ["rocLengthBars", "startDateTime", "barsPerSecond"]);
-                setSavedGroup("market:playback");
-              }}
-            >
-              <Save size={16} />
-            </button>
-          </div>
+        <ControlGroupSection
+          title="BTC Playback"
+          saveTitle="Save BTC playback"
+          saved={savedGroup === "market:playback"}
+          onSave={() => {
+            savePlaybackSettingsGroup(marketConfig.playback, ["rocLengthBars", "startDateTime", "barsPerSecond"]);
+            setSavedGroup("market:playback");
+          }}
+        >
           <ControlSlider
             label="ROC length"
             value={marketConfig.playback.rocLengthBars}
@@ -96,26 +84,19 @@ export function MarketControlGroups({
             display={`${marketConfig.playback.barsPerSecond} bars/s`}
             onChange={(value) => updatePlaybackSetting("barsPerSecond", value)}
           />
-          {savedGroup === "market:playback" ? <div className="saved-defaults">Saved defaults</div> : null}
-        </section>
+        </ControlGroupSection>
       ) : null}
 
       {!isBtcSource(marketConfig.source) ? (
-        <section className="sine-control-group">
-          <div className="sine-control-group-head">
-            <div className="sine-control-group-title">Generated Playback</div>
-            <button
-              type="button"
-              className="save-group-button"
-              title="Save generated playback"
-              onClick={() => {
-                savePlaybackSettingsGroup(marketConfig.playback, ["generatedTicksPerSecond"]);
-                setSavedGroup("market:generated-playback");
-              }}
-            >
-              <Save size={16} />
-            </button>
-          </div>
+        <ControlGroupSection
+          title="Generated Playback"
+          saveTitle="Save generated playback"
+          saved={savedGroup === "market:generated-playback"}
+          onSave={() => {
+            savePlaybackSettingsGroup(marketConfig.playback, ["generatedTicksPerSecond"]);
+            setSavedGroup("market:generated-playback");
+          }}
+        >
           <ControlSlider
             label="Ticks per second"
             value={marketConfig.playback.generatedTicksPerSecond}
@@ -125,68 +106,28 @@ export function MarketControlGroups({
             display={`${marketConfig.playback.generatedTicksPerSecond} ticks/s`}
             onChange={(value) => updatePlaybackSetting("generatedTicksPerSecond", value)}
           />
-          {savedGroup === "market:generated-playback" ? <div className="saved-defaults">Saved defaults</div> : null}
-        </section>
+        </ControlGroupSection>
       ) : null}
 
       {!isBtcSource(marketConfig.source) &&
-        CONTROL_GROUPS.map((group) => (
-          <section className="sine-control-group" key={group.key}>
-            <div className="sine-control-group-head">
-              <div className="sine-control-group-title">{group.title}</div>
-              <button
-                type="button"
-                className="save-group-button"
-                title={`Save ${group.title}`}
-                onClick={() => {
-                  saveMarketSettingsGroup(
-                    settings,
-                    group.controls.map((control) => control.key),
-                  );
-                  setSavedGroup(`market:${group.key}`);
-                }}
-              >
-                <Save size={16} />
-              </button>
-            </div>
-            <div className="sine-parameter-fields">
-              {group.controls.map((control) => (
-                <ConfiguredControl
-                  key={control.key}
-                  control={control}
-                  settings={settings}
-                  onChange={(key, value) => {
-                    updateSetting(key, value);
-                    if (savedGroup === `market:${group.key}`) setSavedGroup(null);
-                  }}
-                />
-              ))}
-            </div>
-            {savedGroup === `market:${group.key}` ? <div className="saved-defaults">Saved defaults</div> : null}
-          </section>
-        ))}
+        <NumberControlGroups<keyof WaveSettings, ControlConfig>
+          groups={CONTROL_GROUPS}
+          savedGroup={savedGroup}
+          savedPrefix="market"
+          getValue={(key) => settings[key]}
+          getDisplay={(control) => control.display(settings)}
+          onSaveGroup={(group, savedKey) => {
+              saveMarketSettingsGroup(
+                settings,
+                group.controls.map((control) => control.key),
+              );
+              setSavedGroup(savedKey);
+          }}
+          onChange={(_group, key, value, savedKey) => {
+            updateSetting(key, value);
+            if (savedGroup === savedKey) setSavedGroup(null);
+          }}
+        />}
     </div>
-  );
-}
-
-function ConfiguredControl({
-  control,
-  settings,
-  onChange,
-}: {
-  control: ControlConfig;
-  settings: WaveSettings;
-  onChange: (key: keyof WaveSettings, value: number) => void;
-}) {
-  return (
-    <ControlSlider
-      label={control.label}
-      value={settings[control.key]}
-      min={control.min}
-      max={control.max}
-      step={control.step}
-      display={control.display(settings)}
-      onChange={(value) => onChange(control.key, value)}
-    />
   );
 }

@@ -1,5 +1,6 @@
 import type { LeanSelectedUniquenessSample, LeanUniquenessTelemetrySample } from "../marketWorkerProtocol";
-import { clamp, prepareCanvas, tickToX, type ChartBounds } from "./canvas";
+import { clamp, tickToX, type ChartBounds } from "./canvas";
+import { drawChartEmptyMessage, drawFrameGrid, prepareChartFrame } from "./chartFrame";
 import { drawNormalizedLine, drawTickAxis } from "./series";
 
 export function drawUniquenessChart(
@@ -11,52 +12,32 @@ export function drawUniquenessChart(
   rawDistanceMax: number,
   skippedReason?: "population_limit",
 ) {
-  const prepared = prepareCanvas(canvas);
+  const prepared = prepareChartFrame(canvas);
   if (!prepared) return;
 
   const { context, cssWidth, cssHeight } = prepared;
-  const bounds = {
-    left: 54,
-    right: cssWidth - 54,
-    top: 32,
-    bottom: cssHeight - 42,
-  };
-  const chartHeight = bounds.bottom - bounds.top;
+  const { bounds } = prepared;
   const visibleStartTick = startTick <= 20 ? 1 : startTick;
   const visibleEndTick = Math.max(20, endTick);
   const stableRawDistanceMax = Math.max(1, rawDistanceMax);
 
-  context.fillStyle = "#0d1216";
-  context.fillRect(0, 0, cssWidth, cssHeight);
-
-  context.strokeStyle = "rgba(255, 255, 255, 0.08)";
-  context.lineWidth = 1;
-  context.fillStyle = "#8ea19e";
-  context.font = "600 11px Inter, system-ui, sans-serif";
-  context.textBaseline = "middle";
-  for (let index = 0; index <= 4; index += 1) {
-    const y = bounds.top + (chartHeight * index) / 4;
-    context.beginPath();
-    context.moveTo(bounds.left, y);
-    context.lineTo(bounds.right, y);
-    context.stroke();
-
-    const rawDistanceLabel = stableRawDistanceMax - (stableRawDistanceMax * index) / 4;
-    context.textAlign = "right";
-    context.fillText(rawDistanceLabel.toFixed(rawDistanceLabel >= 10 ? 0 : 2), bounds.left - 10, y);
-  }
+  drawFrameGrid({
+    context,
+    bounds,
+    leftLabel: (index) => {
+      const rawDistanceLabel = stableRawDistanceMax - (stableRawDistanceMax * index) / 4;
+      return rawDistanceLabel.toFixed(rawDistanceLabel >= 10 ? 0 : 2);
+    },
+  });
 
   drawTickAxis(context, bounds, visibleStartTick, visibleEndTick);
 
   if (samples.length === 0) {
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillStyle = "#9eb0ad";
-    context.font = "800 13px Inter, system-ui, sans-serif";
-    context.fillText(
+    drawChartEmptyMessage(
+      context,
+      cssWidth,
+      cssHeight,
       skippedReason === "population_limit" ? "Uniqueness paused above population limit" : "Waiting for uniqueness samples",
-      cssWidth / 2,
-      cssHeight / 2,
     );
     context.restore();
     return;

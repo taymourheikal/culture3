@@ -129,6 +129,7 @@ export function SineLabView({ activeView, onViewChange }: { activeView: SineView
 
   const inspectSpawner = (spawnerId: number) => {
     setHistoricalInspection(null);
+    setSelectedSpawnerId(spawnerId);
     setInspectedSpawnerId(spawnerId);
     void requestSpawnerInspection(spawnerId);
   };
@@ -149,6 +150,7 @@ export function SineLabView({ activeView, onViewChange }: { activeView: SineView
           settings={settings}
           marketConfig={marketConfig}
           spawnerConfig={spawnerConfig}
+          stats={stats}
           playing={playing}
           runState={runState}
           savedGroup={savedGroup}
@@ -174,6 +176,7 @@ export function SineLabView({ activeView, onViewChange }: { activeView: SineView
     <main className="sine-shell">
       <section className="sine-stage">
         <SineHeader activeView={activeView} currentSignal={currentSignal} showReadout onViewChange={onViewChange} />
+        {error ? <div className="sine-error-banner">{error}</div> : null}
 
         <SineChartStack
           activeMarketConfig={activeMarketConfig}
@@ -193,7 +196,7 @@ export function SineLabView({ activeView, onViewChange }: { activeView: SineView
           totalWins={stats.totalWins}
           totalLosses={stats.totalLosses}
           visibleFoods={visibleFoods}
-          energyMax={activeSpawnerConfig.reproductionEnergy}
+          energyMax={stats.currentReproductionEnergyRequirement}
           healthMax={activeSpawnerConfig.initialHealth}
           recentDeathEvents={roster.recentDeathEvents}
           selectedSpawner={selectedSpawner}
@@ -225,6 +228,7 @@ export function SineLabView({ activeView, onViewChange }: { activeView: SineView
         settings={settings}
         marketConfig={marketConfig}
         spawnerConfig={spawnerConfig}
+        stats={stats}
         playing={playing}
         runState={runState}
         savedGroup={savedGroup}

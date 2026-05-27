@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { sanitizeParameters } from "../src/ant/sim/parameters.ts";
 import {
   createServerBatchJob,
@@ -18,15 +17,7 @@ import {
   saveBatchSummary,
 } from "./batchRepository.mjs";
 import { saveEvents, getLatestWorld, saveSnapshot } from "./worldRepository.mjs";
-import {
-  deleteSineSession,
-  getSineSessionAnalysis,
-  getSineSpawnerInspection,
-  listSineSessions,
-  saveSinePersistenceBatch,
-  updateSineSessionStatus,
-  upsertSineSession,
-} from "./sineRepository.mjs";
+import { routeSineRequest } from "./sineRoutes.mjs";
 import {
   readLimit,
   sanitizeBatchOptions,
@@ -102,80 +93,7 @@ export async function routeRequest(req, res) {
       return;
     }
 
-    if (req.method === "GET" && url.pathname === "/api/sine/sessions") {
-      sendJson(res, 200, { sessions: listSineSessions(readLimit(url.searchParams.get("limit"))) });
-      return;
-    }
-
-    const sineSessionMatch = url.pathname.match(/^\/api\/sine\/sessions\/([^/]+)$/);
-    if (req.method === "DELETE" && sineSessionMatch) {
-      const sessionId = decodeURIComponent(sineSessionMatch[1]);
-      const result = deleteSineSession(sessionId);
-      sendJson(res, result.ok ? 200 : 404, result.ok ? { ok: true } : { error: "Not found" });
-      return;
-    }
-
-    const sineStatusMatch = url.pathname.match(/^\/api\/sine\/sessions\/([^/]+)\/status$/);
-    if (req.method === "PATCH" && sineStatusMatch) {
-      const sessionId = decodeURIComponent(sineStatusMatch[1]);
-      const payload = JSON.parse(await readBody(req));
-      const result = updateSineSessionStatus(sessionId, String(payload.status ?? ""));
-      if (!result.ok) {
-        sendJson(res, result.error === "Not found" ? 404 : 400, { error: result.error });
-        return;
-      }
-      sendJson(res, 200, result);
-      return;
-    }
-
-    const sineAnalysisMatch = url.pathname.match(/^\/api\/sine\/sessions\/([^/]+)\/analysis$/);
-    if (req.method === "GET" && sineAnalysisMatch) {
-      const sessionId = decodeURIComponent(sineAnalysisMatch[1]);
-      const analysis = getSineSessionAnalysis(sessionId);
-      if (!analysis) {
-        notFound(res);
-        return;
-      }
-      sendJson(res, 200, { ok: true, analysis });
-      return;
-    }
-
-    if (req.method === "POST" && url.pathname === "/api/sine/sessions") {
-      const payload = JSON.parse(await readBody(req));
-      const id = typeof payload.id === "string" && payload.id.trim() ? payload.id.trim() : randomUUID();
-      const session = upsertSineSession({
-        id,
-        settings: payload.settings ?? {},
-        spawnerConfig: payload.spawnerConfig ?? {},
-        status: payload.status ?? "running",
-      });
-      sendJson(res, 200, { ok: true, sessionId: session.id });
-      return;
-    }
-
-    if (req.method === "POST" && (url.pathname === "/api/sine/events" || url.pathname === "/api/sine/snapshots")) {
-      const payload = JSON.parse(await readBody(req));
-      const result = saveSinePersistenceBatch(payload);
-      sendJson(res, 200, result);
-      return;
-    }
-
-    const sineSpawnerMatch = url.pathname.match(/^\/api\/sine\/sessions\/([^/]+)\/spawners\/(\d+)$/);
-    if (req.method === "GET" && sineSpawnerMatch) {
-      const sessionId = decodeURIComponent(sineSpawnerMatch[1]);
-      const spawnerId = Number(sineSpawnerMatch[2]);
-      const tickParam = url.searchParams.get("tick");
-      const tick = tickParam === null || tickParam === "" ? undefined : Number(tickParam);
-      if (tick !== undefined && !Number.isFinite(tick)) {
-        sendJson(res, 400, { error: "Invalid tick" });
-        return;
-      }
-      const payload = getSineSpawnerInspection(sessionId, spawnerId, tick);
-      if (!payload) {
-        notFound(res);
-        return;
-      }
-      sendJson(res, 200, { ok: true, payload });
+    if (await routeSineRequest({ req, res, url, readBody, sendJson, notFound })) {
       return;
     }
 

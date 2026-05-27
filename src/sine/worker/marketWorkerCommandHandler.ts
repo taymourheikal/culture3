@@ -78,5 +78,11 @@ export function dispatchMarketWorkerCommand(
     case "persistenceAck":
       handlers.persistenceAck(command);
       break;
+    default:
+      assertNever(command);
   }
+}
+
+function assertNever(command: never): never {
+  throw new Error(`Unhandled worker command: ${JSON.stringify(command)}`);
 }

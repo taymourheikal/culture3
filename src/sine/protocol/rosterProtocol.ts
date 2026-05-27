@@ -1,0 +1,52 @@
+import type { MarketWorkerSessionId } from "./workerCommandProtocol";
+
+export type RosterSpawnerSummary = {
+  id: number;
+  lineageId: number;
+  generation: number;
+  birthTick: number;
+  cooldownTicks: number;
+  energy: number;
+  health: number;
+  pendingFoodCount: number;
+  hitRate: number;
+  recentAveragePayoff: number;
+  lastAction: "long" | "short" | "wait";
+  spawnedCount: number;
+  resolvedCount: number;
+  children: number;
+  averagePayoff: number;
+  activeUnits: number;
+  activeLayers: number;
+  activeConnections: number;
+  disabledUnits: number;
+  disabledConnections: number;
+  recurrentConnections: number;
+  skipConnections: number;
+  averagePerceptionLag: number;
+  longestPerceptionWindow: number;
+  pendingDensityScale: number;
+  topologyMutationRate: number;
+  weightMutationActivity: number;
+  biasMutationActivity: number;
+  perceptionMutationRate: number;
+  mutationProfileDrift: number;
+  learnedDeltaNorm: number;
+  recentLearningSignal: number;
+  learningUpdateCount: number;
+  reproductionLearningCount: number;
+  plasticityLearningRateMean: number;
+  plasticityDecayRate: number;
+  plasticityMaxLearnedDelta: number;
+  plasticityMutationStdDev: number;
+  uniqueness: number | null;
+  uniquenessComparisonTick: number | null;
+};
+
+export type MarketRosterPacket = {
+  sessionId: MarketWorkerSessionId;
+  version: number;
+  tick: number;
+  spawners: RosterSpawnerSummary[];
+  recentDeathEvents: Array<{ id: number; spawnerId: number }>;
+};

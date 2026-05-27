@@ -1,6 +1,7 @@
 import { activeUnits } from "./genomeCommon";
 import { activeConnections } from "./genomeConnections";
-import type { ConnectionGene, HiddenUnitGene, SpawnerGenome } from "./types";
+import { OUTPUT_COUNT } from "./config";
+import type { ConnectionGene, GateType, HiddenUnitGene, SpawnerGenome } from "./types";
 
 export type GenomeConnectionGroups = {
   inputToHidden: ConnectionGene[];
@@ -21,13 +22,34 @@ export function createGenomeIndex(genome: SpawnerGenome) {
   const activeUnitById = new Map(units.map((unit) => [unit.unitId, unit]));
   const connections = activeConnections(genome);
   const disabledConnections = genome.connections.filter((connection) => !connection.enabled || !connectionIsActive(connection, activeUnitIds));
-  const layerIndexes = [...new Set(units.map((unit) => unit.layerIndex))].sort((left, right) => left - right);
-  const layerCounts = layerIndexes.map((layer) => units.filter((unit) => unit.layerIndex === layer).length);
+  const layerIndexes: number[] = [];
   const unitsByLayer = new Map<number, HiddenUnitGene[]>();
-  for (const layer of layerIndexes) {
-    unitsByLayer.set(layer, units.filter((unit) => unit.layerIndex === layer));
+  for (const unit of units) {
+    if (!unitsByLayer.has(unit.layerIndex)) {
+      unitsByLayer.set(unit.layerIndex, []);
+      layerIndexes.push(unit.layerIndex);
+    }
+    unitsByLayer.get(unit.layerIndex)?.push(unit);
   }
+  layerIndexes.sort((left, right) => left - right);
+  const layerCounts = layerIndexes.map((layer) => unitsByLayer.get(layer)?.length ?? 0);
   const connectionGroups = groupConnections(genome, connections, unitById);
+  const incomingByUnit = new Map<number, ConnectionGene[]>();
+  const outgoingByUnit = new Map<number, ConnectionGene[]>();
+  const hiddenGateInputs = new Map<string, ConnectionGene[]>();
+  const outputInputs = Array.from({ length: OUTPUT_COUNT }, () => [] as ConnectionGene[]);
+
+  for (const connection of connections) {
+    if (connection.source.kind === "hidden") {
+      pushMap(outgoingByUnit, connection.source.unitId, connection);
+    }
+    if (connection.target.kind === "hidden") {
+      pushMap(incomingByUnit, connection.target.unitId, connection);
+      pushMap(hiddenGateInputs, hiddenGateInputKey(connection.target.unitId, connection.target.gate), connection);
+    } else {
+      outputInputs[connection.target.index]?.push(connection);
+    }
+  }
 
   return {
     genome,
@@ -42,9 +64,17 @@ export function createGenomeIndex(genome: SpawnerGenome) {
     layerCounts,
     unitsByLayer,
     connectionGroups,
-    incomingToUnit: (unitId: number) => connections.filter((connection) => connection.target.kind === "hidden" && connection.target.unitId === unitId),
-    outgoingFromUnit: (unitId: number) => connections.filter((connection) => connection.source.kind === "hidden" && connection.source.unitId === unitId),
+    incomingByUnit,
+    outgoingByUnit,
+    hiddenGateInputs,
+    outputInputs,
+    incomingToUnit: (unitId: number) => incomingByUnit.get(unitId) ?? [],
+    outgoingFromUnit: (unitId: number) => outgoingByUnit.get(unitId) ?? [],
   };
+}
+
+export function hiddenGateInputKey(unitId: number, gate: GateType) {
+  return `${unitId}:${gate}`;
 }
 
 export function connectionIsActive(connection: ConnectionGene, activeUnitIds: Set<number>) {
@@ -71,4 +101,10 @@ export function groupConnections(genome: SpawnerGenome, connections: ConnectionG
     return !!source && !!target && target.layerIndex - source.layerIndex > 1;
   });
   return { inputToHidden, recurrent, hiddenCurrentToHidden, hiddenToOutput, inputToOutput, skip };
+}
+
+function pushMap<K, V>(map: Map<K, V[]>, key: K, value: V) {
+  const existing = map.get(key);
+  if (existing) existing.push(value);
+  else map.set(key, [value]);
 }

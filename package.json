@@ -12,6 +12,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "check": "tsc -b",
     "test:sine": "tsx scripts/testSine.ts",
+    "test:sine:smoke": "tsx scripts/sineSmoke.ts",
+    "test:sine:browser-parity": "tsx scripts/sineBrowserParity.ts",
     "sim:batch": "tsx scripts/runBatch.ts",
     "data:btc-bitstamp": "tsx scripts/downloadBitstampBtcusd.ts",
     "db:split": "node scripts/splitDatabases.mjs",

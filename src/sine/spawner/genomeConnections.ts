@@ -4,6 +4,11 @@ import { getOrCreateConnectionInnovationId, sourceKey, targetKey } from "./genom
 import type { ConnectionGene, ConnectionSource, ConnectionTarget, HiddenUnitGene, InnovationRegistry, SpawnerConfig, SpawnerGenome } from "./types";
 import type { SeededRng } from "./rng";
 
+export type LegalConnectionCandidate = {
+  source: ConnectionSource;
+  target: ConnectionTarget;
+};
+
 export function activeConnections(genome: SpawnerGenome) {
   const enabledUnitIds = new Set(activeUnits(genome).map((unit) => unit.unitId));
   return genome.connections.filter(
@@ -45,13 +50,7 @@ export function addRandomLegalConnection(
   innovations: InnovationRegistry,
   weightStdDev = config.newConnectionWeightStdDev,
 ) {
-  const candidates = legalConnectionCandidates(genome, config).filter(
-    (candidate) => !genome.connections.some((connection) => connectionKey(connection) === connectionKey(candidate)),
-  );
-  const candidate = choose(candidates, rng);
-  if (!candidate) return false;
-  addConnectionIfMissing(genome, candidate.source, candidate.target, rng.gaussian(0, weightStdDev), innovations);
-  return true;
+  return addRandomLegalConnectionMatching(genome, rng, config, innovations, () => true, weightStdDev);
 }
 
 export function addRandomConnectionTouchingUnit(
@@ -62,12 +61,29 @@ export function addRandomConnectionTouchingUnit(
   innovations: InnovationRegistry,
   weightStdDev = config.newConnectionWeightStdDev,
 ) {
-  const candidates = legalConnectionCandidatesTouchingUnit(genome, unit, config).filter(
-    (candidate) => !genome.connections.some((connection) => connectionKey(connection) === connectionKey(candidate)),
+  return addRandomLegalConnectionMatching(genome, rng, config, innovations, (candidate) => connectionTouchesUnit(candidate, unit), weightStdDev);
+}
+
+export function addRandomLegalConnectionMatching(
+  genome: SpawnerGenome,
+  rng: SeededRng,
+  config: SpawnerConfig,
+  innovations: InnovationRegistry,
+  matches: (candidate: LegalConnectionCandidate) => boolean,
+  weightStdDev = config.newConnectionWeightStdDev,
+) {
+  const candidates = legalConnectionCandidates(genome, config).filter(
+    (candidate) => matches(candidate) && !genome.connections.some((connection) => connectionKey(connection) === connectionKey(candidate)),
   );
   const candidate = choose(candidates, rng);
   if (!candidate) return false;
   return addConnectionIfMissing(genome, candidate.source, candidate.target, rng.gaussian(0, weightStdDev), innovations);
+}
+
+function connectionTouchesUnit(candidate: LegalConnectionCandidate, unit: HiddenUnitGene) {
+  const sourceTouches = candidate.source.kind === "hidden" && candidate.source.unitId === unit.unitId;
+  const targetTouches = candidate.target.kind === "hidden" && candidate.target.unitId === unit.unitId;
+  return sourceTouches || targetTouches;
 }
 
 export function addConnectionIfMissing(
@@ -90,7 +106,7 @@ export function addConnectionIfMissing(
 }
 
 function legalConnectionCandidates(genome: SpawnerGenome, config: SpawnerConfig) {
-  const candidates: Array<{ source: ConnectionSource; target: ConnectionTarget }> = [];
+  const candidates: LegalConnectionCandidate[] = [];
   const enabledUnits = activeUnits(genome);
   for (const target of enabledUnits) {
     for (let input = 0; input < INPUT_COUNT; input += 1) {
@@ -116,12 +132,4 @@ function legalConnectionCandidates(genome: SpawnerGenome, config: SpawnerConfig)
     }
   }
   return candidates.filter((candidate) => isLegalConnection(genome, candidate.source, candidate.target, config));
-}
-
-function legalConnectionCandidatesTouchingUnit(genome: SpawnerGenome, unit: HiddenUnitGene, config: SpawnerConfig) {
-  return legalConnectionCandidates(genome, config).filter((candidate) => {
-    const sourceTouches = candidate.source.kind === "hidden" && candidate.source.unitId === unit.unitId;
-    const targetTouches = candidate.target.kind === "hidden" && candidate.target.unitId === unit.unitId;
-    return sourceTouches || targetTouches;
-  });
 }

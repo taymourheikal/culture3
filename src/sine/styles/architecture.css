@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(4, 8, 10, 0.72);
+  background: color-mix(in srgb, var(--sine-bg) 76%, transparent);
   backdrop-filter: blur(8px);
 }
 
@@ -17,10 +17,10 @@
   min-height: min(760px, 92vh);
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(105, 215, 208, 0.24);
-  border-radius: 10px;
-  background: #0c1215;
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgb(var(--sine-accent-rgb) / 0.24);
+  border-radius: var(--sine-radius-panel);
+  background: var(--sine-bg-soft);
+  box-shadow: var(--sine-shadow-modal);
 }
 
 .architecture-modal-header {
@@ -29,7 +29,7 @@
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--sine-border);
 }
 
 .architecture-close-button,
@@ -37,9 +37,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-color: rgba(255, 214, 128, 0.32);
-  background: rgba(255, 214, 128, 0.1);
-  color: #fff0cf;
+  border-color: rgb(var(--sine-amber-rgb) / 0.32);
+  background: rgb(var(--sine-amber-rgb) / 0.1);
+  color: color-mix(in srgb, var(--sine-amber) 72%, white);
 }
 
 .architecture-close-button {
@@ -54,12 +54,12 @@
   min-height: 34px;
   padding: 7px 10px;
   border-radius: 7px;
-  font-weight: 850;
+  font-weight: 760;
 }
 
 .architecture-modal h2 {
   margin: 2px 0 0;
-  color: #f7fbfa;
+  color: var(--sine-text-strong);
   font-size: 1.25rem;
 }
 
@@ -73,10 +73,10 @@
 .architecture-header-stats span {
   padding: 5px 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.065);
-  color: #c5d5d2;
+  background: var(--sine-surface-muted);
+  color: var(--sine-text-muted);
   font-size: 0.72rem;
-  font-weight: 850;
+  font-weight: 740;
 }
 
 .architecture-toolbar {
@@ -85,25 +85,25 @@
   gap: 12px;
   align-items: center;
   padding: 10px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--sine-border-subtle);
 }
 
 .architecture-toolbar label {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #b9c9c5;
+  color: var(--sine-text-muted);
   font-size: 0.78rem;
-  font-weight: 850;
+  font-weight: 740;
 }
 
 .architecture-toolbar input[type="number"] {
   width: 76px;
   padding: 5px 7px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--sine-border);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.065);
-  color: #f7fbfa;
+  background: var(--sine-surface-muted);
+  color: var(--sine-text-strong);
 }
 
 .architecture-empty-state {
@@ -111,9 +111,9 @@
   min-height: 360px;
   place-items: center;
   padding: 24px;
-  color: #b9c9c5;
+  color: var(--sine-text-muted);
   font-size: 0.95rem;
-  font-weight: 850;
+  font-weight: 740;
 }
 
 .architecture-body-grid {
@@ -127,9 +127,9 @@
   min-width: 0;
   overflow: auto;
   background:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    rgba(255, 255, 255, 0.025);
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    color-mix(in srgb, var(--sine-surface) 32%, transparent);
   background-size: 28px 28px;
 }
 
@@ -144,36 +144,36 @@
 .architecture-edge text {
   pointer-events: none;
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 760;
   paint-order: stroke;
-  stroke: #0c1215;
+  stroke: var(--sine-bg-soft);
   stroke-width: 3px;
 }
 
 .architecture-edge.selected path {
   stroke-opacity: 1;
-  filter: drop-shadow(0 0 8px rgba(255, 214, 128, 0.42));
+  filter: drop-shadow(0 0 8px rgb(var(--sine-amber-rgb) / 0.42));
 }
 
 .architecture-node rect {
-  fill: rgba(255, 255, 255, 0.07);
-  stroke: rgba(255, 255, 255, 0.16);
+  fill: var(--sine-surface-muted);
+  stroke: var(--sine-border);
   stroke-width: 1;
 }
 
 .architecture-node.input rect {
-  fill: rgba(105, 215, 208, 0.1);
-  stroke: rgba(105, 215, 208, 0.34);
+  fill: rgb(var(--sine-accent-rgb) / 0.1);
+  stroke: rgb(var(--sine-accent-rgb) / 0.34);
 }
 
 .architecture-node.unit rect {
-  fill: rgba(255, 214, 128, 0.11);
-  stroke: rgba(255, 214, 128, 0.38);
+  fill: rgb(var(--sine-amber-rgb) / 0.11);
+  stroke: rgb(var(--sine-amber-rgb) / 0.38);
 }
 
 .architecture-node.output rect {
-  fill: rgba(255, 143, 112, 0.1);
-  stroke: rgba(255, 143, 112, 0.34);
+  fill: rgb(var(--sine-negative-rgb) / 0.1);
+  stroke: rgb(var(--sine-negative-rgb) / 0.34);
 }
 
 .architecture-node.disabled {
@@ -182,15 +182,15 @@
 
 .architecture-node text {
   pointer-events: none;
-  fill: #f7fbfa;
+  fill: var(--sine-text-strong);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 760;
 }
 
 .architecture-node .architecture-node-sub {
-  fill: #aebfbc;
+  fill: var(--sine-text-muted);
   font-size: 8px;
-  font-weight: 800;
+  font-weight: 720;
 }
 
 .architecture-unit-click-target {
@@ -198,7 +198,7 @@
 }
 
 .architecture-unit-click-target:hover rect {
-  stroke: #ffd680;
+  stroke: var(--sine-amber);
   stroke-width: 2;
 }
 
@@ -206,21 +206,21 @@
 .architecture-connection-detail {
   overflow: auto;
   padding: 14px;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.035);
+  border-left: 1px solid var(--sine-border-subtle);
+  background: color-mix(in srgb, var(--sine-surface) 62%, transparent);
 }
 
 .architecture-connection-detail {
   min-height: 100px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--sine-border-subtle);
   border-left: 0;
 }
 
 .architecture-panel-title {
   margin: 16px 0 9px;
-  color: #f7fbfa;
+  color: var(--sine-text-strong);
   font-size: 0.76rem;
-  font-weight: 950;
+  font-weight: 780;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -239,15 +239,15 @@
   justify-content: space-between;
   gap: 12px;
   padding: 7px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  color: #aebfbc;
+  border-bottom: 1px solid var(--sine-border-subtle);
+  color: var(--sine-text-muted);
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 720;
 }
 
 .architecture-metric-row strong {
   min-width: 0;
-  color: #f7fbfa;
+  color: var(--sine-text-strong);
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -260,7 +260,7 @@
 
 .architecture-connection-detail p {
   margin: 0;
-  color: #b9c9c5;
+  color: var(--sine-text-muted);
   font-size: 0.82rem;
   line-height: 1.45;
 }

@@ -15,11 +15,11 @@ export type Summary = {
   lastTelemetry?: number;
 };
 
-export type SineTest = { name: string; run: () => void };
+export type SineTest = { name: string; run: () => void | Promise<void> };
 
-export function runSuite(name: string, tests: SineTest[]) {
+export async function runSuite(name: string, tests: SineTest[]) {
   for (const test of tests) {
-    test.run();
+    await test.run();
     console.log(`PASS ${name}: ${test.name}`);
   }
 }
@@ -52,4 +52,8 @@ export function summarize(endTime: number, seed = 101): Summary {
 
 export function round(value: number) {
   return Number(value.toFixed(6));
+}
+
+export function uniqueTestSessionId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 1_000_000)}`;
 }

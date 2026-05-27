@@ -5,16 +5,17 @@ import {
   mutationProfileDetailGroups,
   perceptionDetailRows,
   summarizeMutationProfile,
+  getEffectiveOutputBiasDetail,
+  tradingPolicyDetailRows,
   type SpawnerAgent,
 } from "./spawnerSimulation";
 import {
-  connectionSummary,
-  isPreviousConnection,
   type ArchitectureGraphModel,
   type GraphConnection,
   type GraphNode,
 } from "./spawnerArchitectureModel";
 import { MetricRow } from "./ArchitectureShared";
+import { graphConnectionStyle } from "./architectureConnectionPresentation";
 
 export function ArchitectureGraph({
   graph,
@@ -30,6 +31,7 @@ export function ArchitectureGraph({
   onSelectConnection: (innovationId: number) => void;
 }) {
   const mutation = summarizeMutationProfile(spawner.genome.mutationProfile);
+  const tradingPolicyRows = tradingPolicyDetailRows(spawner.genome.tradingPolicy);
   const perceptionRows = perceptionDetailRows(spawner.genome.perception);
   const mutationGroups = mutationProfileDetailGroups(spawner.genome.mutationProfile);
 
@@ -76,6 +78,10 @@ export function ArchitectureGraph({
         <MetricRow label="Threshold bias" value={spawner.genome.thresholdBias.toFixed(3)} />
         <MetricRow label="Horizon" value={`${Math.round(spawner.genome.minHorizonTicks)}-${Math.round(spawner.genome.maxHorizonTicks)} ticks`} />
         <MetricRow label="Cooldown base" value={`${Math.round(spawner.genome.cooldownBaseTicks)} ticks`} />
+        <div className="architecture-panel-title">Trading Policy</div>
+        {tradingPolicyRows.map((row) => (
+          <MetricRow key={row.label} label={row.label} value={row.value} />
+        ))}
         <div className="architecture-panel-title">Perception</div>
         {perceptionRows.map((row) => (
           <MetricRow key={row.label} label={row.label} value={row.value} />
@@ -89,9 +95,16 @@ export function ArchitectureGraph({
           </div>
         ))}
         <div className="architecture-panel-title">Output Biases</div>
-        {OUTPUT_LABELS.map((label, index) => (
-          <MetricRow key={label} label={label} value={(spawner.genome.outputBias[index] ?? 0).toFixed(3)} />
-        ))}
+        {OUTPUT_LABELS.map((label, index) => {
+          const detail = getEffectiveOutputBiasDetail(spawner.genome, index, spawner.learnedState);
+          return (
+            <MetricRow
+              key={label}
+              label={label}
+              value={`${detail.effective.toFixed(3)} (base ${detail.base.toFixed(3)}, learned ${detail.learnedDelta.toFixed(3)})`}
+            />
+          );
+        })}
       </aside>
     </div>
   );
@@ -106,24 +119,17 @@ function ArchitectureConnection({
   selected: boolean;
   onSelect: (innovationId: number) => void;
 }) {
-  const color = edge.connection.enabled ? (edge.connection.weight >= 0 ? "#69d7d0" : "#ff8f70") : "#6f7f7b";
-  const marker = edge.connection.enabled
-    ? edge.connection.weight >= 0
-      ? "url(#architecture-arrow-positive)"
-      : "url(#architecture-arrow-negative)"
-    : "url(#architecture-arrow-disabled)";
-  const width = Math.min(6, 1 + Math.abs(edge.connection.weight) * 1.15);
-  const dash = edge.connection.enabled ? (isPreviousConnection(edge.connection) ? "5 4" : undefined) : "3 5";
+  const style = graphConnectionStyle(edge.connection);
   const midX = (edge.from.x + edge.to.x) / 2;
   const d = `M ${edge.from.x + 44} ${edge.from.y} C ${midX} ${edge.from.y}, ${midX} ${edge.to.y}, ${edge.to.x - 44} ${edge.to.y}`;
 
   return (
     <g className={`architecture-edge${selected ? " selected" : ""}`} onClick={() => onSelect(edge.connection.innovationId)}>
-      <path d={d} fill="none" stroke={color} strokeWidth={width} strokeOpacity={edge.connection.enabled ? 0.6 : 0.28} strokeDasharray={dash} markerEnd={marker}>
-        <title>{connectionSummary(edge.connection)}</title>
+      <path d={d} fill="none" stroke={style.color} strokeWidth={style.width} strokeOpacity={style.opacity} strokeDasharray={style.dash} markerEnd={style.marker}>
+        <title>{style.summary}</title>
       </path>
-      <text x={midX} y={(edge.from.y + edge.to.y) / 2 - 4} fill={color}>
-        {edge.connection.weight.toFixed(2)}
+      <text x={midX} y={(edge.from.y + edge.to.y) / 2 - 4} fill={style.color}>
+        {style.label}
       </text>
     </g>
   );

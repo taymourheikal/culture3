@@ -111,6 +111,145 @@
   background: rgba(255, 110, 110, 0.07);
 }
 
+.sine-rnn-explainer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.sine-rnn-explainer-card,
+.sine-architecture-svg-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(105, 215, 208, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.sine-architecture-svg-card {
+  margin-top: 14px;
+}
+
+.sine-rnn-explainer-card p:last-child,
+.sine-architecture-svg-card p:last-child {
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.sine-help-svg {
+  display: block;
+  width: 100%;
+  max-width: 620px;
+  height: auto;
+  margin: 10px auto;
+  overflow: visible;
+}
+
+.sine-help-svg-wide {
+  max-width: 820px;
+}
+
+.sine-help-svg text {
+  fill: #f7fbfa;
+  font-size: 16px;
+  font-weight: 850;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.sine-help-svg rect {
+  stroke-width: 1.4;
+}
+
+.sine-help-svg marker path {
+  fill: currentColor;
+}
+
+.sine-svg-muted rect {
+  fill: rgba(134, 201, 255, 0.1);
+  stroke: rgba(134, 201, 255, 0.34);
+}
+
+.sine-svg-gate rect,
+.sine-svg-unit rect {
+  fill: rgba(255, 214, 128, 0.1);
+  stroke: rgba(255, 214, 128, 0.34);
+}
+
+.sine-svg-unit > rect {
+  fill: rgba(13, 18, 22, 0.7);
+  stroke: rgba(105, 215, 208, 0.2);
+}
+
+.sine-svg-output rect,
+.sine-svg-layer rect {
+  fill: rgba(158, 230, 161, 0.1);
+  stroke: rgba(158, 230, 161, 0.34);
+}
+
+.sine-svg-layer rect:nth-of-type(1) {
+  fill: rgba(134, 201, 255, 0.1);
+  stroke: rgba(134, 201, 255, 0.34);
+}
+
+.sine-svg-layer rect:nth-of-type(2),
+.sine-svg-layer rect:nth-of-type(3) {
+  fill: rgba(255, 214, 128, 0.08);
+  stroke: rgba(255, 214, 128, 0.3);
+}
+
+.sine-svg-edge {
+  color: #9ee6a1;
+}
+
+.sine-svg-edge path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.sine-svg-edge.allowed {
+  color: #9ee6a1;
+}
+
+.sine-svg-edge.reset {
+  color: #ffd680;
+}
+
+.sine-svg-edge.blocked {
+  color: #ffaaaa;
+}
+
+.sine-svg-edge.dashed path {
+  stroke-dasharray: 7 6;
+}
+
+.sine-svg-caption text,
+.sine-svg-legend text,
+.sine-svg-labels text {
+  fill: #c7d6d3;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.sine-svg-legend text {
+  text-anchor: start;
+}
+
+.sine-svg-legend circle {
+  stroke: none;
+}
+
+.sine-svg-legend .allowed-dot {
+  fill: #9ee6a1;
+}
+
+.sine-svg-legend .blocked-dot {
+  fill: #ffaaaa;
+}
+
 .sine-lifecycle {
   display: grid;
   grid-template-columns: minmax(150px, 1fr) 18px minmax(150px, 1fr) 18px minmax(150px, 1fr) 18px minmax(150px, 1fr);

@@ -7,13 +7,18 @@ import {
   createMarketChartPacket,
   createMarketRosterPacket,
   createMarketStatsPacket,
+  createTelemetryWindow,
   createUniquenessTelemetryWindow,
+  TELEMETRY_SAMPLE_LIMIT,
   createSpawnerArchitecturePacket,
   createSpawnerInspectionPacket,
   createSpawnerUniquenessDetailPacket,
   estimatePacketKb,
+  ROSTER_AGENT_LIMIT,
+  selectRosterSpawners,
 } from "../../src/sine/marketWorkerSnapshot";
 import { DEFAULT_SPAWNER_CONFIG, computeSpawnerUniqueness } from "../../src/sine/spawnerSimulation";
+import { downsampleByTick } from "../../src/sine/packets/seriesWindow";
 import { advanceSimulationToTarget, createCandleSimulationState, createSimulationState } from "../../src/sine/simulationRuntime";
 import type { SineTest } from "./helpers";
 
@@ -61,6 +66,10 @@ function testLeanPacketsContainRenderStateWithoutFullSimulation() {
   assert.equal(stats.spawnerConfig.maxSpawners, DEFAULT_SPAWNER_CONFIG.maxSpawners);
   assert.equal(stats.activeSpawnerConfig.maxSpawners, DEFAULT_SPAWNER_CONFIG.maxSpawners);
   assert.equal(stats.pendingSpawnerConfig.maxSpawners, DEFAULT_SPAWNER_CONFIG.maxSpawners);
+  assert.equal(Number.isFinite(stats.populationRoomRatio), true);
+  assert.equal(Number.isFinite(stats.reproductionCostMultiplier), true);
+  assert.equal(Number.isFinite(stats.currentReproductionCost), true);
+  assert.equal(Number.isFinite(stats.currentReproductionEnergyRequirement), true);
 }
 
 function testStatsPacketSeparatesActiveAndPendingSpawnerConfig() {
@@ -83,6 +92,7 @@ function testStatsPacketSeparatesActiveAndPendingSpawnerConfig() {
   assert.equal(stats.activeSpawnerConfig.initialSpawners, 20);
   assert.equal(stats.pendingSpawnerConfig.initialSpawners, 300);
   assert.equal(stats.spawnerCount, 20);
+  assert.equal(stats.populationRoomRatio, 0.75);
 }
 
 function testLeanPacketsAreStructuredCloneSafe() {
@@ -222,6 +232,44 @@ function testTelemetryBoundsUseIntegerTicks() {
   assert.equal(Number.isInteger(packet.telemetryEndTick), true);
 }
 
+function testTelemetryWindowDownsamplingInvariants() {
+  const dense = Array.from({ length: TELEMETRY_SAMPLE_LIMIT + 40 }, (_, index) => ({
+    tick: index + 1,
+    population: 10 + index,
+    rollingLoss: index / 100,
+  }));
+  const sparse = dense.filter((sample) => sample.tick === 1 || sample.tick === dense.at(-1)?.tick || sample.tick % 3 !== 0);
+
+  for (const samples of [dense, sparse]) {
+    const window = createTelemetryWindow(samples, 260);
+    const ticks = window.telemetrySamples.map((sample) => sample.tick);
+
+    assert.equal(ticks[0], samples[0]?.tick);
+    assert.equal(ticks.at(-1), samples.at(-1)?.tick);
+    assert.equal(new Set(ticks).size, ticks.length);
+    assert.ok(window.telemetrySamples.length <= TELEMETRY_SAMPLE_LIMIT + 1);
+    assert.equal(window.telemetryStartTick, samples[0]?.tick);
+    assert.equal(window.telemetryEndTick, 260);
+  }
+}
+
+function testDownsampleByTickHandlesInvalidBounds() {
+  const samples = [
+    { tick: 5, value: "first" },
+    { tick: 9, value: "middle" },
+    { tick: 12, value: "last" },
+  ];
+
+  assert.deepEqual(downsampleByTick({ samples: [], firstTick: 1, lastTick: 10, limit: 2 }), []);
+  assert.deepEqual(downsampleByTick({ samples, firstTick: 1, lastTick: 10, limit: 0 }), []);
+  assert.deepEqual(downsampleByTick({ samples, firstTick: 5, lastTick: 5, limit: 2 }), [samples[0], samples[2]]);
+  assert.deepEqual(downsampleByTick({ samples, firstTick: 12, lastTick: 5, limit: 2 }), [samples[0], samples[2]]);
+  assert.deepEqual(downsampleByTick({ samples, firstTick: Number.NaN, lastTick: 12, limit: 2 }), [samples[0], samples[2]]);
+  assert.deepEqual(downsampleByTick({ samples: [{ tick: 5, value: "only" }], firstTick: 5, lastTick: 5, limit: 2 }), [
+    { tick: 5, value: "only" },
+  ]);
+}
+
 function testRosterIncludesGenerationOneUniquenessWhenAvailable() {
   const simulation = createSimulationState(INITIAL_SETTINGS, DEFAULT_SPAWNER_CONFIG);
   const parent = simulation.world.spawners[0];
@@ -263,6 +311,83 @@ function testRosterPacketIsCappedForLargePopulations() {
   assert.equal(roster.spawners.length, 160);
   assert.equal(roster.spawners.every((spawner) => spawner.uniqueness === null), true);
   assert.equal(roster.spawners.every((spawner) => spawner.uniquenessComparisonTick === null), true);
+}
+
+function testRosterSelectionShowsLaterGenerationsAndSelectedSpawner() {
+  const simulation = createSimulationState(INITIAL_SETTINGS, { ...DEFAULT_SPAWNER_CONFIG, initialSpawners: 250, maxSpawners: 400 });
+  for (let index = 0; index < 150; index += 1) {
+    const parent = simulation.world.spawners[index];
+    assert.ok(parent);
+    const child = structuredClone(parent);
+    child.id = 251 + index;
+    child.parentSpawnerId = parent.id;
+    child.generation = parent.generation + 1;
+    child.birthTick = simulation.world.tick + 1;
+    child.lastAction = index % 3 === 0 ? "long" : "wait";
+    simulation.world.spawners.push(child);
+  }
+  simulation.world.foods.push(
+    {
+      id: 1,
+      creatorSpawnerId: 400,
+      creatorLineageId: 1,
+      spawnTick: 0,
+      resolveTick: 5,
+      direction: "long",
+      strength: 1,
+      horizonTicks: 5,
+      entrySignal: 0,
+      status: "pending",
+    },
+    {
+      id: 2,
+      creatorSpawnerId: 400,
+      creatorLineageId: 1,
+      spawnTick: 0,
+      resolveTick: 5,
+      direction: "short",
+      strength: 1,
+      horizonTicks: 5,
+      entrySignal: 0,
+      status: "pending",
+    },
+    {
+      id: 3,
+      creatorSpawnerId: 400,
+      creatorLineageId: 1,
+      spawnTick: 0,
+      resolveTick: 5,
+      direction: "long",
+      strength: 1,
+      horizonTicks: 5,
+      entrySignal: 0,
+      status: "win",
+    },
+  );
+
+  const selectedSpawnerId = 400;
+  const roster = createMarketRosterPacket({
+    sessionId: 1,
+    simulation,
+    version: 1,
+    uniquenessScores: new Map(),
+    selectedSpawnerId,
+  });
+  const helperIds = selectRosterSpawners({
+    spawners: simulation.world.spawners,
+    foods: simulation.world.foods,
+    selectedSpawnerId,
+  }).map((spawner) => spawner.id);
+  const rosterIds = roster.spawners.map((spawner) => spawner.id);
+
+  assert.equal(simulation.world.spawners.length, 400);
+  assert.equal(roster.spawners.length, ROSTER_AGENT_LIMIT);
+  assert.deepEqual(rosterIds, helperIds);
+  assert.equal(new Set(rosterIds).size, rosterIds.length);
+  assert(roster.spawners.some((spawner) => spawner.generation === 0));
+  assert(roster.spawners.some((spawner) => spawner.generation === 1));
+  assert.ok(roster.spawners.find((spawner) => spawner.id === selectedSpawnerId));
+  assert.equal(roster.spawners.find((spawner) => spawner.id === selectedSpawnerId)?.pendingFoodCount, 2);
 }
 
 function testBtcChartPacketCarriesPriceSamplesOnlyForBtcMode() {
@@ -372,9 +497,12 @@ export const tests: SineTest[] = [
   { name: "Generated Chart Packet Keeps Prospective Samples", run: testGeneratedChartPacketKeepsProspectiveSamples },
   { name: "Telemetry Downsampling Uses Stable Tick Anchors", run: testTelemetryDownsamplingUsesStableTickAnchors },
   { name: "Telemetry Bounds Use Integer Ticks", run: testTelemetryBoundsUseIntegerTicks },
+  { name: "Telemetry Window Downsampling Invariants", run: testTelemetryWindowDownsamplingInvariants },
+  { name: "Downsample By Tick Handles Invalid Bounds", run: testDownsampleByTickHandlesInvalidBounds },
   { name: "Roster Includes Generation One Uniqueness When Available", run: testRosterIncludesGenerationOneUniquenessWhenAvailable },
   { name: "Roster Uniqueness Matches Provided Full Population Scores", run: testRosterUniquenessMatchesProvidedFullPopulationScores },
   { name: "Roster Packet Is Capped For Large Populations", run: testRosterPacketIsCappedForLargePopulations },
+  { name: "Roster Selection Shows Later Generations And Selected Spawner", run: testRosterSelectionShowsLaterGenerationsAndSelectedSpawner },
   { name: "BTC Chart Packet Carries Price Samples Only For BTC Mode", run: testBtcChartPacketCarriesPriceSamplesOnlyForBtcMode },
   { name: "BTC Chart Packet Uses Price Samples Across Visible Window", run: testBtcChartPacketUsesPriceSamplesAcrossVisibleWindow },
   { name: "Spawner Inspection Packet Returns Live Payload", run: testSpawnerInspectionPacketReturnsLivePayload },

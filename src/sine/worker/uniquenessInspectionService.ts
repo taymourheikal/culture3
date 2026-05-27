@@ -2,7 +2,7 @@ import {
   createSpawnerArchitecturePacket,
   createSpawnerInspectionPacket,
   createSpawnerUniquenessDetailPacket,
-  ROSTER_AGENT_LIMIT,
+  selectRosterSpawners,
 } from "../marketWorkerSnapshot";
 import type { MarketWorkerSessionId } from "../marketWorkerProtocol";
 import { computeSpawnerUniqueness, type SpawnerUniquenessScore } from "../spawnerSimulation";
@@ -15,6 +15,13 @@ export type UniquenessComputeResult =
   | { status: "unchanged"; scores: Map<number, SpawnerUniquenessScore> }
   | { status: "computed"; scores: Map<number, SpawnerUniquenessScore> }
   | { status: "skipped"; reason: "population_limit"; scores: Map<number, SpawnerUniquenessScore> };
+
+type EnsureScoresOptions = {
+  force?: boolean;
+  requiredSpawnerIds?: number[];
+  detailSpawnerId?: number;
+  allowIntervalReuse?: boolean;
+};
 
 export function createUniquenessInspectionService({
   onDetailedScore,
@@ -29,51 +36,63 @@ export function createUniquenessInspectionService({
     return simulation.world.spawners.length > simulation.world.config.uniquenessPopulationLimit;
   }
 
-  function computeIfNeeded(simulation: MarketSimulationState, force: boolean) {
+  function ensureScores(simulation: MarketSimulationState, options: EnsureScoresOptions = {}): UniquenessComputeResult {
     if (isAbovePopulationLimit(simulation)) {
       scores = new Map();
       lastTick = simulation.world.tick;
       lastSkippedReason = "population_limit";
       return { status: "skipped", reason: "population_limit", scores } satisfies UniquenessComputeResult;
     }
+
+    const requiredSpawnerIds = options.requiredSpawnerIds ?? [];
+    const requiredScoreMissing = requiredSpawnerIds.some((spawnerId) => !scores.has(spawnerId));
     const shouldRecoverFromSkip = lastSkippedReason !== undefined;
-    if (!force && !shouldRecoverFromSkip && simulation.world.tick - lastTick < UNIQUENESS_INTERVAL_TICKS) {
+    const shouldWaitForInterval = options.allowIntervalReuse === true && simulation.world.tick - lastTick < UNIQUENESS_INTERVAL_TICKS;
+    const canReuse =
+      options.force !== true &&
+      !shouldRecoverFromSkip &&
+      !requiredScoreMissing &&
+      (options.allowIntervalReuse === true ? shouldWaitForInterval : true);
+    if (canReuse) {
       return { status: "unchanged", scores } satisfies UniquenessComputeResult;
     }
-    scores = computeSpawnerUniqueness(simulation.world.spawners, simulation.world.tick);
+
+    scores = computeSpawnerUniqueness(simulation.world.spawners, simulation.world.tick, {
+      detailSpawnerId: options.detailSpawnerId,
+    });
     lastTick = simulation.world.tick;
     lastSkippedReason = undefined;
     return { status: "computed", scores } satisfies UniquenessComputeResult;
   }
 
-  function ensureRosterScores(simulation: MarketSimulationState) {
-    const rosterSpawners = simulation.world.spawners.slice(0, ROSTER_AGENT_LIMIT);
-    if (rosterSpawners.some((spawner) => !scores.has(spawner.id))) {
-      if (isAbovePopulationLimit(simulation)) {
-        scores = new Map();
-        lastSkippedReason = "population_limit";
-      } else {
-        scores = computeSpawnerUniqueness(simulation.world.spawners, simulation.world.tick);
-        lastSkippedReason = undefined;
-      }
-      lastTick = simulation.world.tick;
+  function computeIfNeeded(simulation: MarketSimulationState, force: boolean) {
+    return ensureScores(simulation, { force, allowIntervalReuse: true });
+  }
+
+  function ensureRosterScores(simulation: MarketSimulationState, selectedSpawnerId: number | null = null) {
+    const rosterSpawners = selectRosterSpawners({
+      spawners: simulation.world.spawners,
+      foods: simulation.world.foods,
+      selectedSpawnerId,
+    });
+    ensureScores(simulation, { requiredSpawnerIds: rosterSpawners.map((spawner) => spawner.id) });
+  }
+
+  function ensureSelectedTelemetryScores(simulation: MarketSimulationState, spawnerId: number | null): UniquenessComputeResult {
+    if (spawnerId === null || !simulation.world.spawners.some((spawner) => spawner.id === spawnerId)) {
+      return { status: "unchanged", scores } satisfies UniquenessComputeResult;
     }
+    return ensureScores(simulation, { force: true, requiredSpawnerIds: [spawnerId] });
   }
 
   function computeOnDemand(simulation: MarketSimulationState, spawnerId: number): UniquenessOnDemandResult {
     const target = simulation.world.spawners.find((spawner) => spawner.id === spawnerId);
     if (!target) return { score: null };
-    if (isAbovePopulationLimit(simulation)) {
-      scores = new Map();
-      lastTick = simulation.world.tick;
-      lastSkippedReason = "population_limit";
+    const result = ensureScores(simulation, { force: true, requiredSpawnerIds: [spawnerId], detailSpawnerId: spawnerId });
+    if (result.status === "skipped") {
       return { score: null, skippedReason: "population_limit" };
     }
-    const fullScores = computeSpawnerUniqueness(simulation.world.spawners, simulation.world.tick, { detailSpawnerId: spawnerId });
-    scores = new Map([...scores, ...fullScores]);
-    lastTick = simulation.world.tick;
-    lastSkippedReason = undefined;
-    const score = fullScores.get(spawnerId) ?? null;
+    const score = result.scores.get(spawnerId) ?? null;
     if (score) onDetailedScore(spawnerId, score);
     return { score };
   }
@@ -87,6 +106,7 @@ export function createUniquenessInspectionService({
 
     computeIfNeeded,
     ensureRosterScores,
+    ensureSelectedTelemetryScores,
 
     scores() {
       return scores;

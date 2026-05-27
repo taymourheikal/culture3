@@ -1,21 +1,61 @@
 import { DEFAULT_SPAWNER_CONFIG } from "./spawner/config";
 import { LEGACY_SECONDS_PER_TICK } from "./marketSignal";
 import { SPAWNER_CONFIG_BOUNDS, clampSpawnerValue } from "./spawnerConfigBounds";
+import { loadJsonSetting, saveJsonSetting } from "./jsonStorage";
 import type { SpawnerConfig } from "./spawnerSimulation";
 
 const STORAGE_KEY = "roc-signal-lab.spawner-settings.v1";
 
-export function loadSavedSpawnerConfig(): SpawnerConfig {
-  const storage = browserStorage();
-  if (!storage) return cloneSpawnerConfig();
+const LEGACY_NUMBER_ALIASES: Array<{ legacyKey: string; nextKey: keyof SpawnerConfig }> = [
+  { legacyKey: "metabolism", nextKey: "energyDrainPerTick" },
+  { legacyKey: "spawnThreshold", nextKey: "defaultSpawnThreshold" },
+  { legacyKey: "minSignalStrength", nextKey: "defaultMinSignalStrength" },
+];
 
-  try {
-    const saved = storage.getItem(STORAGE_KEY);
-    if (!saved) return cloneSpawnerConfig();
-    return sanitizeSpawnerConfig({ ...DEFAULT_SPAWNER_CONFIG, ...(JSON.parse(saved) as Partial<SpawnerConfig>) });
-  } catch {
-    return cloneSpawnerConfig();
-  }
+const LEGACY_TICK_ALIASES: Array<{ legacyKey: string; nextKey: keyof SpawnerConfig; round?: boolean }> = [
+  { legacyKey: "foodHistorySeconds", nextKey: "foodHistoryTicks" },
+  { legacyKey: "initialCooldownMax", nextKey: "initialCooldownMaxTicks" },
+  { legacyKey: "cooldownOutputMultiplier", nextKey: "cooldownOutputMultiplierTicks" },
+  { legacyKey: "initialMinHorizonMin", nextKey: "initialMinHorizonTicksMin" },
+  { legacyKey: "initialMinHorizonMax", nextKey: "initialMinHorizonTicksMax" },
+  { legacyKey: "initialMaxHorizonMin", nextKey: "initialMaxHorizonTicksMin" },
+  { legacyKey: "initialMaxHorizonMax", nextKey: "initialMaxHorizonTicksMax" },
+  { legacyKey: "minHorizonMutationStdDev", nextKey: "minHorizonTicksMutationStdDev", round: false },
+  { legacyKey: "maxHorizonMutationStdDev", nextKey: "maxHorizonTicksMutationStdDev", round: false },
+  { legacyKey: "minHorizonClampMin", nextKey: "minHorizonTicksClampMin" },
+  { legacyKey: "minHorizonClampMax", nextKey: "minHorizonTicksClampMax" },
+  { legacyKey: "maxHorizonClampMin", nextKey: "maxHorizonTicksClampMin" },
+  { legacyKey: "maxHorizonClampMax", nextKey: "maxHorizonTicksClampMax" },
+  { legacyKey: "cooldownBaseInitialMin", nextKey: "cooldownBaseTicksInitialMin" },
+  { legacyKey: "cooldownBaseInitialMax", nextKey: "cooldownBaseTicksInitialMax" },
+  { legacyKey: "cooldownBaseMutationStdDev", nextKey: "cooldownBaseTicksMutationStdDev", round: false },
+  { legacyKey: "cooldownBaseClampMin", nextKey: "cooldownBaseTicksClampMin" },
+  { legacyKey: "cooldownBaseClampMax", nextKey: "cooldownBaseTicksClampMax" },
+];
+
+const LEGACY_SECONDS_MODEL_TRIGGERS = ["tickSeconds", "foodHistorySeconds", "initialCooldownMax"];
+const LEGACY_PER_TICK_COST_KEYS: Array<keyof SpawnerConfig> = [
+  "energyDrainPerTick",
+  "brainEnergyCostPerActiveUnit",
+  "brainEnergyCostPerActiveConnection",
+  "brainEnergyCostPerActiveLayer",
+];
+
+const BOUNDED_PAIRS: Array<{ minKey: keyof SpawnerConfig; maxKey: keyof SpawnerConfig; gap: number }> = [
+  { minKey: "initialEnergyMin", maxKey: "initialEnergyMax", gap: 0.1 },
+  { minKey: "initialHiddenUnitsMin", maxKey: "initialHiddenUnitsMax", gap: 1 },
+  { minKey: "initialMinHorizonTicksMin", maxKey: "initialMinHorizonTicksMax", gap: 1 },
+  { minKey: "initialMaxHorizonTicksMin", maxKey: "initialMaxHorizonTicksMax", gap: 1 },
+  { minKey: "minHorizonTicksClampMin", maxKey: "minHorizonTicksClampMax", gap: 1 },
+  { minKey: "maxHorizonTicksClampMin", maxKey: "maxHorizonTicksClampMax", gap: 1 },
+  { minKey: "cooldownBaseTicksInitialMin", maxKey: "cooldownBaseTicksInitialMax", gap: 1 },
+  { minKey: "cooldownBaseTicksClampMin", maxKey: "cooldownBaseTicksClampMax", gap: 1 },
+  { minKey: "thresholdBiasMin", maxKey: "thresholdBiasMax", gap: 0.001 },
+  { minKey: "reproductionCostMinMultiplier", maxKey: "reproductionCostMaxMultiplier", gap: 0 },
+];
+
+export function loadSavedSpawnerConfig(): SpawnerConfig {
+  return loadJsonSetting(STORAGE_KEY, cloneSpawnerConfig, (saved) => sanitizeSpawnerConfig(saved as Partial<SpawnerConfig>));
 }
 
 export function saveSpawnerConfigGroup(config: SpawnerConfig, keys: Array<keyof SpawnerConfig>) {
@@ -25,7 +65,7 @@ export function saveSpawnerConfigGroup(config: SpawnerConfig, keys: Array<keyof 
     next[key] = config[key];
   }
   const sanitized = sanitizeSpawnerConfig(next);
-  browserStorage()?.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+  saveJsonSetting(STORAGE_KEY, sanitized);
   return sanitized;
 }
 
@@ -36,15 +76,7 @@ export function sanitizeSpawnerConfig(config: Partial<SpawnerConfig>): SpawnerCo
     next[key] = sanitizeValue(key, migrated[key]);
   }
 
-  normalizeBoundedPair(next, "initialEnergyMin", "initialEnergyMax", 0.1);
-  normalizeBoundedPair(next, "initialHiddenUnitsMin", "initialHiddenUnitsMax", 1);
-  normalizeBoundedPair(next, "initialMinHorizonTicksMin", "initialMinHorizonTicksMax", 1);
-  normalizeBoundedPair(next, "initialMaxHorizonTicksMin", "initialMaxHorizonTicksMax", 1);
-  normalizeBoundedPair(next, "minHorizonTicksClampMin", "minHorizonTicksClampMax", 1);
-  normalizeBoundedPair(next, "maxHorizonTicksClampMin", "maxHorizonTicksClampMax", 1);
-  normalizeBoundedPair(next, "cooldownBaseTicksInitialMin", "cooldownBaseTicksInitialMax", 1);
-  normalizeBoundedPair(next, "cooldownBaseTicksClampMin", "cooldownBaseTicksClampMax", 1);
-  normalizeBoundedPair(next, "thresholdBiasMin", "thresholdBiasMax", 0.001);
+  for (const pair of BOUNDED_PAIRS) normalizeBoundedPair(next, pair.minKey, pair.maxKey, pair.gap);
   normalizeInitialPopulation(next);
 
   return next;
@@ -52,31 +84,11 @@ export function sanitizeSpawnerConfig(config: Partial<SpawnerConfig>): SpawnerCo
 
 function migrateLegacySpawnerConfig(config: Partial<SpawnerConfig>) {
   const record = { ...(config as Partial<SpawnerConfig> & Record<string, number | undefined>) };
-  copyLegacyNumber(record, "metabolism", "energyDrainPerTick");
-  const legacySecondsModel = record.tickSeconds !== undefined || record.foodHistorySeconds !== undefined || record.initialCooldownMax !== undefined;
-  copyLegacyTicks(record, "foodHistorySeconds", "foodHistoryTicks");
-  copyLegacyTicks(record, "initialCooldownMax", "initialCooldownMaxTicks");
-  copyLegacyTicks(record, "cooldownOutputMultiplier", "cooldownOutputMultiplierTicks");
-  copyLegacyTicks(record, "initialMinHorizonMin", "initialMinHorizonTicksMin");
-  copyLegacyTicks(record, "initialMinHorizonMax", "initialMinHorizonTicksMax");
-  copyLegacyTicks(record, "initialMaxHorizonMin", "initialMaxHorizonTicksMin");
-  copyLegacyTicks(record, "initialMaxHorizonMax", "initialMaxHorizonTicksMax");
-  copyLegacyTicks(record, "minHorizonMutationStdDev", "minHorizonTicksMutationStdDev", false);
-  copyLegacyTicks(record, "maxHorizonMutationStdDev", "maxHorizonTicksMutationStdDev", false);
-  copyLegacyTicks(record, "minHorizonClampMin", "minHorizonTicksClampMin");
-  copyLegacyTicks(record, "minHorizonClampMax", "minHorizonTicksClampMax");
-  copyLegacyTicks(record, "maxHorizonClampMin", "maxHorizonTicksClampMin");
-  copyLegacyTicks(record, "maxHorizonClampMax", "maxHorizonTicksClampMax");
-  copyLegacyTicks(record, "cooldownBaseInitialMin", "cooldownBaseTicksInitialMin");
-  copyLegacyTicks(record, "cooldownBaseInitialMax", "cooldownBaseTicksInitialMax");
-  copyLegacyTicks(record, "cooldownBaseMutationStdDev", "cooldownBaseTicksMutationStdDev", false);
-  copyLegacyTicks(record, "cooldownBaseClampMin", "cooldownBaseTicksClampMin");
-  copyLegacyTicks(record, "cooldownBaseClampMax", "cooldownBaseTicksClampMax");
+  for (const alias of LEGACY_NUMBER_ALIASES) copyLegacyNumber(record, alias.legacyKey, alias.nextKey);
+  const legacySecondsModel = LEGACY_SECONDS_MODEL_TRIGGERS.some((key) => record[key] !== undefined);
+  for (const alias of LEGACY_TICK_ALIASES) copyLegacyTicks(record, alias.legacyKey, alias.nextKey, alias.round ?? true);
   if (legacySecondsModel) {
-    copyLegacyPerTickCost(record, "energyDrainPerTick");
-    copyLegacyPerTickCost(record, "brainEnergyCostPerActiveUnit");
-    copyLegacyPerTickCost(record, "brainEnergyCostPerActiveConnection");
-    copyLegacyPerTickCost(record, "brainEnergyCostPerActiveLayer");
+    for (const key of LEGACY_PER_TICK_COST_KEYS) copyLegacyPerTickCost(record, key);
   }
   return record;
 }
@@ -140,13 +152,4 @@ function normalizeInitialPopulation(config: SpawnerConfig) {
 
   config.initialSpawners = Math.round(config.initialSpawners);
   config.maxSpawners = Math.round(config.maxSpawners);
-}
-
-type BrowserStorage = {
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => void;
-};
-
-function browserStorage(): BrowserStorage | null {
-  return (globalThis as { localStorage?: BrowserStorage }).localStorage ?? null;
 }

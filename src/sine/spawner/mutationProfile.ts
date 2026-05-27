@@ -1,5 +1,5 @@
-import { clamp } from "./math";
 import type { SeededRng } from "./rng";
+import { finiteOr, sanitizeProbability, sanitizeStdDev } from "./sanitize";
 import type { SpawnerConfig, SpawnerMutationProfile } from "./types";
 
 const STDDEV_SAFETY_MAX = 10;
@@ -25,6 +25,12 @@ export function defaultMutationProfileFromConfig(config: SpawnerConfig): Spawner
     perceptionWindowMutationStdDev: config.perceptionWindowMutationStdDev,
     perceptionSensitivityMutationStdDev: config.perceptionSensitivityMutationStdDev,
     perceptionDensityScaleMutationStdDev: config.perceptionDensityScaleMutationStdDev,
+    payoffScaleMutationRate: config.payoffScaleMutationRate,
+    payoffScaleWindowMutationStdDev: config.payoffScaleWindowMutationStdDev,
+    payoffScaleSampleStepMutationStdDev: config.payoffScaleSampleStepMutationStdDev,
+    tradingPolicyMutationRate: config.tradingPolicyMutationRate,
+    spawnThresholdMutationStdDev: config.spawnThresholdMutationStdDev,
+    minSignalStrengthMutationStdDev: config.minSignalStrengthMutationStdDev,
     thresholdBiasMutationStdDev: config.thresholdBiasMutationStdDev,
     minHorizonTicksMutationStdDev: config.minHorizonTicksMutationStdDev,
     maxHorizonTicksMutationStdDev: config.maxHorizonTicksMutationStdDev,
@@ -54,6 +60,12 @@ export function sanitizeMutationProfile(profile: Partial<SpawnerMutationProfile>
     perceptionWindowMutationStdDev: stddev(profile?.perceptionWindowMutationStdDev, 4),
     perceptionSensitivityMutationStdDev: stddev(profile?.perceptionSensitivityMutationStdDev, 0.002),
     perceptionDensityScaleMutationStdDev: stddev(profile?.perceptionDensityScaleMutationStdDev, 4),
+    payoffScaleMutationRate: probability(profile?.payoffScaleMutationRate, 0.08),
+    payoffScaleWindowMutationStdDev: stddev(profile?.payoffScaleWindowMutationStdDev, 4),
+    payoffScaleSampleStepMutationStdDev: stddev(profile?.payoffScaleSampleStepMutationStdDev, 4),
+    tradingPolicyMutationRate: probability(profile?.tradingPolicyMutationRate, 0.08),
+    spawnThresholdMutationStdDev: stddev(profile?.spawnThresholdMutationStdDev, 0.025),
+    minSignalStrengthMutationStdDev: stddev(profile?.minSignalStrengthMutationStdDev, 0.025),
     thresholdBiasMutationStdDev: stddev(profile?.thresholdBiasMutationStdDev, 0.015),
     minHorizonTicksMutationStdDev: stddev(profile?.minHorizonTicksMutationStdDev, 0.67),
     maxHorizonTicksMutationStdDev: stddev(profile?.maxHorizonTicksMutationStdDev, 1.56),
@@ -85,6 +97,12 @@ export function driftMutationProfile(profile: SpawnerMutationProfile, rng: Seede
     perceptionWindowMutationStdDev: mutate(current.perceptionWindowMutationStdDev, drift, rng),
     perceptionSensitivityMutationStdDev: mutate(current.perceptionSensitivityMutationStdDev, drift, rng),
     perceptionDensityScaleMutationStdDev: mutate(current.perceptionDensityScaleMutationStdDev, drift, rng),
+    payoffScaleMutationRate: mutate(current.payoffScaleMutationRate, drift, rng),
+    payoffScaleWindowMutationStdDev: mutate(current.payoffScaleWindowMutationStdDev, drift, rng),
+    payoffScaleSampleStepMutationStdDev: mutate(current.payoffScaleSampleStepMutationStdDev, drift, rng),
+    tradingPolicyMutationRate: mutate(current.tradingPolicyMutationRate, drift, rng),
+    spawnThresholdMutationStdDev: mutate(current.spawnThresholdMutationStdDev, drift, rng),
+    minSignalStrengthMutationStdDev: mutate(current.minSignalStrengthMutationStdDev, drift, rng),
     thresholdBiasMutationStdDev: mutate(current.thresholdBiasMutationStdDev, drift, rng),
     minHorizonTicksMutationStdDev: mutate(current.minHorizonTicksMutationStdDev, drift, rng),
     maxHorizonTicksMutationStdDev: mutate(current.maxHorizonTicksMutationStdDev, drift, rng),
@@ -113,6 +131,8 @@ export function summarizeMutationProfile(profile: SpawnerMutationProfile) {
     weightActivity,
     biasActivity,
     perceptionMutationRate: current.perceptionMutationRate,
+    payoffScaleMutationRate: current.payoffScaleMutationRate,
+    tradingPolicyMutationRate: current.tradingPolicyMutationRate,
     mutationProfileMutationStdDev: current.mutationProfileMutationStdDev,
   };
 }
@@ -155,6 +175,22 @@ export function mutationProfileDetailGroups(profile: SpawnerMutationProfile) {
       ],
     },
     {
+      title: "Payoff Scale Mutation",
+      rows: [
+        { label: "Payoff scale mutation rate", value: formatProbability(current.payoffScaleMutationRate) },
+        { label: "Payoff window stddev", value: `${formatDecimal(current.payoffScaleWindowMutationStdDev)} ticks` },
+        { label: "Payoff sample-step stddev", value: `${formatDecimal(current.payoffScaleSampleStepMutationStdDev)} ticks` },
+      ],
+    },
+    {
+      title: "Trading Policy Mutation",
+      rows: [
+        { label: "Trading policy mutation rate", value: formatProbability(current.tradingPolicyMutationRate) },
+        { label: "Spawn-threshold stddev", value: formatDecimal(current.spawnThresholdMutationStdDev) },
+        { label: "Min-strength stddev", value: formatDecimal(current.minSignalStrengthMutationStdDev) },
+      ],
+    },
+    {
       title: "Control Mutation",
       rows: [
         { label: "Threshold-bias stddev", value: formatDecimal(current.thresholdBiasMutationStdDev) },
@@ -172,15 +208,11 @@ function mutate(value: number, stdDev: number, rng: SeededRng) {
 }
 
 function probability(value: number | undefined, fallback: number) {
-  return clamp(finiteOr(value, fallback), 0, 1);
+  return sanitizeProbability(value, fallback);
 }
 
 function stddev(value: number | undefined, fallback: number) {
-  return clamp(finiteOr(value, fallback), 0, STDDEV_SAFETY_MAX);
-}
-
-function finiteOr(value: number | undefined, fallback: number) {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  return sanitizeStdDev(value, fallback, STDDEV_SAFETY_MAX);
 }
 
 function formatProbability(value: number) {

@@ -1,4 +1,4 @@
-import { clamp } from "./math";
+import { finiteZero, median as medianValue, percentileRank as rankPercentile } from "../stats";
 
 export const ROBUST_DISTANCE_EPSILON = 1e-9;
 
@@ -17,28 +17,15 @@ export function buildShrunkInverseCovariance(rows: number[][], width: number, sh
 }
 
 export function percentileRank(value: number, values: number[]) {
-  const sorted = [...values].sort((left, right) => left - right);
-  if (sorted.length <= 1) return 0;
-  let less = 0;
-  let equal = 0;
-  for (const candidate of sorted) {
-    if (candidate < value) less += 1;
-    else if (Math.abs(candidate - value) <= ROBUST_DISTANCE_EPSILON) equal += 1;
-  }
-  const averageRank = less + (equal - 1) / 2;
-  return clamp(averageRank / (sorted.length - 1), 0, 1);
+  return rankPercentile(value, values, ROBUST_DISTANCE_EPSILON);
 }
 
 export function median(values: number[]) {
-  if (values.length === 0) return 0;
-  const sorted = [...values].map(finite).sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 1) return sorted[middle] ?? 0;
-  return ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
+  return medianValue(values);
 }
 
 export function finite(value: number) {
-  return Number.isFinite(value) ? value : 0;
+  return finiteZero(value);
 }
 
 function quadraticDistance(left: number[], right: number[], inverseCovariance: number[][]) {

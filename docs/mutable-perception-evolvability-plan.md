@@ -163,7 +163,7 @@ Exit gates:
 
 Goal: users can understand, inspect, compare, and preserve the new evolutionary machinery.
 
-Amendment note: Milestone 1 and its follow-up bug fixes already completed some Milestone 2 foundations. The 16-input labels are wired into the architecture graph, roster packets already include several mutation summaries, persistence round-trips `perception` and `mutationProfile` through genome JSON, and uniqueness scoring already uses `functional-genome-v3` with perception and mutation-profile dimensions. Milestone 2 is therefore narrowed from "add the model everywhere" to "surface the model clearly, verify historical display, update docs, and avoid duplicating completed runtime work."
+Amendment note: Milestone 1 and its follow-up bug fixes already completed some Milestone 2 foundations. The 16-input labels are wired into the architecture graph, roster packets already include several mutation summaries, persistence round-trips `perception` and `mutationProfile` through genome JSON, and uniqueness scoring now uses `functional-genome-v5` with perception, mutation-profile, plasticity-profile, and effective learned weight/bias dimensions. Milestone 2 is therefore narrowed from "add the model everywhere" to "surface the model clearly, verify historical display, update docs, and avoid duplicating completed runtime work."
 
 ### 1. Upgrade The RNN Inspector
 
@@ -205,7 +205,7 @@ Exit gates:
 - Help page accurately describes the 16 inputs.
 - Help page distinguishes world rules from inherited traits.
 - Help page explains why bad perception settings are allowed to fail naturally.
-- Help page explains mutable mutation profiles without implying backpropagation or deliberate training during an agent's lifetime.
+- Help page explains mutable mutation profiles without implying backpropagation; lifetime learning is reward-modulated learned deltas, not a full training loop.
 - Help page does not mention removed or compatibility-only concepts such as `pendingDensityDivisor` or active `mutationStd`.
 
 ### 4. Persist And Load New Genome Fields
@@ -224,7 +224,7 @@ Exit gates:
 
 ### 5. Update Uniqueness Scoring
 
-Uniqueness scoring already includes perception and mutation-profile traits in `functional-genome-v3`. This step should verify and explain that behavior rather than add a second uniqueness path.
+Uniqueness scoring already includes perception, mutation-profile, and plasticity-profile traits in `functional-genome-v5`. This step should verify and explain that behavior rather than add a second uniqueness path.
 
 Use expressed values, not hidden or compatibility artifacts.
 
@@ -232,7 +232,7 @@ Exit gates:
 - Uniqueness vector includes perception dimensions.
 - Uniqueness vector includes mutation-profile dimensions.
 - Feature explanations can identify perception or mutation-profile traits as similarity/difference drivers.
-- `FUNCTIONAL_GENOME_VECTOR_VERSION` remains explicitly asserted as `functional-genome-v3` for this contract.
+- `FUNCTIONAL_GENOME_VECTOR_VERSION` remains explicitly asserted as `functional-genome-v5` for this contract.
 - Existing uniqueness tests pass with updated expected dimensions.
 - Uniqueness uses expressed trait values and shared summary/helper functions where possible.
 - Add or keep a focused test where altered perception and/or mutation-profile values can appear in the most similar/most different feature explanations.

@@ -3,7 +3,14 @@ import type { WaveSettings } from "../marketSignal";
 import type { MarketRuntimeConfig } from "../marketRuntimeConfig";
 import type { MarketWorkerSessionId } from "../marketWorkerProtocol";
 import type { MarketSimulationState } from "../simulationRuntime";
-import type { SpawnerConfig, SpawnerEvent, SpawnerUniquenessScore } from "../spawnerSimulation";
+import type { SpawnerAgent, SpawnerConfig, SpawnerEvent, SpawnerUniquenessScore } from "../spawnerSimulation";
+import {
+  birthSnapshotFromSpawner,
+  deathSnapshotFromSpawner,
+  foodEventToPersistenceFood,
+  genomeSnapshotFromSpawner,
+  stateSnapshotFromSpawner,
+} from "./sinePersistenceDtos";
 
 export type PendingUniquenessSnapshot = {
   spawnerId: number;
@@ -24,6 +31,7 @@ export function buildSinePersistencePacket({
   pendingUniquenessSnapshots,
   uniquenessScores,
   includeFullUniquenessTick,
+  initialSpawners,
 }: {
   sessionId: MarketWorkerSessionId;
   persistentSessionId: string;
@@ -38,75 +46,19 @@ export function buildSinePersistencePacket({
   pendingUniquenessSnapshots: PendingUniquenessSnapshot[];
   uniquenessScores: Map<number, SpawnerUniquenessScore>;
   includeFullUniquenessTick: number | null;
+  initialSpawners?: SpawnerAgent[];
 }): SinePersistencePacket {
-  const initialBirths = includeInitial
-    ? simulation.world.spawners.map((spawner) => ({
-        tick: spawner.birthTick,
-        spawner: structuredClone(spawner),
-      }))
-    : [];
-  const initialGenomeSnapshots: SinePersistencePacket["genomeSnapshots"] = initialBirths.map((birth) => ({
-    tick: birth.tick,
-    reason: "initial" as const,
-    spawner: structuredClone(birth.spawner),
-  }));
-
-  const birthEvents = events.filter((event) => event.kind === "reproduction" && event.childSpawnerSnapshot);
-  const births = initialBirths.concat(
-    birthEvents.map((event) => ({
-      tick: event.tick,
-      spawner: structuredClone(event.childSpawnerSnapshot!),
-      parentSpawnerId: event.spawnerId,
-    })),
-  );
-  const genomeSnapshots = initialGenomeSnapshots.concat(
-    birthEvents.map((event) => ({
-      tick: event.tick,
-      reason: "birth" as const,
-      spawner: structuredClone(event.childSpawnerSnapshot!),
-    })),
-  );
+  const births = buildBirthSnapshots(simulation, events, includeInitial, initialSpawners);
+  const genomeSnapshots = buildGenomeSnapshots(simulation, events, includeInitial, initialSpawners);
   const deaths = events
     .filter((event) => event.kind === "death" && event.spawnerSnapshot)
     .map((event) => ({
-      tick: event.tick,
-      spawner: structuredClone(event.spawnerSnapshot!),
+      ...deathSnapshotFromSpawner(event.tick, event.spawnerSnapshot!),
     }));
-  const foodEvents = events
-    .filter((event) => (event.kind === "spawn" || event.kind === "resolve") && event.foodSnapshot)
-    .map((event) => ({
-      tick: event.tick,
-      kind: event.kind as "spawn" | "resolve",
-      food: structuredClone(event.foodSnapshot!),
-    }));
-  const stateSnapshots = includeStateSnapshot
-    ? simulation.world.spawners.map((spawner) => ({
-        spawnerId: spawner.id,
-        lineageId: spawner.lineageId,
-        generation: spawner.generation,
-        tick: simulation.world.tick,
-        energy: spawner.energy,
-        health: spawner.health,
-        age: spawner.ageTicks,
-        cooldown: spawner.cooldownTicks,
-        hiddenState: { ...spawner.hiddenState },
-        lastAction: spawner.lastAction,
-        spawnedCount: spawner.spawnedCount,
-        resolvedCount: spawner.resolvedCount,
-        wins: spawner.wins,
-        losses: spawner.losses,
-        totalPayoff: spawner.totalPayoff,
-        children: spawner.children,
-        recentPayoffs: [...spawner.recentPayoffs],
-      }))
-    : [];
-  const pendingUniqueness = pendingUniquenessSnapshots.map(({ spawnerId, score }) => ({ spawnerId, ...structuredClone(score) }));
-  const fullUniqueness =
-    includeFullUniquenessTick !== null
-      ? [...uniquenessScores.entries()]
-          .filter(([, score]) => score.comparisonTick === includeFullUniquenessTick)
-          .map(([spawnerId, score]) => ({ spawnerId, ...structuredClone(score) }))
-      : [];
+  const foodEvents = buildFoodEventSnapshots(events);
+  const stateSnapshots = buildStateSnapshots(simulation, includeStateSnapshot);
+  const eventRows = buildEventRows(events);
+  const uniquenessSnapshots = buildUniquenessSnapshots(pendingUniquenessSnapshots, uniquenessScores, includeFullUniquenessTick);
 
   return {
     sessionId,
@@ -120,23 +72,98 @@ export function buildSinePersistencePacket({
     deaths,
     genomeSnapshots,
     stateSnapshots,
-    uniquenessSnapshots: dedupeUniquenessSnapshots(pendingUniqueness.concat(fullUniqueness)),
+    uniquenessSnapshots,
     foodEvents,
-    events: events.map((event) => ({
-      id: event.id,
-      kind: event.kind,
-      tick: event.tick,
-      spawnerId: event.spawnerId,
-      lineageId: event.lineageId,
-      foodId: event.foodId,
-      childSpawnerId: event.childSpawnerId,
-      status: event.status,
-      payoff: event.payoff,
-    })),
+    events: eventRows,
   };
 }
 
-function dedupeUniquenessSnapshots(snapshots: SineSpawnerUniquenessSnapshot[]) {
+export function buildBirthSnapshots(
+  simulation: MarketSimulationState,
+  events: SpawnerEvent[],
+  includeInitial: boolean,
+  initialSpawners = simulation.world.spawners,
+): SinePersistencePacket["births"] {
+  const initialBirths = includeInitial
+    ? initialSpawners.map((spawner) => birthSnapshotFromSpawner(spawner.birthTick, spawner))
+    : [];
+  return initialBirths.concat(
+    events
+      .filter((event) => event.kind === "reproduction" && event.childSpawnerSnapshot)
+      .map((event) => birthSnapshotFromSpawner(event.tick, event.childSpawnerSnapshot!, event.spawnerId)),
+  );
+}
+
+export function buildGenomeSnapshots(
+  simulation: MarketSimulationState,
+  events: SpawnerEvent[],
+  includeInitial: boolean,
+  initialSpawners = simulation.world.spawners,
+): SinePersistencePacket["genomeSnapshots"] {
+  const initialGenomeSnapshots: SinePersistencePacket["genomeSnapshots"] = includeInitial
+    ? initialSpawners.map((spawner) => genomeSnapshotFromSpawner(spawner.birthTick, "initial", spawner))
+    : [];
+  return initialGenomeSnapshots.concat(
+    events
+      .filter((event) => event.kind === "reproduction" && event.childSpawnerSnapshot)
+      .map((event) => genomeSnapshotFromSpawner(event.tick, "birth", event.childSpawnerSnapshot!)),
+  );
+}
+
+export function buildStateSnapshots(simulation: MarketSimulationState, includeStateSnapshot: boolean): SinePersistencePacket["stateSnapshots"] {
+  if (!includeStateSnapshot) return [];
+  return simulation.world.spawners.map((spawner) => stateSnapshotFromSpawner(simulation, spawner));
+}
+
+export function buildFoodEventSnapshots(events: SpawnerEvent[]): SinePersistencePacket["foodEvents"] {
+  return events
+    .filter((event) => (event.kind === "spawn" || event.kind === "resolve") && event.foodEvent)
+    .map((event) => ({
+      tick: event.tick,
+      kind: event.kind as "spawn" | "resolve",
+      food: foodEventToPersistenceFood(event),
+    }));
+}
+
+export function buildEventRows(events: SpawnerEvent[]): SinePersistencePacket["events"] {
+  return events.map((event) => ({
+    id: event.id,
+    kind: event.kind,
+    tick: event.tick,
+    spawnerId: event.spawnerId,
+    lineageId: event.lineageId,
+    foodId: event.foodId,
+    childSpawnerId: event.childSpawnerId,
+    status: event.status,
+    payoff: event.payoff,
+  }));
+}
+
+function buildUniquenessSnapshots(
+  pendingUniquenessSnapshots: PendingUniquenessSnapshot[],
+  uniquenessScores: Map<number, SpawnerUniquenessScore>,
+  includeFullUniquenessTick: number | null,
+) {
+  const pendingUniqueness = pendingUniquenessSnapshots.map(({ spawnerId, score }) => ({ spawnerId, ...cloneUniquenessScore(score) }));
+  const fullUniqueness =
+    includeFullUniquenessTick !== null
+      ? [...uniquenessScores.entries()]
+          .filter(([, score]) => score.comparisonTick === includeFullUniquenessTick)
+          .map(([spawnerId, score]) => ({ spawnerId, ...cloneUniquenessScore(score) }))
+      : [];
+  return dedupeUniquenessSnapshots(pendingUniqueness.concat(fullUniqueness));
+}
+
+function cloneUniquenessScore(score: SpawnerUniquenessScore): SpawnerUniquenessScore {
+  return {
+    ...score,
+    nearestNeighborIds: [...score.nearestNeighborIds],
+    mostSimilarFeatures: score.mostSimilarFeatures.map((feature) => ({ ...feature })),
+    mostDissimilarFeatures: score.mostDissimilarFeatures.map((feature) => ({ ...feature })),
+  };
+}
+
+export function dedupeUniquenessSnapshots(snapshots: SineSpawnerUniquenessSnapshot[]) {
   const byKey = new Map<string, SineSpawnerUniquenessSnapshot>();
   for (const snapshot of snapshots) {
     const key = `${snapshot.spawnerId}:${snapshot.comparisonTick}:${snapshot.version}:${snapshot.vectorVersion}`;

@@ -1,5 +1,8 @@
 import { INITIAL_SETTINGS, LEGACY_SECONDS_PER_TICK, type WaveSettings } from "./marketSignal";
-import { MARKET_SETTING_BOUNDS, clampToBounds, type NumericBounds } from "./marketSettingBounds";
+import { clampToBounds, type NumericBounds } from "./marketSettingBounds";
+import { sameGeneratedSettings, sanitizeGeneratedSettings } from "./marketGeneratedSettings";
+
+export { sanitizeGeneratedSettings } from "./marketGeneratedSettings";
 
 export type MarketDataSource = "generated" | "btcusd_1m" | "btcusd_5m";
 export const MARKET_TIME_MODEL = "ticks-v2";
@@ -50,26 +53,6 @@ export function sanitizeMarketRuntimeConfig(value: unknown): MarketRuntimeConfig
   };
 }
 
-export function sanitizeGeneratedSettings(settings: unknown, legacySecondsModel = false): WaveSettings {
-  const record = isRecord(settings) ? settings : {};
-  return {
-    amplitude: sanitizeGeneratedSetting("amplitude", record.amplitude),
-    frequency: sanitizeGeneratedSetting("frequency", legacySecondsModel ? scaleLegacySecondsValue(record.frequency) : record.frequency),
-    phase: sanitizeGeneratedSetting("phase", record.phase),
-    slope: sanitizeGeneratedSetting("slope", legacySecondsModel ? scaleLegacySecondsValue(record.slope) : record.slope),
-    noiseAmplitude: sanitizeGeneratedSetting("noiseAmplitude", record.noiseAmplitude),
-    noiseFrequency: sanitizeGeneratedSetting("noiseFrequency", legacySecondsModel ? scaleLegacySecondsValue(record.noiseFrequency) : record.noiseFrequency),
-    noiseSeed: sanitizeGeneratedSetting("noiseSeed", record.noiseSeed),
-    amplitudeDrift: sanitizeGeneratedSetting("amplitudeDrift", record.amplitudeDrift),
-    frequencyDrift: sanitizeGeneratedSetting("frequencyDrift", legacySecondsModel ? scaleLegacySecondsValue(record.frequencyDrift) : record.frequencyDrift),
-    slopeDrift: sanitizeGeneratedSetting("slopeDrift", legacySecondsModel ? scaleLegacySecondsValue(record.slopeDrift) : record.slopeDrift),
-    noiseAmplitudeDrift: sanitizeGeneratedSetting("noiseAmplitudeDrift", record.noiseAmplitudeDrift),
-    noiseFrequencyDrift: sanitizeGeneratedSetting("noiseFrequencyDrift", legacySecondsModel ? scaleLegacySecondsValue(record.noiseFrequencyDrift) : record.noiseFrequencyDrift),
-    regimeSpeed: sanitizeGeneratedSetting("regimeSpeed", legacySecondsModel ? scaleLegacySecondsValue(record.regimeSpeed) : record.regimeSpeed),
-    regimeSeed: sanitizeGeneratedSetting("regimeSeed", record.regimeSeed),
-  };
-}
-
 export function sanitizePlaybackSettings(settings: unknown, legacyGeneratedSettings: unknown = undefined): MarketPlaybackSettings {
   const record = isRecord(settings) ? settings : {};
   const generatedRecord = isRecord(legacyGeneratedSettings) ? legacyGeneratedSettings : {};
@@ -104,25 +87,6 @@ export function sameMarketRuntimeConfig(left: MarketRuntimeConfig, right: Market
   );
 }
 
-function sameGeneratedSettings(left: WaveSettings, right: WaveSettings) {
-  return (
-    left.amplitude === right.amplitude &&
-    left.frequency === right.frequency &&
-    left.phase === right.phase &&
-    left.slope === right.slope &&
-    left.noiseAmplitude === right.noiseAmplitude &&
-    left.noiseFrequency === right.noiseFrequency &&
-    left.noiseSeed === right.noiseSeed &&
-    left.amplitudeDrift === right.amplitudeDrift &&
-    left.frequencyDrift === right.frequencyDrift &&
-    left.slopeDrift === right.slopeDrift &&
-    left.noiseAmplitudeDrift === right.noiseAmplitudeDrift &&
-    left.noiseFrequencyDrift === right.noiseFrequencyDrift &&
-    left.regimeSpeed === right.regimeSpeed &&
-    left.regimeSeed === right.regimeSeed
-  );
-}
-
 function samePlaybackSettings(left: MarketPlaybackSettings, right: MarketPlaybackSettings) {
   return (
     left.rocLengthBars === right.rocLengthBars &&
@@ -136,17 +100,8 @@ function sanitizeSource(value: unknown): MarketDataSource {
   return value === "btcusd_1m" || value === "btcusd_5m" || value === "generated" ? value : "generated";
 }
 
-function sanitizeGeneratedSetting(key: keyof WaveSettings, value: unknown) {
-  return clampToBounds(Number(value), INITIAL_SETTINGS[key], MARKET_SETTING_BOUNDS[key]);
-}
-
 function sanitizePlaybackNumber(key: keyof Pick<MarketPlaybackSettings, "rocLengthBars" | "generatedTicksPerSecond" | "barsPerSecond">, value: unknown) {
   return clampToBounds(Number(value), INITIAL_PLAYBACK_SETTINGS[key], PLAYBACK_SETTING_BOUNDS[key]);
-}
-
-function scaleLegacySecondsValue(value: unknown) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric * LEGACY_SECONDS_PER_TICK : value;
 }
 
 function legacyGeneratedSpeedToTicksPerSecond(value: unknown) {

@@ -1,9 +1,18 @@
 import { clamp } from "./math";
 import { activeUnits, activeLayerIndexes, allocateInnovationId, choose, cloneGenome, createUnitGene } from "./genomeCommon";
-import { addRandomConnectionTouchingUnit, addRandomLegalConnection, isLegalConnection } from "./genomeConnections";
+import {
+  addRandomConnectionTouchingUnit,
+  addRandomLegalConnection,
+  addRandomLegalConnectionMatching,
+  isLegalConnection,
+  type LegalConnectionCandidate,
+} from "./genomeConnections";
 import { driftMutationProfile, sanitizeMutationProfile } from "./mutationProfile";
+import { mutatePayoffProfile } from "./payoffProfile";
 import { mutatePerception } from "./perception";
-import type { InnovationRegistry, SpawnerConfig, SpawnerGenome, SpawnerMutationProfile } from "./types";
+import { driftPlasticityProfile } from "./plasticity";
+import { mutateTradingPolicy } from "./tradingPolicy";
+import type { HiddenUnitGene, InnovationRegistry, SpawnerConfig, SpawnerGenome, SpawnerMutationProfile } from "./types";
 import type { SeededRng } from "./rng";
 
 export function mutateGenome(genome: SpawnerGenome, rng: SeededRng, config: SpawnerConfig, innovations: InnovationRegistry): SpawnerGenome {
@@ -47,7 +56,18 @@ export function mutateGenome(genome: SpawnerGenome, rng: SeededRng, config: Spaw
     sensitivityStdDev: profile.perceptionSensitivityMutationStdDev,
     densityScaleStdDev: profile.perceptionDensityScaleMutationStdDev,
   });
+  child.payoffProfile = mutatePayoffProfile(child.payoffProfile, rng, {
+    rate: profile.payoffScaleMutationRate,
+    windowStdDev: profile.payoffScaleWindowMutationStdDev,
+    sampleStepStdDev: profile.payoffScaleSampleStepMutationStdDev,
+  });
+  child.tradingPolicy = mutateTradingPolicy(child.tradingPolicy, rng, {
+    rate: profile.tradingPolicyMutationRate,
+    spawnThresholdStdDev: profile.spawnThresholdMutationStdDev,
+    minSignalStrengthStdDev: profile.minSignalStrengthMutationStdDev,
+  });
   child.mutationProfile = driftMutationProfile(profile, rng);
+  child.plasticityProfile = driftPlasticityProfile(child.plasticityProfile, rng);
   return child;
 }
 
@@ -86,10 +106,47 @@ function addRandomUnit(
   genome.nextUnitId += 1;
   genome.units.push(unit);
 
-  const attempts = Math.max(0, Math.round(config.newUnitInitialConnections));
-  for (let index = 0; index < attempts; index += 1) {
+  const attempts = Math.max(2, Math.round(config.newUnitInitialConnections));
+  const mandatoryConnections = [
+    addRandomLegalConnectionMatching(
+      genome,
+      rng,
+      config,
+      innovations,
+      (candidate) => isIncomingConnectionToUnit(genome, candidate, unit),
+      profile.newConnectionWeightStdDev,
+    ),
+    addRandomLegalConnectionMatching(
+      genome,
+      rng,
+      config,
+      innovations,
+      (candidate) => isOutgoingConnectionFromUnit(genome, candidate, unit),
+      profile.newConnectionWeightStdDev,
+    ),
+  ].filter(Boolean).length;
+  for (let index = mandatoryConnections; index < attempts; index += 1) {
     addRandomConnectionTouchingUnit(genome, unit, rng, config, innovations, profile.newConnectionWeightStdDev);
   }
+}
+
+function isIncomingConnectionToUnit(genome: SpawnerGenome, candidate: LegalConnectionCandidate, targetUnit: HiddenUnitGene) {
+  if (candidate.target.kind !== "hidden" || candidate.target.unitId !== targetUnit.unitId) return false;
+  if (candidate.source.kind === "input") return true;
+  if (candidate.source.kind !== "hidden") return false;
+  if (candidate.source.mode !== "current") return false;
+  const sourceRef = candidate.source;
+  const source = genome.units.find((unit) => unit.unitId === sourceRef.unitId);
+  return !!source && source.layerIndex < targetUnit.layerIndex;
+}
+
+function isOutgoingConnectionFromUnit(genome: SpawnerGenome, candidate: LegalConnectionCandidate, sourceUnit: HiddenUnitGene) {
+  if (candidate.source.kind !== "hidden" || candidate.source.unitId !== sourceUnit.unitId || candidate.source.mode !== "current") return false;
+  if (candidate.target.kind === "output") return true;
+  if (candidate.target.kind !== "hidden") return false;
+  const targetRef = candidate.target;
+  const target = genome.units.find((unit) => unit.unitId === targetRef.unitId);
+  return !!target && sourceUnit.layerIndex < target.layerIndex;
 }
 
 function setRandomUnitEnabled(genome: SpawnerGenome, rng: SeededRng, enabled: boolean) {

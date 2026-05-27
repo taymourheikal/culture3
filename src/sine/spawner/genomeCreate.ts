@@ -2,7 +2,10 @@ import { INPUT_COUNT, OUTPUT_COUNT, OUTPUT_INDEX } from "./config";
 import { addFounderConnections, allocateInnovationId, choose, createUnitGene, randomGate, randomInt, randomRange, vector } from "./genomeCommon";
 import { addConnectionIfMissing } from "./genomeConnections";
 import { defaultMutationProfileFromConfig } from "./mutationProfile";
+import { defaultPayoffProfileFromConfig } from "./payoffProfile";
 import { randomizeFounderPerception } from "./perception";
+import { plasticityProfileFromConfig } from "./plasticity";
+import { defaultTradingPolicyFromConfig } from "./tradingPolicy";
 import type { InnovationRegistry, SpawnerConfig, SpawnerGenome } from "./types";
 import type { SeededRng } from "./rng";
 
@@ -23,7 +26,10 @@ export function createRandomGenome(rng: SeededRng, config: SpawnerConfig, innova
     maxHorizonTicks: randomRange(rng, config.initialMaxHorizonTicksMin, config.initialMaxHorizonTicksMax),
     cooldownBaseTicks: randomRange(rng, config.cooldownBaseTicksInitialMin, config.cooldownBaseTicksInitialMax),
     perception: randomizeFounderPerception(config, rng),
+    payoffProfile: defaultPayoffProfileFromConfig(config),
+    tradingPolicy: defaultTradingPolicyFromConfig(config),
     mutationProfile: defaultMutationProfileFromConfig(config),
+    plasticityProfile: plasticityProfileFromConfig(config),
   };
   genome.outputBias[OUTPUT_INDEX.reproduce] = (genome.outputBias[OUTPUT_INDEX.reproduce] ?? 0) + config.initialReproductionOutputBias;
 

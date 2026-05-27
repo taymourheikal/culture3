@@ -39,7 +39,54 @@
   overflow: auto;
 }
 
-.sine-run-list button {
+.sine-run-list-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0 5px;
+}
+
+.sine-run-list-tools button {
+  min-height: 28px;
+  padding: 5px 8px;
+  border-color: rgba(185, 137, 255, 0.28);
+  border-radius: 7px;
+  background: rgba(185, 137, 255, 0.1);
+  color: #eadcff;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sine-run-list-tools span {
+  color: #aebfbc;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.sine-run-list-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
+}
+
+.sine-run-check {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.sine-run-check input {
+  width: 15px;
+  height: 15px;
+  accent-color: #f4c568;
+}
+
+.sine-run-list-row > button {
   display: grid;
   gap: 4px;
   width: 100%;
@@ -51,9 +98,15 @@
   text-align: left;
 }
 
-.sine-run-list button.active {
+.sine-run-list-row.active > button,
+.sine-run-list-row.checked > button {
   border-color: rgba(244, 197, 104, 0.48);
   background: rgba(244, 197, 104, 0.11);
+}
+
+.sine-run-list-row.checked .sine-run-check {
+  border-color: rgba(244, 197, 104, 0.48);
+  background: rgba(244, 197, 104, 0.12);
 }
 
 .sine-run-list strong {
@@ -140,6 +193,7 @@
 }
 
 .sine-history-actions button:disabled,
+.sine-run-list-tools button:disabled,
 .sine-history-rnn-fields button:disabled,
 .sine-button:disabled {
   cursor: not-allowed;
@@ -229,4 +283,3 @@
   gap: 6px;
   text-transform: uppercase;
 }
-

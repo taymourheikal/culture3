@@ -1,5 +1,7 @@
 import { INPUT_COUNT, OUTPUT_COUNT, OUTPUT_LABELS } from "./config";
+import { createEffectiveGenomeView } from "./effectiveGenome";
 import { createGenomeIndex } from "./genomeIndex";
+import { sanitizePlasticityProfile } from "./plasticity";
 import type { SpawnerAgent } from "./types";
 import {
   absMean,
@@ -15,10 +17,9 @@ import {
   std,
   UNIQUENESS_GATES,
   UNIQUENESS_OUTPUT_LABELS,
-  weight,
 } from "./uniquenessVectorModel";
 
-export const FUNCTIONAL_GENOME_VECTOR_VERSION = "functional-genome-v3";
+export const FUNCTIONAL_GENOME_VECTOR_VERSION = "functional-genome-v8";
 
 export type UniquenessFeature = {
   key: string;
@@ -28,6 +29,8 @@ export type UniquenessFeature = {
 
 export function buildFunctionalGenomeVector(spawner: SpawnerAgent): UniquenessFeature[] {
   const genome = spawner.genome;
+  const effectiveGenome = createEffectiveGenomeView(genome, spawner.learnedState);
+  const plasticity = sanitizePlasticityProfile(genome.plasticityProfile);
   const genomeIndex = createGenomeIndex(genome);
   const units = genomeIndex.units;
   const connections = genomeIndex.connections;
@@ -69,31 +72,35 @@ export function buildFunctionalGenomeVector(spawner: SpawnerAgent): UniquenessFe
 
     feature("gate.balanceEntropy", "Gate balance entropy", normalizedEntropy(gateCounts)),
 
-    feature("bias.update.mean", "Update bias mean", mean(units.map((unit) => unit.updateBias))),
-    feature("bias.update.std", "Update bias std", std(units.map((unit) => unit.updateBias))),
-    feature("bias.reset.mean", "Reset bias mean", mean(units.map((unit) => unit.resetBias))),
-    feature("bias.reset.std", "Reset bias std", std(units.map((unit) => unit.resetBias))),
-    feature("bias.candidate.mean", "Candidate bias mean", mean(units.map((unit) => unit.candidateBias))),
-    feature("bias.candidate.std", "Candidate bias std", std(units.map((unit) => unit.candidateBias))),
+    feature("bias.update.mean", "Update bias mean", mean(units.map((unit) => effectiveGenome.getGateBias(unit, "update")))),
+    feature("bias.update.std", "Update bias std", std(units.map((unit) => effectiveGenome.getGateBias(unit, "update")))),
+    feature("bias.reset.mean", "Reset bias mean", mean(units.map((unit) => effectiveGenome.getGateBias(unit, "reset")))),
+    feature("bias.reset.std", "Reset bias std", std(units.map((unit) => effectiveGenome.getGateBias(unit, "reset")))),
+    feature("bias.candidate.mean", "Candidate bias mean", mean(units.map((unit) => effectiveGenome.getGateBias(unit, "candidate")))),
+    feature("bias.candidate.std", "Candidate bias std", std(units.map((unit) => effectiveGenome.getGateBias(unit, "candidate")))),
   ];
 
   for (let input = 0; input < INPUT_COUNT; input += 1) {
     const outgoing = connections.filter((connection) => connection.source.kind === "input" && connection.source.index === input);
     features.push(feature(`input.${input}.outgoingCount`, `Input ${input + 1} outgoing links`, outgoing.length));
-    features.push(feature(`input.${input}.absWeightMean`, `Input ${input + 1} mean absolute weight`, absMean(outgoing.map((connection) => connection.weight))));
+    features.push(
+      feature(`input.${input}.absWeightMean`, `Input ${input + 1} mean absolute weight`, absMean(outgoing.map(effectiveGenome.getConnectionWeight))),
+    );
   }
 
   for (let output = 0; output < OUTPUT_COUNT; output += 1) {
     const incoming = connections.filter((connection) => connection.target.kind === "output" && connection.target.index === output);
     const label = UNIQUENESS_OUTPUT_LABELS[output] ?? `Output ${output + 1}`;
     features.push(feature(`output.${output}.incomingCount`, `${label} incoming links`, incoming.length));
-    features.push(feature(`output.${output}.absWeightMean`, `${label} mean absolute weight`, absMean(incoming.map((connection) => connection.weight))));
+    features.push(feature(`output.${output}.absWeightMean`, `${label} mean absolute weight`, absMean(incoming.map(effectiveGenome.getConnectionWeight))));
   }
 
   features.push(
     feature("output.connectionEntropy", "Output connection entropy", normalizedEntropy(outputCounts)),
-    ...OUTPUT_LABELS.map((label, index) => feature(`output.${label.toLowerCase()}.bias`, `${label} output bias`, genome.outputBias[index] ?? 0)),
+    ...OUTPUT_LABELS.map((label, index) => feature(`output.${label.toLowerCase()}.bias`, `${label} output bias`, effectiveGenome.getOutputBias(index))),
     feature("control.thresholdBias", "Threshold bias", genome.thresholdBias),
+    feature("tradingPolicy.spawnThreshold", "Trading policy spawn threshold", genome.tradingPolicy.spawnThreshold),
+    feature("tradingPolicy.minSignalStrength", "Trading policy min signal strength", genome.tradingPolicy.minSignalStrength),
     feature("control.minHorizonTicks", "Minimum horizon ticks", genome.minHorizonTicks),
     feature("control.maxHorizonTicks", "Maximum horizon ticks", genome.maxHorizonTicks),
     feature("control.cooldownBaseTicks", "Cooldown base ticks", genome.cooldownBaseTicks),
@@ -108,6 +115,8 @@ export function buildFunctionalGenomeVector(spawner: SpawnerAgent): UniquenessFe
     feature("perception.cycleWindowTicks", "Perception cycle window ticks", genome.perception.cycleWindowTicks),
     feature("perception.roughnessSensitivity", "Perception roughness sensitivity", genome.perception.roughnessSensitivity),
     feature("perception.pendingDensityScale", "Perception pending-density scale", genome.perception.pendingDensityScale),
+    feature("payoffProfile.scaleWindowTicks", "Payoff scale window ticks", genome.payoffProfile.scaleWindowTicks),
+    feature("payoffProfile.scaleSampleStepTicks", "Payoff scale sample step", genome.payoffProfile.scaleSampleStepTicks),
     feature("mutationProfile.addUnitRate", "Mutation add-unit rate", genome.mutationProfile.addUnitRate),
     feature("mutationProfile.addConnectionRate", "Mutation add-connection rate", genome.mutationProfile.addConnectionRate),
     feature("mutationProfile.disableConnectionRate", "Mutation disable-connection rate", genome.mutationProfile.disableConnectionRate),
@@ -115,19 +124,46 @@ export function buildFunctionalGenomeVector(spawner: SpawnerAgent): UniquenessFe
     feature("mutationProfile.weightMutationStdDev", "Mutation weight stddev", genome.mutationProfile.weightMutationStdDev),
     feature("mutationProfile.gateBiasMutationStdDev", "Mutation gate-bias stddev", genome.mutationProfile.gateBiasMutationStdDev),
     feature("mutationProfile.perceptionMutationRate", "Mutation perception rate", genome.mutationProfile.perceptionMutationRate),
+    feature("mutationProfile.payoffScaleMutationRate", "Mutation payoff scale rate", genome.mutationProfile.payoffScaleMutationRate),
+    feature("mutationProfile.payoffScaleWindowMutationStdDev", "Mutation payoff window stddev", genome.mutationProfile.payoffScaleWindowMutationStdDev),
+    feature(
+      "mutationProfile.payoffScaleSampleStepMutationStdDev",
+      "Mutation payoff sample-step stddev",
+      genome.mutationProfile.payoffScaleSampleStepMutationStdDev,
+    ),
+    feature("mutationProfile.tradingPolicyMutationRate", "Mutation trading policy rate", genome.mutationProfile.tradingPolicyMutationRate),
+    feature("mutationProfile.spawnThresholdMutationStdDev", "Mutation spawn-threshold stddev", genome.mutationProfile.spawnThresholdMutationStdDev),
+    feature(
+      "mutationProfile.minSignalStrengthMutationStdDev",
+      "Mutation min-strength stddev",
+      genome.mutationProfile.minSignalStrengthMutationStdDev,
+    ),
     feature("mutationProfile.mutationProfileMutationStdDev", "Mutation-profile drift stddev", genome.mutationProfile.mutationProfileMutationStdDev),
+    feature("plasticity.weightLearningRate", "Plasticity weight learning rate", plasticity.weightLearningRate),
+    feature("plasticity.biasLearningRate", "Plasticity bias learning rate", plasticity.biasLearningRate),
+    feature("plasticity.positiveRewardMultiplier", "Plasticity positive reward multiplier", plasticity.positiveRewardMultiplier),
+    feature("plasticity.negativeRewardMultiplier", "Plasticity negative reward multiplier", plasticity.negativeRewardMultiplier),
+    feature("plasticity.reproductionRewardStrength", "Plasticity reproduction reward", plasticity.reproductionRewardStrength),
+    feature("plasticity.experienceDecayRate", "Plasticity experience decay", plasticity.experienceDecayRate),
+    feature("plasticity.maxLearnedDelta", "Plasticity max learned delta", plasticity.maxLearnedDelta),
+    feature("plasticity.eligibilityTraceStrength", "Plasticity eligibility trace strength", plasticity.eligibilityTraceStrength),
+    feature("plasticity.plasticityMutationStdDev", "Plasticity drift stddev", plasticity.plasticityMutationStdDev),
 
-    feature("weights.inputToHidden.absMean", "Input-hidden absolute weight mean", absMean(connectionGroups.inputToHidden.map(weight))),
-    feature("weights.recurrent.absMean", "Recurrent absolute weight mean", absMean(connectionGroups.recurrent.map(weight))),
-    feature("weights.hiddenToOutput.absMean", "Hidden-output absolute weight mean", absMean(connectionGroups.hiddenToOutput.map(weight))),
-    feature("weights.skip.absMean", "Skip absolute weight mean", absMean(connectionGroups.skip.map(weight))),
-    feature("weights.inputToHidden.std", "Input-hidden weight std", std(connectionGroups.inputToHidden.map(weight))),
-    feature("weights.recurrent.std", "Recurrent weight std", std(connectionGroups.recurrent.map(weight))),
-    feature("weights.hiddenToOutput.std", "Hidden-output weight std", std(connectionGroups.hiddenToOutput.map(weight))),
-    feature("weights.skip.std", "Skip weight std", std(connectionGroups.skip.map(weight))),
-    feature("weights.positiveRatio", "Positive weight ratio", positiveRatio(connections.map(weight))),
-    feature("weights.recurrentPositiveRatio", "Recurrent positive weight ratio", positiveRatio(connectionGroups.recurrent.map(weight))),
-    feature("weights.hiddenToOutputPositiveRatio", "Hidden-output positive weight ratio", positiveRatio(connectionGroups.hiddenToOutput.map(weight))),
+    feature("weights.inputToHidden.absMean", "Input-hidden absolute weight mean", absMean(connectionGroups.inputToHidden.map(effectiveGenome.getConnectionWeight))),
+    feature("weights.recurrent.absMean", "Recurrent absolute weight mean", absMean(connectionGroups.recurrent.map(effectiveGenome.getConnectionWeight))),
+    feature("weights.hiddenToOutput.absMean", "Hidden-output absolute weight mean", absMean(connectionGroups.hiddenToOutput.map(effectiveGenome.getConnectionWeight))),
+    feature("weights.skip.absMean", "Skip absolute weight mean", absMean(connectionGroups.skip.map(effectiveGenome.getConnectionWeight))),
+    feature("weights.inputToHidden.std", "Input-hidden weight std", std(connectionGroups.inputToHidden.map(effectiveGenome.getConnectionWeight))),
+    feature("weights.recurrent.std", "Recurrent weight std", std(connectionGroups.recurrent.map(effectiveGenome.getConnectionWeight))),
+    feature("weights.hiddenToOutput.std", "Hidden-output weight std", std(connectionGroups.hiddenToOutput.map(effectiveGenome.getConnectionWeight))),
+    feature("weights.skip.std", "Skip weight std", std(connectionGroups.skip.map(effectiveGenome.getConnectionWeight))),
+    feature("weights.positiveRatio", "Positive weight ratio", positiveRatio(connections.map(effectiveGenome.getConnectionWeight))),
+    feature("weights.recurrentPositiveRatio", "Recurrent positive weight ratio", positiveRatio(connectionGroups.recurrent.map(effectiveGenome.getConnectionWeight))),
+    feature(
+      "weights.hiddenToOutputPositiveRatio",
+      "Hidden-output positive weight ratio",
+      positiveRatio(connectionGroups.hiddenToOutput.map(effectiveGenome.getConnectionWeight)),
+    ),
 
     feature("reach.inputReachableUnitRatio", "Input-reachable unit ratio", reachability.inputReachableUnitRatio),
     feature("reach.outputReachableUnitRatio", "Output-reachable unit ratio", reachability.outputReachableUnitRatio),

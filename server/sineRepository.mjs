@@ -1,4 +1,11 @@
 import { createSpawnerInspectionPayload } from "../src/sine/spawnerInspectionPayload.ts";
+import {
+  normalizePersistenceLearnedState,
+  plasticitySnapshotFromProfile,
+  normalizePersistencePlasticityProfile,
+} from "../src/sine/persistence/sinePersistenceDtos.ts";
+import { summarizeSpawnerPerformance } from "../src/sine/spawner/performance.ts";
+import { finiteOr, nonNegativeInteger } from "../src/sine/numeric.ts";
 import { sineDb, sineStatements } from "./sineDb.mjs";
 
 export function upsertSineSession({ id, settings, spawnerConfig, status = "running" }) {
@@ -27,116 +34,14 @@ export function saveSinePersistenceBatch(batch) {
 
   sineDb.exec("BEGIN");
   try {
-    upsertSineSession({
-      id: sessionId,
-      settings: batch.marketConfig ?? batch.settings,
-      spawnerConfig: batch.spawnerConfig,
-      status: readPersistenceStatus(sessionId, batch.status),
-    });
-
-    for (const birth of Array.isArray(batch.births) ? batch.births : []) {
-      const spawner = birth.spawner;
-      if (!spawner) continue;
-      sineStatements.insertSineBirth.run(
-        sessionId,
-        spawner.id,
-        birth.parentSpawnerId ?? spawner.parentSpawnerId ?? null,
-        spawner.lineageId,
-        spawner.generation,
-        birth.tick ?? spawner.birthTick,
-        birth.time ?? birth.tick ?? spawner.birthTick ?? 0,
-        JSON.stringify(spawner),
-      );
-    }
-
-    for (const death of Array.isArray(batch.deaths) ? batch.deaths : []) {
-      const spawner = death.spawner;
-      if (!spawner) continue;
-      sineStatements.insertSineDeath.run(
-        sessionId,
-        spawner.id,
-        spawner.lineageId,
-        spawner.generation,
-        death.tick ?? batch.tick ?? 0,
-        death.time ?? death.tick ?? batch.tick ?? 0,
-        JSON.stringify(spawner),
-      );
-    }
-
-    for (const snapshot of Array.isArray(batch.genomeSnapshots) ? batch.genomeSnapshots : []) {
-      const spawner = snapshot.spawner;
-      if (!spawner?.genome) continue;
-      sineStatements.insertSineGenomeSnapshot.run(
-        sessionId,
-        spawner.id,
-        snapshot.tick ?? batch.tick ?? 0,
-        snapshot.time ?? snapshot.tick ?? batch.tick ?? 0,
-        snapshot.reason ?? "manual",
-        JSON.stringify(spawner.genome),
-        JSON.stringify(spawner),
-      );
-    }
-
-    for (const snapshot of Array.isArray(batch.stateSnapshots) ? batch.stateSnapshots : []) {
-      sineStatements.insertSineStateSnapshot.run(
-        sessionId,
-        snapshot.spawnerId,
-        snapshot.lineageId,
-        snapshot.generation,
-        snapshot.tick,
-        snapshot.time ?? snapshot.tick,
-        JSON.stringify(snapshot),
-      );
-    }
-
-    for (const event of Array.isArray(batch.foodEvents) ? batch.foodEvents : []) {
-      const food = event.food;
-      if (!food) continue;
-      sineStatements.insertSineFoodEvent.run(
-        sessionId,
-        food.id,
-        event.kind,
-        food.creatorSpawnerId,
-        food.creatorLineageId,
-        event.tick ?? food.spawnTick,
-        event.time ?? event.tick ?? food.spawnTick,
-        JSON.stringify(food),
-      );
-    }
-
-    for (const event of Array.isArray(batch.events) ? batch.events : []) {
-      sineStatements.insertSineEvent.run(
-        sessionId,
-        event.id,
-        event.kind,
-        event.spawnerId,
-        event.lineageId,
-        event.tick,
-        event.time ?? event.tick,
-        JSON.stringify(event),
-      );
-    }
-
-    const uniquenessCreatedAt = new Date().toISOString();
-    for (const snapshot of Array.isArray(batch.uniquenessSnapshots) ? batch.uniquenessSnapshots : []) {
-      if (!Number.isFinite(Number(snapshot.spawnerId))) continue;
-      sineStatements.insertSineUniquenessSnapshot.run(
-        sessionId,
-        snapshot.spawnerId,
-        snapshot.comparisonTick ?? batch.tick ?? 0,
-        snapshot.score ?? 0,
-        snapshot.rawDistance ?? 0,
-        snapshot.version ?? "unknown",
-        snapshot.vectorVersion ?? "unknown",
-        snapshot.comparisonPopulationSize ?? 0,
-        snapshot.activeFeatureCount ?? 0,
-        snapshot.droppedFeatureCount ?? 0,
-        JSON.stringify(snapshot.nearestNeighborIds ?? []),
-        JSON.stringify(snapshot.mostSimilarFeatures ?? []),
-        JSON.stringify(snapshot.mostDissimilarFeatures ?? []),
-        uniquenessCreatedAt,
-      );
-    }
+    writeSineSession(sessionId, batch);
+    writeSineBirths(sessionId, batch);
+    writeSineDeaths(sessionId, batch);
+    writeSineGenomeSnapshots(sessionId, batch);
+    writeSineStateSnapshots(sessionId, batch);
+    writeSineFoodEvents(sessionId, batch);
+    writeSineEvents(sessionId, batch);
+    writeSineUniquenessSnapshots(sessionId, batch);
 
     sineDb.exec("COMMIT");
   } catch (error) {
@@ -154,6 +59,154 @@ export function saveSinePersistenceBatch(batch) {
     foodEvents: batch.foodEvents?.length ?? 0,
     uniquenessSnapshots: batch.uniquenessSnapshots?.length ?? 0,
   };
+}
+
+function writeSineSession(sessionId, batch) {
+  upsertSineSession({
+    id: sessionId,
+    settings: batch.marketConfig ?? batch.settings,
+    spawnerConfig: batch.spawnerConfig,
+    status: readPersistenceStatus(sessionId, batch.status),
+  });
+}
+
+function writeSineBirths(sessionId, batch) {
+  for (const birth of rows(batch.births)) {
+    const spawner = birth.spawner;
+    if (!spawner) continue;
+    const plasticity = plasticitySnapshot(spawner.genome?.plasticityProfile);
+    sineStatements.insertSineBirth.run(
+      sessionId,
+      spawner.id,
+      birth.parentSpawnerId ?? spawner.parentSpawnerId ?? null,
+      spawner.lineageId,
+      spawner.generation,
+      birth.tick ?? spawner.birthTick,
+      birth.time ?? birth.tick ?? spawner.birthTick ?? 0,
+      stringifyJson(spawner),
+      stringifyJson(plasticity.profile),
+      plasticity.learningRateMean,
+      plasticity.decayRate,
+      plasticity.maxLearnedDelta,
+    );
+  }
+}
+
+function writeSineDeaths(sessionId, batch) {
+  for (const death of rows(batch.deaths)) {
+    const spawner = death.spawner;
+    if (!spawner) continue;
+    sineStatements.insertSineDeath.run(
+      sessionId,
+      spawner.id,
+      spawner.lineageId,
+      spawner.generation,
+      eventTick(death, batch),
+      eventTime(death, batch),
+      stringifyJson(spawner),
+    );
+  }
+}
+
+function writeSineGenomeSnapshots(sessionId, batch) {
+  for (const snapshot of rows(batch.genomeSnapshots)) {
+    const spawner = snapshot.spawner;
+    if (!spawner?.genome) continue;
+    const plasticity = plasticitySnapshot(spawner.genome.plasticityProfile);
+    sineStatements.insertSineGenomeSnapshot.run(
+      sessionId,
+      spawner.id,
+      eventTick(snapshot, batch),
+      eventTime(snapshot, batch),
+      snapshot.reason ?? "manual",
+      stringifyJson(spawner.genome),
+      stringifyJson(spawner),
+      stringifyJson(plasticity.profile),
+      plasticity.learningRateMean,
+      plasticity.decayRate,
+      plasticity.maxLearnedDelta,
+    );
+  }
+}
+
+function writeSineStateSnapshots(sessionId, batch) {
+  for (const snapshot of rows(batch.stateSnapshots)) {
+    const plasticity = plasticitySnapshot(snapshot.plasticityProfile);
+    const learnedState = normalizeLearnedState(snapshot.learnedState);
+    sineStatements.insertSineStateSnapshot.run(
+      sessionId,
+      snapshot.spawnerId,
+      snapshot.lineageId,
+      snapshot.generation,
+      snapshot.tick,
+      snapshot.time ?? snapshot.tick,
+      stringifyJson(snapshot),
+      finiteNumber(snapshot.learnedDeltaNorm, 0),
+      finiteNumber(snapshot.recentLearningSignal, 0),
+      integerNumber(snapshot.learningUpdateCount, 0),
+      integerNumber(snapshot.reproductionLearningCount, 0),
+      finiteNumber(snapshot.plasticityLearningRateMean, plasticity.learningRateMean),
+      finiteNumber(snapshot.plasticityDecayRate, plasticity.decayRate),
+      finiteNumber(snapshot.plasticityMaxLearnedDelta, plasticity.maxLearnedDelta),
+      stringifyJson(learnedState),
+      stringifyJson(plasticity.profile),
+    );
+  }
+}
+
+function writeSineFoodEvents(sessionId, batch) {
+  for (const event of rows(batch.foodEvents)) {
+    const food = event.food;
+    if (!food) continue;
+    sineStatements.insertSineFoodEvent.run(
+      sessionId,
+      food.id,
+      event.kind,
+      food.creatorSpawnerId,
+      food.creatorLineageId,
+      event.tick ?? food.spawnTick,
+      event.time ?? event.tick ?? food.spawnTick,
+      stringifyJson(food),
+    );
+  }
+}
+
+function writeSineEvents(sessionId, batch) {
+  for (const event of rows(batch.events)) {
+    sineStatements.insertSineEvent.run(
+      sessionId,
+      event.id,
+      event.kind,
+      event.spawnerId,
+      event.lineageId,
+      event.tick,
+      event.time ?? event.tick,
+      stringifyJson(event),
+    );
+  }
+}
+
+function writeSineUniquenessSnapshots(sessionId, batch) {
+  const uniquenessCreatedAt = new Date().toISOString();
+  for (const snapshot of rows(batch.uniquenessSnapshots)) {
+    if (!Number.isFinite(Number(snapshot.spawnerId))) continue;
+    sineStatements.insertSineUniquenessSnapshot.run(
+      sessionId,
+      snapshot.spawnerId,
+      snapshot.comparisonTick ?? batch.tick ?? 0,
+      snapshot.score ?? 0,
+      snapshot.rawDistance ?? 0,
+      snapshot.version ?? "unknown",
+      snapshot.vectorVersion ?? "unknown",
+      snapshot.comparisonPopulationSize ?? 0,
+      snapshot.activeFeatureCount ?? 0,
+      snapshot.droppedFeatureCount ?? 0,
+      stringifyJson(snapshot.nearestNeighborIds ?? []),
+      stringifyJson(snapshot.mostSimilarFeatures ?? []),
+      stringifyJson(snapshot.mostDissimilarFeatures ?? []),
+      uniquenessCreatedAt,
+    );
+  }
 }
 
 export function listSineSessions(limit = 30) {
@@ -237,33 +290,9 @@ export function getSineSpawnerInspection(sessionId, spawnerId, requestedTick) {
     ? sineStatements.getSineStateAtTick.get(sessionId, spawnerId, tick)
     : sineStatements.getSineLatestState.get(sessionId, spawnerId);
 
-  const deathApplies = death && (!Number.isFinite(tick) || death.death_tick <= tick);
-  const baseSpawner = deathApplies ? parseJson(death.spawner_json, null) : parseJson(genomeRow?.spawner_json ?? birth.spawner_json, null);
-  if (!baseSpawner) return null;
-
-  const genome = parseJson(genomeRow?.genome_json ?? baseSpawner.genome, baseSpawner.genome);
-  const state = parseJson(stateRow?.state_json, null);
-  const spawner = {
-    ...baseSpawner,
-    genome,
-    ...(state
-      ? {
-          energy: state.energy,
-          health: state.health,
-          age: state.age,
-          cooldown: state.cooldown,
-          hiddenState: state.hiddenState,
-          lastAction: state.lastAction,
-          spawnedCount: state.spawnedCount,
-          resolvedCount: state.resolvedCount,
-          wins: state.wins,
-          losses: state.losses,
-          totalPayoff: state.totalPayoff,
-          children: state.children,
-          recentPayoffs: state.recentPayoffs,
-        }
-      : {}),
-  };
+  const reconstructed = reconstructHistoricalSpawner({ birth, death, genomeRow, stateRow, tick });
+  if (!reconstructed) return null;
+  const { spawner, deathApplies, effectiveStateRow } = reconstructed;
 
   const effectiveTick = Number.isFinite(tick) ? tick : stateRow?.tick ?? genomeRow?.tick ?? death?.death_tick ?? birth.birth_tick;
   const lower = Math.max(0, effectiveTick - 250);
@@ -278,16 +307,59 @@ export function getSineSpawnerInspection(sessionId, spawnerId, requestedTick) {
     source: "historical",
     sessionId,
     spawner,
-    tick: stateRow?.tick ?? death?.death_tick ?? genomeRow?.tick ?? birth.birth_tick,
+    tick: deathApplies ? death.death_tick : effectiveStateRow?.tick ?? genomeRow?.tick ?? birth.birth_tick,
     requestedTick: Number.isFinite(tick) ? tick : undefined,
-    stateSnapshotTick: stateRow?.tick ?? null,
+    stateSnapshotTick: effectiveStateRow?.tick ?? null,
     genomeSnapshotTick: genomeRow?.tick ?? null,
-    exact: Number.isFinite(tick) ? stateRow?.tick === tick : true,
+    exact: Number.isFinite(tick) ? (deathApplies ? death.death_tick === tick : effectiveStateRow?.tick === tick) : true,
     status: deathApplies ? "dead" : "historical",
     uniqueness: uniquenessRow ? parseUniquenessRow(uniquenessRow) : null,
     recentFoods,
     recentEvents,
   });
+}
+
+function reconstructHistoricalSpawner({ birth, death, genomeRow, stateRow, tick }) {
+  const deathApplies = death && (!Number.isFinite(tick) || death.death_tick <= tick);
+  const baseSpawner = deathApplies ? parseJson(death.spawner_json, null) : parseJson(genomeRow?.spawner_json ?? birth.spawner_json, null);
+  if (!baseSpawner) return null;
+
+  const genome = deathApplies ? baseSpawner.genome : parseJson(genomeRow?.genome_json ?? baseSpawner.genome, baseSpawner.genome);
+  const effectiveStateRow = deathApplies ? null : stateRow;
+  const state = parseJson(effectiveStateRow?.state_json, null);
+  return {
+    deathApplies,
+    effectiveStateRow,
+    spawner: applyHistoricalStateSnapshot(
+      {
+        ...baseSpawner,
+        genome,
+      },
+      state,
+      stateRow,
+    ),
+  };
+}
+
+function applyHistoricalStateSnapshot(baseSpawner, state, stateRow) {
+  if (!state) return baseSpawner;
+  return {
+    ...baseSpawner,
+    energy: state.energy,
+    health: state.health,
+    ageTicks: state.ageTicks ?? state.age,
+    cooldownTicks: state.cooldownTicks ?? state.cooldown,
+    hiddenState: state.hiddenState,
+    lastAction: state.lastAction,
+    spawnedCount: state.spawnedCount,
+    resolvedCount: state.resolvedCount,
+    wins: state.wins,
+    losses: state.losses,
+    totalPayoff: state.totalPayoff,
+    children: state.children,
+    recentPayoffs: state.recentPayoffs,
+    learnedState: state.learnedState ?? parseJson(stateRow?.learned_state_json, {}),
+  };
 }
 
 function parseUniquenessRow(row) {
@@ -305,6 +377,18 @@ function parseUniquenessRow(row) {
     mostSimilarFeatures: parseJson(row.most_similar_features_json, []),
     mostDissimilarFeatures: parseJson(row.most_dissimilar_features_json, []),
   };
+}
+
+function normalizeLearnedState(value) {
+  return normalizePersistenceLearnedState(value);
+}
+
+function plasticitySnapshot(profile) {
+  return plasticitySnapshotFromProfile(profile);
+}
+
+function normalizePlasticityProfile(profile) {
+  return normalizePersistencePlasticityProfile(profile);
 }
 
 function readPersistenceStatus(sessionId, status) {
@@ -348,10 +432,7 @@ function rollingLossPoints(resolvedFoods, windowSize = 50) {
 }
 
 function summarizeSpawnerState(state, deathIds) {
-  const resolvedCount = Number(state.resolvedCount ?? 0);
-  const wins = Number(state.wins ?? 0);
-  const losses = Number(state.losses ?? 0);
-  const totalPayoff = Number(state.totalPayoff ?? 0);
+  const performance = summarizeSpawnerPerformance(state);
   return {
     spawnerId: state.spawnerId,
     lineageId: state.lineageId,
@@ -360,14 +441,18 @@ function summarizeSpawnerState(state, deathIds) {
     status: deathIds.has(state.spawnerId) ? "dead" : "alive",
     energy: state.energy,
     health: state.health,
-    children: Number(state.children ?? 0),
-    spawnedCount: Number(state.spawnedCount ?? 0),
-    resolvedCount,
-    hitRate: resolvedCount > 0 ? wins / resolvedCount : 0,
-    wins,
-    losses,
-    totalPayoff,
-    averagePayoff: resolvedCount > 0 ? totalPayoff / resolvedCount : 0,
+    children: performance.children,
+    spawnedCount: performance.spawnedCount,
+    resolvedCount: performance.resolvedCount,
+    hitRate: performance.hitRate,
+    wins: performance.wins,
+    losses: performance.losses,
+    totalPayoff: performance.totalPayoff,
+    averagePayoff: performance.averagePayoff,
+    learnedDeltaNorm: performance.learnedDeltaNorm,
+    learningUpdateCount: performance.learningUpdateCount,
+    reproductionLearningCount: performance.reproductionLearningCount,
+    plasticityLearningRateMean: performance.plasticityLearningRateMean,
   };
 }
 
@@ -447,6 +532,30 @@ function downsample(rows, limit) {
     result.push(rows[Math.round(index * step)]);
   }
   return result;
+}
+
+function finiteNumber(value, fallback) {
+  return finiteOr(value, fallback);
+}
+
+function integerNumber(value, fallback) {
+  return nonNegativeInteger(value, fallback);
+}
+
+function rows(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function eventTick(row, batch) {
+  return row.tick ?? batch.tick ?? 0;
+}
+
+function eventTime(row, batch) {
+  return row.time ?? row.tick ?? batch.tick ?? 0;
+}
+
+function stringifyJson(value) {
+  return JSON.stringify(value);
 }
 
 function parseJson(value, fallback) {

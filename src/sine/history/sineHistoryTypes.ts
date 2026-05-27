@@ -29,6 +29,10 @@ export type SineSessionAnalysis = {
     hitRate: number;
     children: number;
     resolvedCount: number;
+    learnedDeltaNorm: number;
+    learningUpdateCount: number;
+    reproductionLearningCount: number;
+    plasticityLearningRateMean: number;
   }>;
   lineages: Array<{
     lineageId: number;

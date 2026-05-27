@@ -108,21 +108,32 @@
 MORE:
 - How do food-spawners reproduce?
     - (Now fixed: reproduce as NN output)
+
 - Is Strength (output) tied to anything? Is there any learning or evolutionary pressure on Strength?
     - Yes. But take a second look and make sure the right incentives are in place.
 
-- How can scarcity affect complexity of the species?
+- How can scarcity affect complexity of the species? Idea: Make it harder to reproduce as population increases towards cap.
+    - Related: what happens if two agents want to reproduce, but there's only room for one in the pop cap?
 
 - How do they actually learn? Are the results fed to the RNNs?
-    - Answer: they currently don't
+    - Answer: we implemented a simple learning mechanism, but need to check that the learning equation is good. Is it relative ROC or absolute ROC that teaches the agents?
 
 - Take a second look at the inputs
     - (Done - parameters now mutate and amplitude is now relative)
 - What does health bar do exactly?
 - What do we do when a population dies, or is close to dying? Seeds?
-- Slippage and fees?
 
-- Horizon is fixed - should mutate. Same with spawn threshold. Long and short should have their own spawn thresholds.
+- Slippage and fees?
+    - Now, taken care of. But double check.
+
+- Initial brain: how many units? How many connections? Survivability without seeding too much.
+    - - "New unit initial connections" now has a minimum valid number of connections set to 2. One must come from previous layers, and one must go to forward layers.
+    - Check for bugs. Make sure the implementation was done correctly.
+    - Continue understanding what "Output connections per output" actually does and how RNNs actually work.
+
+- Take a good look at "strength"
+
+- Complexity penalty
 
 LATER:
 

@@ -8,6 +8,7 @@ import {
   type SpawnerFood,
   type SpawnerUniquenessScore,
 } from "./spawnerSimulation";
+import { createSpawnerSnapshot } from "./spawner/snapshots";
 
 export function createLiveSpawnerInspectionPayload({
   sessionId,
@@ -76,7 +77,7 @@ export function createSpawnerInspectionPayload({
   recentFoods: SpawnerFood[];
   recentEvents: SpawnerEvent[];
 }): SpawnerInspectionPayload {
-  const spawnerSnapshot = structuredClone(spawner);
+  const spawnerSnapshot = createSpawnerSnapshot(spawner);
   spawnerSnapshot.genome = normalizeSpawnerGenomeForCurrentContract(spawnerSnapshot.genome);
   return {
     source,

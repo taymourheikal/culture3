@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Neural Network Memory Explainer</title>
+    <style>
+      :root {
+        --bg: #f5f7f2;
+        --ink: #17211d;
+        --muted: #66736c;
+        --line: #cbd6ce;
+        --panel: #ffffff;
+        --soft: #edf3ef;
+        --blue: #1f6feb;
+        --green: #177245;
+        --amber: #b56a00;
+        --red: #b73535;
+        --violet: #6f42c1;
+        --shadow: 0 16px 34px rgba(23, 33, 29, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      header {
+        padding: 22px clamp(18px, 4vw, 46px) 16px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.78);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: blur(12px);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(25px, 3vw, 38px);
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        max-width: 900px;
+        color: var(--muted);
+      }
+
+      main {
+        padding: 20px clamp(18px, 4vw, 46px) 40px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .sidebar {
+        position: sticky;
+        top: 120px;
+        padding: 14px;
+      }
+
+      .lesson-list {
+        display: grid;
+        gap: 7px;
+      }
+
+      .lesson-button {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 10px;
+        align-items: center;
+        width: 100%;
+        min-height: 48px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f9fbf9;
+        color: var(--ink);
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .lesson-button.active {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: #fff;
+      }
+
+      .lesson-number {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--soft);
+        color: var(--ink);
+        font-weight: 800;
+      }
+
+      .lesson-button.active .lesson-number {
+        background: #fff;
+      }
+
+      .lesson-button span:last-child {
+        font-weight: 750;
+      }
+
+      .side-note {
+        margin: 14px 0 0;
+        padding: 12px;
+        border-radius: 8px;
+        background: #eff6f2;
+        color: #26382f;
+        border: 1px solid #bfd0c4;
+      }
+
+      .workspace {
+        display: grid;
+        gap: 16px;
+      }
+
+      .hero {
+        padding: 18px;
+      }
+
+      .hero-top {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .eyebrow {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 800;
+      }
+
+      h2 {
+        margin: 4px 0 6px;
+        font-size: clamp(25px, 2.8vw, 40px);
+        line-height: 1.08;
+        letter-spacing: 0;
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 860px;
+      }
+
+      .tick-card {
+        min-width: 150px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+        text-align: right;
+      }
+
+      .tick-card span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .tick-card strong {
+        font-size: 26px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .teaching-grid {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .teaching-card {
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+      }
+
+      .teaching-card strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .teaching-card p,
+      .teaching-card ol {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .teaching-card ol {
+        padding-left: 20px;
+      }
+
+      .teaching-card li + li {
+        margin-top: 4px;
+      }
+
+      .interactive {
+        display: grid;
+        grid-template-columns: minmax(250px, 330px) minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .controls {
+        padding: 15px;
+      }
+
+      .section-title {
+        margin: 0 0 10px;
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      .transport {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+
+      .transport button {
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #f8faf8;
+        cursor: pointer;
+      }
+
+      .transport .primary {
+        background: var(--blue);
+        border-color: var(--blue);
+        color: #fff;
+      }
+
+      .control-row {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 13px;
+      }
+
+      .control-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .control-label strong {
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--blue);
+      }
+
+      .try-box {
+        margin-top: 12px;
+        padding: 11px;
+        border: 1px solid #c7d2cb;
+        border-radius: 8px;
+        background: #f3f7f4;
+        color: #334239;
+      }
+
+      .try-box strong {
+        display: block;
+        margin-bottom: 5px;
+      }
+
+      .stage {
+        min-height: 650px;
+        padding: 16px;
+      }
+
+      .readouts {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .readout {
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+      }
+
+      .readout span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .readout strong {
+        font-size: 20px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .diagram {
+        min-height: 430px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background:
+          linear-gradient(#edf2ee 1px, transparent 1px),
+          linear-gradient(90deg, #edf2ee 1px, transparent 1px),
+          #fbfcfb;
+        background-size: 32px 32px;
+        overflow: hidden;
+      }
+
+      svg {
+        display: block;
+        width: 100%;
+        min-height: 430px;
+      }
+
+      .node rect,
+      .node circle {
+        fill: #fff;
+        stroke: #1f332a;
+        stroke-width: 1.4;
+      }
+
+      .node .soft {
+        fill: #f4f8f5;
+      }
+
+      .node text {
+        fill: var(--ink);
+        font-size: 13px;
+        font-weight: 800;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+
+      .node .sub {
+        fill: var(--muted);
+        font-size: 11px;
+        font-weight: 650;
+      }
+
+      .link {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: stroke-width 160ms ease, opacity 160ms ease;
+      }
+
+      .input-link {
+        stroke: var(--blue);
+      }
+
+      .memory-link {
+        stroke: var(--green);
+      }
+
+      .gate-link {
+        stroke: var(--amber);
+      }
+
+      .output-link {
+        stroke: var(--violet);
+      }
+
+      .cell-link {
+        stroke: var(--red);
+      }
+
+      .dashed {
+        stroke-dasharray: 7 7;
+      }
+
+      .caption {
+        fill: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .formula-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .formula,
+      .history {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfb;
+      }
+
+      code {
+        display: block;
+        white-space: pre-wrap;
+        color: #26332e;
+      }
+
+      .bars {
+        display: grid;
+        grid-template-columns: repeat(20, 1fr);
+        gap: 3px;
+        height: 74px;
+        align-items: end;
+      }
+
+      .bar {
+        min-width: 0;
+        border-radius: 4px 4px 0 0;
+        background: var(--green);
+      }
+
+      @media (max-width: 1080px) {
+        .layout,
+        .interactive,
+        .teaching-grid,
+        .formula-row {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: static;
+        }
+
+        .hero-top {
+          grid-template-columns: 1fr;
+        }
+
+        .tick-card {
+          text-align: left;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .readouts {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .lesson-button {
+          min-height: 42px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Neural Network Memory Explainer</h1>
+      <p class="subtitle">A guided visual lesson for the pieces behind NNs, RNNs, GRUs, LSTMs, and the sparse GRU-like brains used by Sine agents.</p>
+    </header>
+
+    <main>
+      <div class="layout">
+        <aside class="panel sidebar">
+          <p class="section-title">Lessons</p>
+          <div class="lesson-list" id="lessonList"></div>
+          <div class="side-note">
+            <strong>How to use this</strong>
+            <p>Start at lesson 1. Press Step. Move one slider. Press Step again. The goal is to see what changes, not to memorize formulas.</p>
+          </div>
+        </aside>
+
+        <section class="workspace">
+          <article class="panel hero">
+            <div class="hero-top">
+              <div>
+                <span class="eyebrow" id="lessonEyebrow">Lesson 1</span>
+                <h2 id="lessonTitle">One Node</h2>
+                <p id="lessonSummary">A node is one tiny calculator. It receives a number, multiplies it by a weight, adds a bias, squashes it into a safe range, then sends the result forward.</p>
+              </div>
+              <div class="tick-card">
+                <span>Tick</span>
+                <strong id="tickReadout">0</strong>
+              </div>
+            </div>
+
+            <div class="teaching-grid">
+              <div class="teaching-card">
+                <strong>Plain English</strong>
+                <p id="plainText"></p>
+              </div>
+              <div class="teaching-card">
+                <strong>Watch for</strong>
+                <ol id="watchList"></ol>
+              </div>
+            </div>
+          </article>
+
+          <section class="interactive">
+            <aside class="panel controls">
+              <p class="section-title">Playback</p>
+              <div class="transport">
+                <button type="button" id="stepButton" class="primary">Step</button>
+                <button type="button" id="playButton">Play</button>
+                <button type="button" id="resetButton">Reset</button>
+              </div>
+
+              <p class="section-title">Controls for this lesson</p>
+              <div id="controlList"></div>
+              <div class="try-box">
+                <strong>Try this</strong>
+                <span id="tryText"></span>
+              </div>
+            </aside>
+
+            <article class="panel stage">
+              <div class="readouts">
+                <div class="readout"><span>Input now</span><strong id="inputReadout">0.70</strong></div>
+                <div class="readout"><span>Weight effect</span><strong id="weightedReadout">0.70</strong></div>
+                <div class="readout"><span>Memory / cell</span><strong id="memoryReadout">0.25</strong></div>
+                <div class="readout"><span>Output now</span><strong id="outputReadout">0.60</strong></div>
+              </div>
+
+              <div class="diagram">
+                <svg id="diagramSvg" viewBox="0 0 980 500" role="img" aria-label="Neural network lesson diagram"></svg>
+              </div>
+
+              <div class="formula-row">
+                <div class="formula">
+                  <p class="section-title">Small formula</p>
+                  <code id="formulaText"></code>
+                </div>
+                <div class="history">
+                  <p class="section-title">Memory over time</p>
+                  <div class="bars" id="bars"></div>
+                </div>
+              </div>
+            </article>
+          </section>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const controls = {
+        input: { label: "Input now", min: -1, max: 1, step: 0.01, value: 0.7 },
+        weight: { label: "Input weight", min: -2, max: 2, step: 0.01, value: 1 },
+        bias: { label: "Bias", min: -1, max: 1, step: 0.01, value: 0 },
+        memoryWeight: { label: "Memory weight", min: -2, max: 2, step: 0.01, value: 0.7 },
+        startingMemory: { label: "Starting memory", min: -1, max: 1, step: 0.01, value: 0.25 },
+        resetGate: { label: "GRU reset gate", min: 0, max: 1, step: 0.01, value: 0.6 },
+        updateGate: { label: "GRU update gate", min: 0, max: 1, step: 0.01, value: 0.35 },
+        forgetGate: { label: "LSTM forget gate", min: 0, max: 1, step: 0.01, value: 0.72 },
+        writeGate: { label: "LSTM write gate", min: 0, max: 1, step: 0.01, value: 0.46 },
+        outputGate: { label: "LSTM output gate", min: 0, max: 1, step: 0.01, value: 0.8 },
+      };
+
+      const lessons = [
+        {
+          id: "node",
+          title: "One Node",
+          summary: "A node is one tiny calculator. It receives a number, multiplies it by a weight, adds a bias, squashes it into a safe range, then sends the result forward.",
+          plain: "A neural network is built from many tiny calculators. This first lesson shows just one calculator so the pieces are visible.",
+          watch: ["Blue is the input number.", "Weight decides whether the input pushes up or down.", "The squashing step keeps the output between -1 and 1."],
+          tryText: "Set the weight negative. The same positive input now pushes the output downward.",
+          controlKeys: ["input", "weight", "bias"],
+        },
+        {
+          id: "ff",
+          title: "Feed-Forward Network",
+          summary: "A normal neural network chains nodes into layers. Input facts flow into hidden calculations, then into output decisions.",
+          plain: "Hidden units are intermediate calculations. They are not magic; they are just nodes between the input and output.",
+          watch: ["Information moves left to right only.", "There is no memory loop.", "Same input plus same weights gives the same output."],
+          tryText: "Move the input slider. The hidden units and output change immediately, but no memory is saved.",
+          controlKeys: ["input", "weight", "bias"],
+        },
+        {
+          id: "time",
+          title: "Time And Memory",
+          summary: "A tick is one moment. Memory means a value from the previous tick is reused in the current tick.",
+          plain: "Before RNNs make sense, you need the idea of time. A memory model does not only ask, 'What do I see now?' It also asks, 'What was I carrying from before?'",
+          watch: ["Press Step to move time forward.", "The green value is carried from one tick to the next.", "A feed-forward NN does not have this carried value."],
+          tryText: "Press Step several times, then change Starting memory and Reset to see the timeline restart.",
+          controlKeys: ["input", "startingMemory"],
+        },
+        {
+          id: "rnn",
+          title: "Vanilla RNN",
+          summary: "A vanilla RNN mixes current input with previous hidden memory, then overwrites memory with the new hidden value.",
+          plain: "The simplest recurrent network has one loop: yesterday's hidden value comes back into today's calculation.",
+          watch: ["Green is previous memory.", "The new hidden value becomes next tick's memory.", "This is simple, but it has poor control over what to keep or erase."],
+          tryText: "Increase Memory weight and press Step. The past starts to dominate the current input.",
+          controlKeys: ["input", "weight", "memoryWeight", "startingMemory"],
+        },
+        {
+          id: "gru",
+          title: "GRU",
+          summary: "A GRU is an RNN with two controls: reset and update. They decide how old memory participates and how much gets replaced.",
+          plain: "A GRU is useful because it does not always overwrite memory. It can keep old memory, ignore old memory, or blend old and new.",
+          watch: ["Reset controls whether old memory helps form the candidate.", "Update controls keep-old versus write-new.", "GRUs are a compact memory design."],
+          tryText: "Set Update gate near 0 and press Step. Memory barely changes. Set it near 1 and it rewrites quickly.",
+          controlKeys: ["input", "weight", "memoryWeight", "startingMemory", "resetGate", "updateGate"],
+        },
+        {
+          id: "lstm",
+          title: "LSTM",
+          summary: "An LSTM separates long-term cell state from visible hidden output. Three gates decide erase, write, and reveal.",
+          plain: "Think of the cell as a private notebook. The model can erase old notes, write new notes, and choose how much of the notebook to show.",
+          watch: ["Red is the cell state.", "Forget controls erasing old cell memory.", "Output gate controls how much cell state becomes visible output."],
+          tryText: "Set Forget low to erase memory. Set Output gate low to hide the cell even when the cell contains information.",
+          controlKeys: ["input", "weight", "memoryWeight", "startingMemory", "forgetGate", "writeGate", "outputGate"],
+        },
+        {
+          id: "sine",
+          title: "Sine-Style Sparse GRU",
+          summary: "Sine agents use sparse GRU-like hidden units. Connections can target update, reset, or candidate gates, and previous hidden state affects the next tick.",
+          plain: "This is not a dense textbook layer. It is an evolved sparse graph. Some inputs connect to some gates, hidden memory can connect back through previous-state links, and outputs read from hidden units.",
+          watch: ["Dashed green links mean previous tick memory, not same-tick loops.", "Amber links feed gates inside hidden units.", "Purple links go from hidden units to action outputs."],
+          tryText: "Switch back to GRU after this. Sine uses the same memory idea, but with sparse evolved connections instead of a neat dense layer.",
+          controlKeys: ["input", "weight", "memoryWeight", "startingMemory", "resetGate", "updateGate"],
+        },
+      ];
+
+      const state = {
+        lessonIndex: 0,
+        tick: 0,
+        memory: controls.startingMemory.value,
+        cell: controls.startingMemory.value,
+        output: 0,
+        playing: false,
+        timer: null,
+        history: [controls.startingMemory.value],
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const dom = {
+        lessonList: $("lessonList"),
+        controlList: $("controlList"),
+        eyebrow: $("lessonEyebrow"),
+        title: $("lessonTitle"),
+        summary: $("lessonSummary"),
+        plain: $("plainText"),
+        watch: $("watchList"),
+        tryText: $("tryText"),
+        tick: $("tickReadout"),
+        inputReadout: $("inputReadout"),
+        weightedReadout: $("weightedReadout"),
+        memoryReadout: $("memoryReadout"),
+        outputReadout: $("outputReadout"),
+        svg: $("diagramSvg"),
+        formula: $("formulaText"),
+        bars: $("bars"),
+        step: $("stepButton"),
+        play: $("playButton"),
+        reset: $("resetButton"),
+      };
+
+      function tanh(value) {
+        return Math.tanh(value);
+      }
+
+      function clamp(value) {
+        return Math.max(-1, Math.min(1, value));
+      }
+
+      function value(key) {
+        return controls[key].value;
+      }
+
+      function format(value) {
+        return value.toFixed(2);
+      }
+
+      function lesson() {
+        return lessons[state.lessonIndex];
+      }
+
+      function compute() {
+        const input = value("input");
+        const weighted = input * value("weight") + value("bias");
+        const previous = state.tick === 0 ? value("startingMemory") : state.memory;
+        const previousCell = state.tick === 0 ? value("startingMemory") : state.cell;
+
+        if (lesson().id === "node" || lesson().id === "ff") {
+          const output = tanh(weighted);
+          return {
+            input,
+            weighted,
+            memory: previous,
+            cell: previousCell,
+            output,
+            formula: `output = tanh(input * weight + bias)\noutput = tanh(${format(input)} * ${format(value("weight"))} + ${format(value("bias"))})\noutput = ${output.toFixed(3)}`,
+          };
+        }
+
+        if (lesson().id === "time") {
+          return {
+            input,
+            weighted,
+            memory: previous,
+            cell: previousCell,
+            output: input,
+            formula: `tick ${state.tick}: input is ${format(input)}\ncarried memory is ${format(previous)}\nno neural update yet`,
+          };
+        }
+
+        if (lesson().id === "rnn") {
+          const memory = tanh(weighted + value("memoryWeight") * previous);
+          return {
+            input,
+            weighted,
+            memory,
+            cell: memory,
+            output: memory,
+            formula: `newMemory = tanh(inputPart + memoryWeight * previousMemory)\nnewMemory = tanh(${format(weighted)} + ${format(value("memoryWeight"))} * ${format(previous)})\noutput = ${memory.toFixed(3)}`,
+          };
+        }
+
+        if (lesson().id === "gru" || lesson().id === "sine") {
+          const candidate = tanh(weighted + value("memoryWeight") * value("resetGate") * previous);
+          const memory = (1 - value("updateGate")) * previous + value("updateGate") * candidate;
+          return {
+            input,
+            weighted,
+            memory,
+            cell: memory,
+            output: memory,
+            formula: `candidate = tanh(inputPart + memoryWeight * reset * previousMemory)\nnewMemory = keepOld + writeCandidate\nnewMemory = ${(1 - value("updateGate")).toFixed(2)} * ${format(previous)} + ${format(value("updateGate"))} * ${candidate.toFixed(3)}\noutput = ${memory.toFixed(3)}`,
+          };
+        }
+
+        const candidate = tanh(weighted + value("memoryWeight") * previous);
+        const cell = clamp(value("forgetGate") * previousCell + value("writeGate") * candidate);
+        const output = value("outputGate") * tanh(cell);
+        return {
+          input,
+          weighted,
+          memory: output,
+          cell,
+          output,
+          formula: `cell = forget * previousCell + write * candidate\nhiddenOutput = outputGate * tanh(cell)\ncell = ${format(value("forgetGate"))} * ${format(previousCell)} + ${format(value("writeGate"))} * ${candidate.toFixed(3)}\noutput = ${output.toFixed(3)}`,
+        };
+      }
+
+      function step() {
+        const result = compute();
+        state.tick += 1;
+        state.memory = result.memory;
+        state.cell = result.cell;
+        state.output = result.output;
+        state.history.push(lesson().id === "lstm" ? result.cell : result.memory);
+        if (state.history.length > 20) state.history.shift();
+        render();
+      }
+
+      function reset() {
+        state.tick = 0;
+        state.memory = value("startingMemory");
+        state.cell = value("startingMemory");
+        state.output = compute().output;
+        state.history = [value("startingMemory")];
+        render();
+      }
+
+      function path(id, d, cls, strength = 1, dashed = false) {
+        return `<path id="${id}" class="link ${cls}${dashed ? " dashed" : ""}" d="${d}" marker-end="url(#arrow)" style="stroke-width:${1.6 + Math.abs(strength) * 6};opacity:${0.2 + Math.min(0.8, Math.abs(strength))}"></path>`;
+      }
+
+      function node(x, y, w, h, label, sub = "", kind = "rect") {
+        if (kind === "circle") {
+          return `<g class="node"><circle cx="${x}" cy="${y}" r="${w}"></circle><text x="${x}" y="${y - 7}">${label}</text><text class="sub" x="${x}" y="${y + 14}">${sub}</text></g>`;
+        }
+        return `<g class="node"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10"></rect><text x="${x + w / 2}" y="${y + h / 2 - 8}">${label}</text><text class="sub" x="${x + w / 2}" y="${y + h / 2 + 14}">${sub}</text></g>`;
+      }
+
+      function svgShell(content) {
+        dom.svg.innerHTML = `
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#20342b"></path>
+            </marker>
+          </defs>
+          ${content}
+        `;
+      }
+
+      function renderDiagram(result) {
+        const id = lesson().id;
+        const input = result.input;
+        const memory = state.tick === 0 ? value("startingMemory") : state.memory;
+
+        if (id === "node") {
+          svgShell(`
+            ${path("a", "M 120 250 C 220 250, 255 250, 310 250", "input-link", input)}
+            ${path("b", "M 510 250 C 620 250, 690 250, 790 250", "output-link", result.output)}
+            ${node(78, 250, 48, 0, "Input", format(input), "circle")}
+            ${node(310, 185, 200, 130, "Node", "multiply + bias + tanh")}
+            ${node(840, 250, 48, 0, "Output", format(result.output), "circle")}
+            <text class="caption" x="370" y="360">weight ${format(value("weight"))}, bias ${format(value("bias"))}</text>
+          `);
+          return;
+        }
+
+        if (id === "ff") {
+          svgShell(`
+            ${path("i1", "M 120 170 C 240 170, 250 190, 350 210", "input-link", input)}
+            ${path("i2", "M 120 250 C 240 250, 250 250, 350 250", "input-link", input * 0.7)}
+            ${path("i3", "M 120 330 C 240 330, 250 310, 350 290", "input-link", input * 0.4)}
+            ${path("h1", "M 470 220 C 570 220, 640 230, 760 250", "output-link", result.output)}
+            ${path("h2", "M 470 280 C 570 280, 640 270, 760 250", "output-link", result.output * 0.8)}
+            ${node(80, 170, 38, 0, "Input A", "", "circle")}
+            ${node(80, 250, 38, 0, "Input B", "", "circle")}
+            ${node(80, 330, 38, 0, "Input C", "", "circle")}
+            ${node(350, 185, 120, 70, "Hidden 1", "feature")}
+            ${node(350, 265, 120, 70, "Hidden 2", "feature")}
+            ${node(810, 250, 48, 0, "Output", format(result.output), "circle")}
+            <text class="caption" x="340" y="390">No arrows loop back. This model has no memory.</text>
+          `);
+          return;
+        }
+
+        if (id === "time") {
+          svgShell(`
+            ${node(90, 170, 130, 80, "Tick t-2", "past")}
+            ${node(320, 170, 130, 80, "Tick t-1", "previous")}
+            ${node(550, 170, 130, 80, "Tick t", "now")}
+            ${path("m1", "M 220 210 C 260 210, 280 210, 320 210", "memory-link", memory)}
+            ${path("m2", "M 450 210 C 490 210, 510 210, 550 210", "memory-link", memory)}
+            ${node(785, 210, 58, 0, "Input", format(input), "circle")}
+            ${path("inp", "M 730 210 C 700 210, 690 210, 680 210", "input-link", input)}
+            <text class="caption" x="240" y="330">Memory is just a value carried forward from one tick to the next.</text>
+          `);
+          return;
+        }
+
+        if (id === "rnn") {
+          svgShell(`
+            ${path("inp", "M 120 220 C 230 220, 260 220, 340 220", "input-link", input)}
+            ${path("mem", "M 240 360 C 330 420, 500 410, 560 315", "memory-link", memory, true)}
+            ${path("out", "M 610 240 C 700 240, 740 240, 830 240", "output-link", result.output)}
+            ${node(78, 220, 44, 0, "Input", format(input), "circle")}
+            ${node(190, 330, 150, 70, "Previous h", format(memory))}
+            ${node(340, 180, 270, 120, "RNN hidden", "input + previous memory")}
+            ${node(880, 240, 46, 0, "Output", format(result.output), "circle")}
+            <text class="caption" x="370" y="390">The new hidden value becomes the next tick's previous h.</text>
+          `);
+          return;
+        }
+
+        if (id === "gru") {
+          svgShell(`
+            ${path("inp", "M 110 250 C 220 250, 250 250, 330 250", "input-link", input)}
+            ${path("mem", "M 230 380 C 330 430, 500 410, 560 330", "memory-link", memory, true)}
+            ${path("reset", "M 300 120 C 390 130, 430 170, 500 220", "gate-link", value("resetGate"))}
+            ${path("update", "M 470 105 C 520 135, 555 170, 590 220", "gate-link", value("updateGate"))}
+            ${path("out", "M 640 250 C 720 250, 760 250, 835 250", "output-link", result.output)}
+            ${node(72, 250, 42, 0, "Input", format(input), "circle")}
+            ${node(180, 350, 150, 70, "Previous h", format(memory))}
+            ${node(285, 88, 130, 62, "Reset", format(value("resetGate")))}
+            ${node(445, 72, 140, 62, "Update", format(value("updateGate")))}
+            ${node(330, 205, 310, 105, "GRU hidden", "candidate + gated memory")}
+            ${node(885, 250, 46, 0, "Output", format(result.output), "circle")}
+            <text class="caption" x="315" y="395">Reset: use old memory? Update: keep old or write new?</text>
+          `);
+          return;
+        }
+
+        if (id === "lstm") {
+          svgShell(`
+            ${path("inp", "M 110 250 C 205 250, 245 250, 330 250", "input-link", input)}
+            ${path("cell", "M 515 340 C 595 340, 640 340, 720 305", "cell-link", result.cell)}
+            ${path("forget", "M 270 115 C 380 135, 430 165, 500 215", "gate-link", value("forgetGate"))}
+            ${path("write", "M 430 95 C 500 130, 540 165, 570 215", "gate-link", value("writeGate"))}
+            ${path("outGate", "M 590 105 C 640 145, 665 175, 690 220", "gate-link", value("outputGate"))}
+            ${path("out", "M 720 250 C 775 250, 815 250, 860 250", "output-link", result.output)}
+            ${node(72, 250, 42, 0, "Input", format(input), "circle")}
+            ${node(240, 82, 120, 62, "Forget", format(value("forgetGate")))}
+            ${node(400, 65, 120, 62, "Write", format(value("writeGate")))}
+            ${node(560, 82, 130, 62, "Output gate", format(value("outputGate")))}
+            ${node(330, 210, 190, 95, "Hidden h", format(result.output))}
+            ${node(520, 310, 200, 70, "Cell state", format(result.cell))}
+            ${node(905, 250, 46, 0, "Output", format(result.output), "circle")}
+            <text class="caption" x="310" y="420">The cell is the notebook. The hidden output is what gets shown.</text>
+          `);
+          return;
+        }
+
+        svgShell(`
+          ${path("inp1", "M 110 150 C 230 150, 250 170, 345 190", "input-link", input)}
+          ${path("inp2", "M 110 250 C 230 250, 250 240, 345 230", "input-link", input * 0.8)}
+          ${path("prev", "M 250 380 C 345 430, 520 415, 555 322", "memory-link", memory, true)}
+          ${path("gate1", "M 365 110 C 430 125, 470 155, 510 195", "gate-link", value("resetGate"))}
+          ${path("gate2", "M 505 95 C 555 130, 585 160, 610 198", "gate-link", value("updateGate"))}
+          ${path("out1", "M 655 220 C 725 205, 780 180, 855 165", "output-link", result.output)}
+          ${path("out2", "M 655 250 C 725 250, 780 250, 855 250", "output-link", result.output * 0.7)}
+          ${path("out3", "M 655 280 C 725 300, 780 325, 855 340", "output-link", result.output * 0.4)}
+          ${node(72, 150, 42, 0, "Market", "input", "circle")}
+          ${node(72, 250, 42, 0, "Agent", "input", "circle")}
+          ${node(195, 348, 150, 70, "Previous hidden", "last tick")}
+          ${node(335, 80, 120, 62, "Reset gate", "sparse link")}
+          ${node(485, 65, 130, 62, "Update gate", "sparse link")}
+          ${node(345, 185, 310, 120, "Sparse GRU-like units", "update / reset / candidate")}
+          ${node(900, 165, 44, 0, "Long", "", "circle")}
+          ${node(900, 250, 44, 0, "Short", "", "circle")}
+          ${node(900, 340, 44, 0, "Repro", "", "circle")}
+          <text class="caption" x="330" y="430">Dashed green means previous tick memory. It is not a same-tick hidden loop.</text>
+        `);
+      }
+
+      function renderControls() {
+        dom.controlList.innerHTML = "";
+        for (const key of lesson().controlKeys) {
+          const control = controls[key];
+          const row = document.createElement("div");
+          row.className = "control-row";
+          row.innerHTML = `
+            <div class="control-label"><label for="control-${key}">${control.label}</label><strong>${format(control.value)}</strong></div>
+            <input id="control-${key}" type="range" min="${control.min}" max="${control.max}" step="${control.step}" value="${control.value}">
+          `;
+          const input = row.querySelector("input");
+          const label = row.querySelector("strong");
+          input.addEventListener("input", () => {
+            control.value = Number(input.value);
+            label.textContent = format(control.value);
+            if (state.tick === 0 || key === "startingMemory") {
+              state.memory = value("startingMemory");
+              state.cell = value("startingMemory");
+              state.history = [value("startingMemory")];
+            }
+            render();
+          });
+          dom.controlList.appendChild(row);
+        }
+      }
+
+      function renderLessonNav() {
+        dom.lessonList.innerHTML = "";
+        lessons.forEach((item, index) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `lesson-button${index === state.lessonIndex ? " active" : ""}`;
+          button.innerHTML = `<span class="lesson-number">${index + 1}</span><span>${item.title}</span>`;
+          button.addEventListener("click", () => {
+            state.lessonIndex = index;
+            renderControls();
+            reset();
+          });
+          dom.lessonList.appendChild(button);
+        });
+      }
+
+      function render() {
+        const item = lesson();
+        const result = compute();
+        dom.eyebrow.textContent = `Lesson ${state.lessonIndex + 1}`;
+        dom.title.textContent = item.title;
+        dom.summary.textContent = item.summary;
+        dom.plain.textContent = item.plain;
+        dom.watch.innerHTML = item.watch.map((line) => `<li>${line}</li>`).join("");
+        dom.tryText.textContent = item.tryText;
+        dom.tick.textContent = String(state.tick);
+        dom.inputReadout.textContent = format(result.input);
+        dom.weightedReadout.textContent = format(result.weighted);
+        dom.memoryReadout.textContent = item.id === "lstm" ? format(result.cell) : format(result.memory);
+        dom.outputReadout.textContent = format(result.output);
+        dom.formula.textContent = result.formula;
+        renderDiagram(result);
+        renderBars();
+        renderLessonNav();
+      }
+
+      function renderBars() {
+        dom.bars.innerHTML = "";
+        const values = state.history.length ? state.history : [0];
+        for (let index = 0; index < 20; index += 1) {
+          const value = values[index - (20 - values.length)] ?? 0;
+          const bar = document.createElement("div");
+          bar.className = "bar";
+          bar.style.height = `${8 + Math.abs(value) * 62}px`;
+          bar.style.background = value >= 0 ? "var(--green)" : "var(--red)";
+          bar.title = value.toFixed(3);
+          dom.bars.appendChild(bar);
+        }
+      }
+
+      dom.step.addEventListener("click", step);
+      dom.reset.addEventListener("click", reset);
+      dom.play.addEventListener("click", () => {
+        state.playing = !state.playing;
+        dom.play.textContent = state.playing ? "Pause" : "Play";
+        if (state.playing) state.timer = setInterval(step, 760);
+        else clearInterval(state.timer);
+      });
+
+      renderControls();
+      renderLessonNav();
+      reset();
+    </script>
+  </body>
+</html>

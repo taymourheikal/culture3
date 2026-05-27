@@ -1,5 +1,6 @@
-import { clamp } from "./math";
+import { mutateIntegerByRate, mutateNumberByRate, mutationChance } from "./profileMutation";
 import type { SeededRng } from "./rng";
+import { finiteOr, sanitizeIntegerTick, sanitizeNonNegative as sanitizeNonNegativeNumber } from "./sanitize";
 import type { SpawnerConfig, SpawnerPerception, SpawnerPerceptionLagPair } from "./types";
 
 export const PERCEPTION_MAX_TICKS = 1000;
@@ -74,24 +75,22 @@ export function mutatePerception(
     densityScaleStdDev: number;
   },
 ): SpawnerPerception {
-  const chance = clamp(finiteOr(rate, 0), 0, 1);
+  const chance = mutationChance(rate);
   const next = sanitizePerception(perception);
-  const maybeInteger = (value: number, stdDev: number) => (rng.next() < chance ? value + rng.gaussian(0, Math.max(0, finiteOr(stdDev, 0))) : value);
-  const maybeNumber = (value: number, stdDev: number) => (rng.next() < chance ? value + rng.gaussian(0, Math.max(0, finiteOr(stdDev, 0))) : value);
 
   return sanitizePerception({
     ...next,
     deltaLagPairs: next.deltaLagPairs.map((pair) => ({
-      fromTicks: maybeInteger(pair.fromTicks, lagStdDev),
-      toTicks: maybeInteger(pair.toTicks, lagStdDev),
+      fromTicks: mutateIntegerByRate(pair.fromTicks, chance, lagStdDev, rng),
+      toTicks: mutateIntegerByRate(pair.toTicks, chance, lagStdDev, rng),
     })),
-    rollingWindowTicks: maybeInteger(next.rollingWindowTicks, windowStdDev),
-    localScaleWindowTicks: maybeInteger(next.localScaleWindowTicks, windowStdDev),
-    localScaleSampleStepTicks: maybeInteger(next.localScaleSampleStepTicks, windowStdDev),
-    trendWindowTicks: maybeInteger(next.trendWindowTicks, windowStdDev),
-    cycleWindowTicks: maybeInteger(next.cycleWindowTicks, windowStdDev),
-    roughnessSensitivity: maybeNumber(next.roughnessSensitivity, sensitivityStdDev),
-    pendingDensityScale: maybeInteger(next.pendingDensityScale, densityScaleStdDev),
+    rollingWindowTicks: mutateIntegerByRate(next.rollingWindowTicks, chance, windowStdDev, rng),
+    localScaleWindowTicks: mutateIntegerByRate(next.localScaleWindowTicks, chance, windowStdDev, rng),
+    localScaleSampleStepTicks: mutateIntegerByRate(next.localScaleSampleStepTicks, chance, windowStdDev, rng),
+    trendWindowTicks: mutateIntegerByRate(next.trendWindowTicks, chance, windowStdDev, rng),
+    cycleWindowTicks: mutateIntegerByRate(next.cycleWindowTicks, chance, windowStdDev, rng),
+    roughnessSensitivity: mutateNumberByRate(next.roughnessSensitivity, chance, sensitivityStdDev, rng),
+    pendingDensityScale: mutateIntegerByRate(next.pendingDensityScale, chance, densityScaleStdDev, rng),
   });
 }
 
@@ -163,13 +162,9 @@ function sanitizeDeltaLagPairs(pairs: SpawnerPerception["deltaLagPairs"] | undef
 }
 
 function sanitizeTick(value: number | undefined, fallback: number) {
-  return Math.round(clamp(finiteOr(value, fallback), 0, PERCEPTION_MAX_TICKS));
+  return sanitizeIntegerTick(value, fallback, PERCEPTION_MAX_TICKS);
 }
 
 function sanitizeNonNegative(value: number | undefined, fallback: number) {
-  return Math.max(0, finiteOr(value, fallback));
-}
-
-function finiteOr(value: number | undefined, fallback: number) {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  return sanitizeNonNegativeNumber(value, fallback);
 }

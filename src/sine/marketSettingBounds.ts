@@ -1,4 +1,5 @@
 import { LEGACY_SECONDS_PER_TICK, type WaveSettings } from "./marketSignal";
+import { clampFinite } from "./numeric";
 
 export type NumericBounds = {
   min: number;
@@ -24,6 +25,5 @@ export const MARKET_SETTING_BOUNDS: Record<keyof WaveSettings, NumericBounds> = 
 };
 
 export function clampToBounds(value: number, fallback: number, bounds: NumericBounds) {
-  const finiteValue = Number.isFinite(value) ? value : fallback;
-  return Math.min(bounds.max, Math.max(bounds.min, finiteValue));
+  return clampFinite(value, fallback, bounds.min, bounds.max);
 }

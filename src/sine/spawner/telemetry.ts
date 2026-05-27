@@ -1,14 +1,21 @@
 import type { SpawnerWorld } from "./types";
-import { architectureMetrics } from "./genome";
+import { ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
 
-export function recordTelemetry(world: SpawnerWorld) {
+export function recordTelemetry(world: SpawnerWorld, plansBySpawnerId: Map<number, CompiledBrainPlan> = new Map()) {
   const recentLosses = world.recentResolvedPayoffs.map((payoff) => Math.max(0, -payoff));
   const rollingLoss = recentLosses.reduce((sum, loss) => sum + loss, 0) / Math.max(1, recentLosses.length);
   const lossRate =
     world.recentResolvedPayoffs.filter((payoff) => payoff < 0).length / Math.max(1, world.recentResolvedPayoffs.length);
-  const metrics = world.spawners.map((spawner) => architectureMetrics(spawner.genome));
-  const average = (key: "activeUnits" | "activeConnections" | "activeLayers") =>
-    metrics.reduce((sum, metric) => sum + metric[key], 0) / Math.max(1, metrics.length);
+  let activeUnitTotal = 0;
+  let activeConnectionTotal = 0;
+  let activeLayerTotal = 0;
+  for (const spawner of world.spawners) {
+    const plan = plansBySpawnerId.get(spawner.id) ?? ensureCompiledBrainPlan(spawner.genome);
+    activeUnitTotal += plan.activeUnitCount;
+    activeConnectionTotal += plan.activeConnectionCount;
+    activeLayerTotal += plan.activeLayerCount;
+  }
+  const population = Math.max(1, world.spawners.length);
 
   world.telemetry.push({
     tick: world.tick,
@@ -17,9 +24,9 @@ export function recordTelemetry(world: SpawnerWorld) {
     lossRate,
     cumulativeLoss: world.cumulativeLoss,
     cumulativeNetPayoff: world.cumulativeNetPayoff,
-    averageActiveUnits: average("activeUnits"),
-    averageActiveConnections: average("activeConnections"),
-    averageActiveLayers: average("activeLayers"),
+    averageActiveUnits: activeUnitTotal / population,
+    averageActiveConnections: activeConnectionTotal / population,
+    averageActiveLayers: activeLayerTotal / population,
   });
 
   if (world.telemetry.length > 3000) {

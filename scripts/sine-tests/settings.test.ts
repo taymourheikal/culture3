@@ -7,6 +7,7 @@ import { SPAWNER_CONFIG_BOUNDS } from "../../src/sine/spawnerConfigBounds";
 import { sanitizeSpawnerConfig } from "../../src/sine/spawnerSettingsStorage";
 import { loadSavedMarketRuntimeConfig, sanitizeSettings } from "../../src/sine/settingsStorage";
 import { createSimulationState } from "../../src/sine/simulationRuntime";
+import { CONTROL_GROUPS, SPAWNER_CONTROL_GROUPS } from "../../src/sine/sineControlGroups";
 import type { SineTest } from "./helpers";
 
 function testMarketSettingsSanitizerClampsSavedValues() {
@@ -38,6 +39,7 @@ function testSpawnerConfigSanitizerClampsAndNormalizesPairs() {
     uniquenessPopulationLimit: 12.7,
     initialHiddenUnitsMin: 9999,
     initialHiddenUnitsMax: -9999,
+    newUnitInitialConnections: -9999,
     thresholdBiasMin: 9999,
     thresholdBiasMax: -9999,
     initialMinHorizonTicksMin: 9999,
@@ -53,6 +55,7 @@ function testSpawnerConfigSanitizerClampsAndNormalizesPairs() {
   assert.equal(sanitized.initialSpawners, SPAWNER_CONFIG_BOUNDS.initialSpawners.max);
   assert.equal(sanitized.maxSpawners, SPAWNER_CONFIG_BOUNDS.initialSpawners.max);
   assert.equal(sanitized.uniquenessPopulationLimit, 13);
+  assert.equal(sanitized.newUnitInitialConnections, SPAWNER_CONFIG_BOUNDS.newUnitInitialConnections.min);
   assert(sanitized.initialHiddenUnitsMax >= sanitized.initialHiddenUnitsMin + 1);
   assert(sanitized.thresholdBiasMax >= sanitized.thresholdBiasMin + 0.001);
   assert(sanitized.initialMinHorizonTicksMax >= sanitized.initialMinHorizonTicksMin + 0.01);
@@ -127,6 +130,17 @@ function testMarketRuntimeComparatorCoversRuntimeFields() {
   );
 }
 
+function testMarketRuntimeComparatorCoversEveryGeneratedField() {
+  const base = sanitizeMarketRuntimeConfig(INITIAL_MARKET_RUNTIME_CONFIG);
+  for (const key of Object.keys(INITIAL_SETTINGS) as Array<keyof typeof INITIAL_SETTINGS>) {
+    assert.equal(
+      sameMarketRuntimeConfig(base, { ...base, generated: { ...base.generated, [key]: base.generated[key] + 0.01 } }),
+      false,
+      `generated comparator ignored ${key}`,
+    );
+  }
+}
+
 function testLegacySavedMarketSettingsMigrateFromSeconds() {
   const previousStorage = (globalThis as { localStorage?: unknown }).localStorage;
   const values = new Map<string, string>();
@@ -168,6 +182,355 @@ function testLegacySpawnerMetabolismAliasMigratesToEnergyDrain() {
   assert.equal("metabolism" in sanitized, false);
 }
 
+function testLegacySpawnerTradingPolicyAliasesMigrateToFounderDefaults() {
+  const sanitized = sanitizeSpawnerConfig({
+    ...DEFAULT_SPAWNER_CONFIG,
+    defaultSpawnThreshold: undefined,
+    defaultMinSignalStrength: undefined,
+    spawnThreshold: 0.72,
+    minSignalStrength: 0.31,
+  } as Partial<SpawnerConfig> & Record<string, number | undefined>);
+
+  assert.equal(sanitized.defaultSpawnThreshold, 0.72);
+  assert.equal(sanitized.defaultMinSignalStrength, 0.31);
+  assert.equal("spawnThreshold" in sanitized, false);
+  assert.equal("minSignalStrength" in sanitized, false);
+}
+
+function testNewTradingPolicyDefaultsWinOverLegacyAliases() {
+  const sanitized = sanitizeSpawnerConfig({
+    ...DEFAULT_SPAWNER_CONFIG,
+    defaultSpawnThreshold: 0.61,
+    defaultMinSignalStrength: 0.17,
+    spawnThreshold: 0.72,
+    minSignalStrength: 0.31,
+  } as Partial<SpawnerConfig> & Record<string, number | undefined>);
+
+  assert.equal(sanitized.defaultSpawnThreshold, 0.61);
+  assert.equal(sanitized.defaultMinSignalStrength, 0.17);
+}
+
+function testLegacySpawnerConfigMigratesAllTickAliases() {
+  const sanitized = sanitizeSpawnerConfig({
+    ...DEFAULT_SPAWNER_CONFIG,
+    tickSeconds: LEGACY_SECONDS_PER_TICK,
+    foodHistoryTicks: undefined,
+    initialCooldownMaxTicks: undefined,
+    cooldownOutputMultiplierTicks: undefined,
+    initialMinHorizonTicksMin: undefined,
+    initialMinHorizonTicksMax: undefined,
+    initialMaxHorizonTicksMin: undefined,
+    initialMaxHorizonTicksMax: undefined,
+    minHorizonTicksMutationStdDev: undefined,
+    maxHorizonTicksMutationStdDev: undefined,
+    minHorizonTicksClampMin: undefined,
+    minHorizonTicksClampMax: undefined,
+    maxHorizonTicksClampMin: undefined,
+    maxHorizonTicksClampMax: undefined,
+    cooldownBaseTicksInitialMin: undefined,
+    cooldownBaseTicksInitialMax: undefined,
+    cooldownBaseTicksMutationStdDev: undefined,
+    cooldownBaseTicksClampMin: undefined,
+    cooldownBaseTicksClampMax: undefined,
+    foodHistorySeconds: 18,
+    initialCooldownMax: 9,
+    cooldownOutputMultiplier: 1.8,
+    initialMinHorizonMin: 1.8,
+    initialMinHorizonMax: 3.6,
+    initialMaxHorizonMin: 5.4,
+    initialMaxHorizonMax: 7.2,
+    minHorizonMutationStdDev: 0.36,
+    maxHorizonMutationStdDev: 0.54,
+    minHorizonClampMin: 1.8,
+    minHorizonClampMax: 9,
+    maxHorizonClampMin: 10.8,
+    maxHorizonClampMax: 18,
+    cooldownBaseInitialMin: 1.8,
+    cooldownBaseInitialMax: 3.6,
+    cooldownBaseMutationStdDev: 0.72,
+    cooldownBaseClampMin: 1.8,
+    cooldownBaseClampMax: 9,
+    brainEnergyCostPerActiveUnit: 0.01,
+  } as Partial<SpawnerConfig> & Record<string, number | undefined>);
+
+  assert.equal(sanitized.foodHistoryTicks, 100);
+  assert.equal(sanitized.initialCooldownMaxTicks, 50);
+  assert.equal(sanitized.cooldownOutputMultiplierTicks, 10);
+  assert.equal(sanitized.initialMinHorizonTicksMin, 10);
+  assert.equal(sanitized.initialMinHorizonTicksMax, 20);
+  assert.equal(sanitized.initialMaxHorizonTicksMin, 30);
+  assert.equal(sanitized.initialMaxHorizonTicksMax, 40);
+  assert.equal(sanitized.minHorizonTicksMutationStdDev, 2);
+  assert.equal(sanitized.maxHorizonTicksMutationStdDev, 0.54 / LEGACY_SECONDS_PER_TICK);
+  assert.equal(sanitized.minHorizonTicksClampMin, 10);
+  assert.equal(sanitized.minHorizonTicksClampMax, 50);
+  assert.equal(sanitized.maxHorizonTicksClampMin, 60);
+  assert.equal(sanitized.maxHorizonTicksClampMax, 100);
+  assert.equal(sanitized.cooldownBaseTicksInitialMin, 10);
+  assert.equal(sanitized.cooldownBaseTicksInitialMax, 20);
+  assert.equal(sanitized.cooldownBaseTicksMutationStdDev, 4);
+  assert.equal(sanitized.cooldownBaseTicksClampMin, 10);
+  assert.equal(sanitized.cooldownBaseTicksClampMax, 50);
+  assert.equal(sanitized.brainEnergyCostPerActiveUnit, 0.01 * LEGACY_SECONDS_PER_TICK);
+}
+
+function testSpawnerBoundedPairsNormalizeExactly() {
+  const sanitized = sanitizeSpawnerConfig({
+    ...DEFAULT_SPAWNER_CONFIG,
+    initialEnergyMin: 999,
+    initialEnergyMax: -999,
+    cooldownBaseTicksClampMin: 999,
+    cooldownBaseTicksClampMax: -999,
+    thresholdBiasMin: 999,
+    thresholdBiasMax: -999,
+  });
+
+  assert.equal(sanitized.initialEnergyMin, 200);
+  assert.equal(sanitized.initialEnergyMax, 200.1);
+  assert.equal(sanitized.cooldownBaseTicksClampMin, 499);
+  assert.equal(sanitized.cooldownBaseTicksClampMax, 500);
+  assert.equal(sanitized.thresholdBiasMin, 1.999);
+  assert.equal(sanitized.thresholdBiasMax, 2);
+}
+
+function testControlMetadataCoversAllSettingsWithoutDuplicates() {
+  const marketKeys = CONTROL_GROUPS.flatMap((group) => group.controls.map((control) => control.key));
+  const spawnerKeys = SPAWNER_CONTROL_GROUPS.flatMap((group) => group.controls.map((control) => control.key));
+
+  assert.deepEqual([...marketKeys].sort(), (Object.keys(MARKET_SETTING_BOUNDS) as Array<keyof typeof MARKET_SETTING_BOUNDS>).sort());
+  assert.equal(new Set(marketKeys).size, marketKeys.length);
+  assert.equal(new Set(spawnerKeys).size, spawnerKeys.length);
+
+  for (const control of CONTROL_GROUPS.flatMap((group) => group.controls)) {
+    assert.deepEqual(
+      { min: control.min, max: control.max, step: control.step },
+      MARKET_SETTING_BOUNDS[control.key],
+      `market control bounds drifted for ${control.key}`,
+    );
+    assert.equal(typeof control.display(INITIAL_SETTINGS), "string");
+  }
+
+  for (const control of SPAWNER_CONTROL_GROUPS.flatMap((group) => group.controls)) {
+    const bounds = SPAWNER_CONFIG_BOUNDS[control.key];
+    assert(bounds, `missing spawner bounds for ${control.key}`);
+    assert.deepEqual(
+      { min: control.min, max: control.max, step: control.step },
+      { min: bounds.min, max: bounds.max, step: bounds.step },
+      `spawner control bounds drifted for ${control.key}`,
+    );
+    const help = control.help;
+    assert.ok(typeof help === "string", `missing help for ${control.key}`);
+    assert.ok(help.length > 0, `empty help for ${control.key}`);
+  }
+}
+
+function testControlMetadataGoldenOrder() {
+  assert.deepEqual(
+    CONTROL_GROUPS.map((group) => ({
+      key: group.key,
+      title: group.title,
+      controls: group.controls.map((control) => `${control.key}:${control.label}:${control.min}:${control.max}:${control.step}:${control.display(INITIAL_SETTINGS)}`),
+    })),
+    [
+      {
+        key: "market",
+        title: "Market Signal",
+        controls: [
+          "amplitude:Amplitude:0:8:0.05:1.20%",
+          "frequency:Frequency:0.0018:0.216:0.001:0.029 cyc/tick",
+          "phase:Phase:-3.141592653589793:3.141592653589793:0.01:0.00 rad",
+          "slope:Slope:-0.18:0.18:0.001:+0.004%/tick",
+        ],
+      },
+      {
+        key: "noise",
+        title: "Smooth Noise",
+        controls: ["noiseAmplitude:Noise amplitude:0:5:0.05:0.35%", "noiseFrequency:Noise roughness:0.009:1.08:0.005:0.27x", "noiseSeed:Noise seed:0:100:1:7"],
+      },
+      {
+        key: "regime",
+        title: "Regime Drift",
+        controls: [
+          "amplitudeDrift:Amplitude drift:0:6:0.05:+/-0.90%",
+          "frequencyDrift:Frequency drift:0:0.108:0.001:+/-0.007 cyc/tick",
+          "slopeDrift:Slope drift:0:0.18:0.001:+/-0.014%/tick",
+          "noiseAmplitudeDrift:Noise amp drift:0:4:0.05:+/-0.45%",
+          "noiseFrequencyDrift:Noise rough drift:0:0.72:0.005:+/-0.11x",
+          "regimeSpeed:Regime speed:0.0018:0.27:0.001:0.02x",
+          "regimeSeed:Regime seed:0:100:1:19",
+        ],
+      },
+    ],
+  );
+
+  assert.deepEqual(
+    SPAWNER_CONTROL_GROUPS.map((group) => ({
+      key: group.key,
+      title: group.title,
+      controls: group.controls.map((control) => control.key),
+    })),
+    [
+      { key: "population", title: "Population", controls: ["initialSpawners", "maxSpawners", "deathEnergy", "deathHealth", "initialEnergyMin", "initialEnergyMax", "initialHealth", "initialCooldownMaxTicks"] },
+      {
+        key: "spawning",
+        title: "Opportunity Spawning",
+        controls: ["spawnCost", "minimumSpawnEnergySurplus", "foodHistoryTicks"],
+      },
+      {
+        key: "founderDefaults",
+        title: "Founder Defaults",
+        controls: ["defaultSpawnThreshold", "defaultMinSignalStrength"],
+      },
+      {
+        key: "perception",
+        title: "Perception Defaults",
+        controls: [
+          "defaultDeltaLag1FromTicks",
+          "defaultDeltaLag1ToTicks",
+          "defaultDeltaLag2FromTicks",
+          "defaultDeltaLag2ToTicks",
+          "defaultDeltaLag3FromTicks",
+          "defaultDeltaLag3ToTicks",
+          "defaultDeltaLag4FromTicks",
+          "defaultDeltaLag4ToTicks",
+          "defaultDeltaLag5FromTicks",
+          "defaultDeltaLag5ToTicks",
+          "defaultRollingWindowTicks",
+          "defaultLocalScaleWindowTicks",
+          "defaultLocalScaleSampleStepTicks",
+          "defaultTrendWindowTicks",
+          "defaultCycleWindowTicks",
+          "defaultRoughnessSensitivity",
+          "defaultPendingDensityScale",
+          "founderPerceptionRandomizationTicks",
+        ],
+      },
+      {
+        key: "trade",
+        title: "Trade / Reward",
+        controls: [
+          "transactionCost",
+          "defaultPayoffScaleWindowTicks",
+          "defaultPayoffScaleSampleStepTicks",
+          "rewardScale",
+          "lossHealthScale",
+          "healthGainScale",
+          "recentResolvedPayoffWindow",
+          "agentRecentPayoffWindow",
+        ],
+      },
+      { key: "analysis", title: "Analysis / Telemetry", controls: ["uniquenessPopulationLimit"] },
+      {
+        key: "learning",
+        title: "Learning / Plasticity",
+        controls: [
+          "plasticityWeightLearningRate",
+          "plasticityBiasLearningRate",
+          "plasticityPositiveRewardMultiplier",
+          "plasticityNegativeRewardMultiplier",
+          "plasticityReproductionRewardStrength",
+          "plasticityExperienceDecayRate",
+          "plasticityMaxLearnedDelta",
+          "plasticityEligibilityTraceStrength",
+          "plasticityMutationStdDev",
+        ],
+      },
+      {
+        key: "reproduction",
+        title: "Reproduction",
+        controls: [
+          "reproductionEnergy",
+          "reproductionCost",
+          "reproductionCostMinMultiplier",
+          "reproductionCostMaxMultiplier",
+          "reproductionCostPressureCurve",
+          "initialReproductionOutputBias",
+        ],
+      },
+      {
+        key: "architecture",
+        title: "Initial Brain",
+        controls: [
+          "initialHiddenUnitsMin",
+          "initialHiddenUnitsMax",
+          "initialInputConnectionsPerUnit",
+          "initialRecurrentConnectionsPerUnit",
+          "initialOutputConnectionsPerOutput",
+          "newUnitInitialConnections",
+          "gateBiasStdDev",
+          "outputBiasStdDev",
+        ],
+      },
+      {
+        key: "topology",
+        title: "Topology Mutation",
+        controls: [
+          "addUnitRate",
+          "disableUnitRate",
+          "reenableUnitRate",
+          "addConnectionRate",
+          "disableConnectionRate",
+          "reenableConnectionRate",
+          "newUnitExistingLayerChance",
+          "newUnitNewLayerChance",
+          "allowSkipConnections",
+          "allowInputToOutputConnections",
+        ],
+      },
+      { key: "outputs", title: "Decision Outputs", controls: ["cooldownOutputMultiplierTicks", "thresholdBiasInitialStdDev"] },
+      {
+        key: "mutation",
+        title: "Mutation",
+        controls: [
+          "weightMutationRate",
+          "weightMutationStdDev",
+          "weightReplaceRate",
+          "newConnectionWeightStdDev",
+          "biasMutationRate",
+          "biasMutationStdDev",
+          "thresholdBiasMutationStdDev",
+          "thresholdBiasMin",
+          "thresholdBiasMax",
+          "minHorizonTicksMutationStdDev",
+          "maxHorizonTicksMutationStdDev",
+          "cooldownBaseTicksMutationStdDev",
+          "perceptionMutationRate",
+          "perceptionLagMutationStdDev",
+          "perceptionWindowMutationStdDev",
+          "perceptionSensitivityMutationStdDev",
+          "perceptionDensityScaleMutationStdDev",
+          "payoffScaleMutationRate",
+          "payoffScaleWindowMutationStdDev",
+          "payoffScaleSampleStepMutationStdDev",
+          "tradingPolicyMutationRate",
+          "spawnThresholdMutationStdDev",
+          "minSignalStrengthMutationStdDev",
+          "mutationProfileMutationStdDev",
+        ],
+      },
+      { key: "complexity", title: "Energy Drain / Complexity Cost", controls: ["energyDrainPerTick", "brainEnergyCostPerActiveUnit", "brainEnergyCostPerActiveConnection", "brainEnergyCostPerActiveLayer"] },
+      {
+        key: "horizon",
+        title: "Horizon / Cooldown Ranges",
+        controls: [
+          "initialMinHorizonTicksMin",
+          "initialMinHorizonTicksMax",
+          "initialMaxHorizonTicksMin",
+          "initialMaxHorizonTicksMax",
+          "minHorizonTicksClampMin",
+          "minHorizonTicksClampMax",
+          "maxHorizonTicksClampMin",
+          "maxHorizonTicksClampMax",
+          "cooldownBaseTicksInitialMin",
+          "cooldownBaseTicksInitialMax",
+          "cooldownBaseTicksClampMin",
+          "cooldownBaseTicksClampMax",
+        ],
+      },
+    ],
+  );
+}
+
 export const tests: SineTest[] = [
   { name: "Market Settings Sanitizer Clamps Saved Values", run: testMarketSettingsSanitizerClampsSavedValues },
   { name: "Spawner Config Sanitizer Clamps And Normalizes Pairs", run: testSpawnerConfigSanitizerClampsAndNormalizesPairs },
@@ -176,6 +539,13 @@ export const tests: SineTest[] = [
   { name: "Market Runtime Config Wraps Bare Generated Settings", run: testMarketRuntimeConfigWrapsBareGeneratedSettings },
   { name: "Simulation State Treats Plain Settings As Tick Native", run: testSimulationStateTreatsPlainSettingsAsTickNative },
   { name: "Market Runtime Comparator Covers Runtime Fields", run: testMarketRuntimeComparatorCoversRuntimeFields },
+  { name: "Market Runtime Comparator Covers Every Generated Field", run: testMarketRuntimeComparatorCoversEveryGeneratedField },
   { name: "Legacy Saved Market Settings Migrate From Seconds", run: testLegacySavedMarketSettingsMigrateFromSeconds },
   { name: "Legacy Spawner Metabolism Alias Migrates To Energy Drain", run: testLegacySpawnerMetabolismAliasMigratesToEnergyDrain },
+  { name: "Legacy Spawner Trading Policy Aliases Migrate To Founder Defaults", run: testLegacySpawnerTradingPolicyAliasesMigrateToFounderDefaults },
+  { name: "New Trading Policy Defaults Win Over Legacy Aliases", run: testNewTradingPolicyDefaultsWinOverLegacyAliases },
+  { name: "Legacy Spawner Config Migrates All Tick Aliases", run: testLegacySpawnerConfigMigratesAllTickAliases },
+  { name: "Spawner Bounded Pairs Normalize Exactly", run: testSpawnerBoundedPairsNormalizeExactly },
+  { name: "Control Metadata Covers All Settings Without Duplicates", run: testControlMetadataCoversAllSettingsWithoutDuplicates },
+  { name: "Control Metadata Golden Order", run: testControlMetadataGoldenOrder },
 ];

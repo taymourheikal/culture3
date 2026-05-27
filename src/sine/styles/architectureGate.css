@@ -1,7 +1,7 @@
 .gate-connection-group p,
 .gate-view-head p {
   margin: 0;
-  color: #b9c9c5;
+  color: var(--sine-text-muted);
   font-size: 0.82rem;
   line-height: 1.45;
 }
@@ -39,17 +39,17 @@
 .gate-node {
   min-width: 0;
   padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--sine-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #dce8e5;
+  background: var(--sine-surface-muted);
+  color: var(--sine-text);
   font-size: 0.78rem;
-  font-weight: 850;
+  font-weight: 740;
 }
 
 .gate-node {
-  border-color: rgba(255, 214, 128, 0.28);
-  background: rgba(255, 214, 128, 0.08);
+  border-color: rgb(var(--sine-amber-rgb) / 0.28);
+  background: rgb(var(--sine-amber-rgb) / 0.08);
 }
 
 .gate-node span,
@@ -59,18 +59,18 @@
 }
 
 .gate-node span {
-  color: #fff0cf;
+  color: color-mix(in srgb, var(--sine-amber) 72%, white);
 }
 
 .gate-node strong {
   margin-top: 3px;
-  color: #f7fbfa;
+  color: var(--sine-text-strong);
   font-size: 1rem;
 }
 
 .gate-node small {
   margin-top: 3px;
-  color: #aebfbc;
+  color: var(--sine-text-muted);
 }
 
 .gate-connection-grid {
@@ -82,9 +82,9 @@
 .gate-connection-group {
   min-width: 0;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--sine-border-subtle);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--sine-surface-raised) 66%, transparent);
 }
 
 .connection-row {
@@ -96,8 +96,8 @@
   padding: 7px;
   border-color: transparent;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.045);
-  color: #c7d6d3;
+  background: var(--sine-surface-muted);
+  color: var(--sine-text-muted);
   font-size: 0.72rem;
   text-align: left;
 }
@@ -107,7 +107,7 @@
 }
 
 .connection-row strong {
-  color: #ffd680;
+  color: var(--sine-amber);
 }
 
 .connection-row span {
@@ -118,8 +118,8 @@
 }
 
 .connection-row.selected {
-  border-color: rgba(255, 214, 128, 0.38);
-  background: rgba(255, 214, 128, 0.1);
+  border-color: rgb(var(--sine-amber-rgb) / 0.38);
+  background: rgb(var(--sine-amber-rgb) / 0.1);
 }
 
 .connection-row.disabled {

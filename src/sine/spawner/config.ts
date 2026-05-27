@@ -1,6 +1,6 @@
 import type { SpawnerConfig } from "./types";
 
-export const INPUT_COUNT = 16;
+export const INPUT_COUNT = 17;
 export const OUTPUT_LABELS = ["Long", "Short", "Strength", "Horizon", "Cooldown", "Reproduce"] as const;
 export const OUTPUT_COUNT = OUTPUT_LABELS.length;
 export const OUTPUT_INDEX = {
@@ -20,10 +20,10 @@ export const DEFAULT_SPAWNER_CONFIG: SpawnerConfig = {
   initialEnergyMax: 23,
   initialHealth: 100,
   initialCooldownMaxTicks: 8,
-  spawnThreshold: 0.56,
+  defaultSpawnThreshold: 0.56,
   spawnCost: 0.9,
   minimumSpawnEnergySurplus: 1,
-  minSignalStrength: 0.05,
+  defaultMinSignalStrength: 0.05,
   defaultDeltaLag1FromTicks: 0,
   defaultDeltaLag1ToTicks: 3,
   defaultDeltaLag2FromTicks: 3,
@@ -37,6 +37,8 @@ export const DEFAULT_SPAWNER_CONFIG: SpawnerConfig = {
   defaultRollingWindowTicks: 53,
   defaultLocalScaleWindowTicks: 53,
   defaultLocalScaleSampleStepTicks: 3,
+  defaultPayoffScaleWindowTicks: 53,
+  defaultPayoffScaleSampleStepTicks: 3,
   defaultTrendWindowTicks: 53,
   defaultCycleWindowTicks: 53,
   defaultRoughnessSensitivity: 0.02,
@@ -47,6 +49,12 @@ export const DEFAULT_SPAWNER_CONFIG: SpawnerConfig = {
   perceptionWindowMutationStdDev: 4,
   perceptionSensitivityMutationStdDev: 0.002,
   perceptionDensityScaleMutationStdDev: 4,
+  payoffScaleMutationRate: 0.08,
+  payoffScaleWindowMutationStdDev: 4,
+  payoffScaleSampleStepMutationStdDev: 4,
+  tradingPolicyMutationRate: 0.08,
+  spawnThresholdMutationStdDev: 0.025,
+  minSignalStrengthMutationStdDev: 0.025,
   mutationProfileMutationStdDev: 0.006,
   energyDrainPerTick: 0.0054,
   rewardScale: 5.5,
@@ -55,8 +63,20 @@ export const DEFAULT_SPAWNER_CONFIG: SpawnerConfig = {
   recentResolvedPayoffWindow: 50,
   agentRecentPayoffWindow: 12,
   uniquenessPopulationLimit: 120,
+  plasticityWeightLearningRate: 0.012,
+  plasticityBiasLearningRate: 0.006,
+  plasticityPositiveRewardMultiplier: 1,
+  plasticityNegativeRewardMultiplier: 1,
+  plasticityReproductionRewardStrength: 0.35,
+  plasticityExperienceDecayRate: 0.002,
+  plasticityMaxLearnedDelta: 2,
+  plasticityEligibilityTraceStrength: 0.8,
+  plasticityMutationStdDev: 0.006,
   reproductionEnergy: 34,
   reproductionCost: 15,
+  reproductionCostMinMultiplier: 1,
+  reproductionCostMaxMultiplier: 3,
+  reproductionCostPressureCurve: 3,
   initialReproductionOutputBias: -5.5,
   deathEnergy: -10,
   deathHealth: 0,

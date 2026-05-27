@@ -5,6 +5,8 @@ import type { MarketRuntimeConfig } from "../marketRuntimeConfig";
 import { INITIAL_MARKET_RUNTIME_CONFIG, sanitizeMarketRuntimeConfig } from "../marketRuntimeConfig";
 import type { SpawnerConfig } from "../spawnerSimulation";
 import type { MarketSimulationState } from "../simulationRuntime";
+import { createFoodRuntimeIndex } from "../spawner/runtimeIndex";
+import { currentReproductionCost, currentReproductionEnergyRequirement, populationRoomRatio, reproductionCostMultiplier } from "../spawner/reproductionPressure";
 
 export function createMarketStatsPacket({
   sessionId,
@@ -20,6 +22,7 @@ export function createMarketStatsPacket({
   version,
   backlogTicks,
   packetSizesKb,
+  brainEvalMode = "sync",
 }: {
   sessionId: MarketWorkerSessionId;
   simulation: MarketSimulationState;
@@ -34,10 +37,13 @@ export function createMarketStatsPacket({
   version: number;
   backlogTicks: number;
   packetSizesKb: MarketStatsPacket["packetSizesKb"];
+  brainEvalMode?: MarketStatsPacket["brainEvalMode"];
 }): MarketStatsPacket {
   const renderTick = Math.min(simulation.timeline.tick, simulation.world.tick);
   const current = getTimelineSampleAtRenderTick(simulation.timeline, renderTick);
-  const pendingFoods = simulation.world.foods.filter((food) => food.status === "pending").length;
+  const foodIndex = createFoodRuntimeIndex(simulation.world.foods);
+  const livingPopulation = simulation.world.spawners.length;
+  const activeWorldConfig = simulation.world.config;
   return {
     sessionId,
     version,
@@ -49,11 +55,16 @@ export function createMarketStatsPacket({
     currentSignal: current.signal,
     currentNoise: current.noise,
     backlogTicks,
-    spawnerCount: simulation.world.spawners.length,
-    pendingFoods,
-    resolvedFoods: simulation.world.foods.length - pendingFoods,
+    spawnerCount: livingPopulation,
+    populationRoomRatio: populationRoomRatio(livingPopulation, activeWorldConfig.maxSpawners),
+    reproductionCostMultiplier: reproductionCostMultiplier(activeWorldConfig, livingPopulation),
+    currentReproductionCost: currentReproductionCost(activeWorldConfig, livingPopulation),
+    currentReproductionEnergyRequirement: currentReproductionEnergyRequirement(activeWorldConfig, livingPopulation),
+    pendingFoods: foodIndex.pendingCount,
+    resolvedFoods: foodIndex.resolvedCount,
     totalWins: simulation.world.totalResolved - simulation.world.totalLosses,
     totalLosses: simulation.world.totalLosses,
+    brainEvalMode,
     settings: { ...settings },
     marketConfig: sanitizeMarketRuntimeConfig(pendingMarketConfig ?? marketConfig),
     activeMarketConfig: sanitizeMarketRuntimeConfig(marketConfig),

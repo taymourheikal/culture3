@@ -7,6 +7,7 @@ import type {
 } from "../marketWorkerProtocol";
 import { createLiveSpawnerInspectionPayload } from "../spawnerInspectionPayload";
 import { normalizeSpawnerGenomeForCurrentContract, type SpawnerAgent, type SpawnerUniquenessScore } from "../spawnerSimulation";
+import { createSpawnerSnapshot } from "../spawner/snapshots";
 import type { MarketSimulationState } from "../simulationRuntime";
 
 export function createSpawnerArchitecturePacket({
@@ -21,7 +22,7 @@ export function createSpawnerArchitecturePacket({
   return {
     sessionId,
     spawnerId,
-    spawner: spawner ? { ...spawner, genome: normalizeSpawnerGenomeForCurrentContract(spawner.genome) } : null,
+    spawner: spawner ? createSpawnerSnapshot({ ...spawner, genome: normalizeSpawnerGenomeForCurrentContract(spawner.genome) }) : null,
   };
 }
 

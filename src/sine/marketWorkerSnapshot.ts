@@ -1,5 +1,5 @@
 export { CHART_SAMPLE_INTERVAL_TICKS, CHART_TICKS_VISIBLE, createMarketChartPacket } from "./packets/chartPacket";
-export { ROSTER_AGENT_LIMIT, createMarketRosterPacket } from "./packets/rosterPacket";
+export { ROSTER_AGENT_LIMIT, createMarketRosterPacket, selectRosterSpawners } from "./packets/rosterPacket";
 export { createMarketStatsPacket } from "./packets/statsPacket";
 export {
   createSpawnerArchitecturePacket,

@@ -38,13 +38,13 @@ export function createUniquenessTelemetryService() {
       if (rawDistances.length === 0) return;
 
       const sampleTick = Math.max(1, Math.floor(tick));
-      aggregateSamples.push({
+      upsertAggregateSample({
         tick: sampleTick,
         p25RawDistance: percentile(rawDistances, 0.25),
         medianRawDistance: percentile(rawDistances, 0.5),
         p75RawDistance: percentile(rawDistances, 0.75),
       });
-      rawDistanceByTick.push({
+      upsertRawDistanceSample({
         tick: sampleTick,
         values: new Map(
           [...scores.entries()]
@@ -100,6 +100,20 @@ export function createUniquenessTelemetryService() {
     if (rawDistanceByTick.length > UNIQUENESS_HISTORY_LIMIT) {
       rawDistanceByTick = rawDistanceByTick.slice(-UNIQUENESS_HISTORY_LIMIT);
     }
+  }
+
+  function upsertAggregateSample(sample: LeanUniquenessTelemetrySample) {
+    const index = aggregateSamples.findIndex((existing) => existing.tick === sample.tick);
+    if (index >= 0) aggregateSamples[index] = sample;
+    else aggregateSamples.push(sample);
+    aggregateSamples.sort((left, right) => left.tick - right.tick);
+  }
+
+  function upsertRawDistanceSample(sample: RawDistanceByTick) {
+    const index = rawDistanceByTick.findIndex((existing) => existing.tick === sample.tick);
+    if (index >= 0) rawDistanceByTick[index] = sample;
+    else rawDistanceByTick.push(sample);
+    rawDistanceByTick.sort((left, right) => left.tick - right.tick);
   }
 }
 

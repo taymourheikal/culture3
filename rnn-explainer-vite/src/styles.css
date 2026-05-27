@@ -1,0 +1,629 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f6f1;
+  --ink: #17211d;
+  --muted: #66736c;
+  --line: #cbd6ce;
+  --panel: #ffffff;
+  --soft: #edf3ef;
+  --blue: #1f6feb;
+  --green: #177245;
+  --amber: #b56a00;
+  --red: #b73535;
+  --violet: #6f42c1;
+  --shadow: 0 18px 38px rgba(23, 33, 29, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+select,
+input[type="range"] {
+  cursor: pointer;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px clamp(18px, 4vw, 46px) 18px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(12px);
+}
+
+.app-header h1,
+.lesson-hero h2 {
+  margin: 3px 0 7px;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.app-header h1 {
+  font-size: clamp(28px, 3vw, 42px);
+}
+
+.lesson-hero h2 {
+  font-size: clamp(25px, 2.4vw, 38px);
+}
+
+.app-header p,
+.lesson-hero p,
+.teaching-card p,
+.try-card p,
+.narration p,
+.side-note p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.app-header p {
+  max-width: 900px;
+}
+
+.eyebrow {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tick-card {
+  min-width: 154px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  text-align: right;
+}
+
+.tick-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tick-card strong {
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  padding: 20px clamp(18px, 4vw, 46px) 42px;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.sidebar {
+  position: sticky;
+  top: 128px;
+  padding: 14px;
+}
+
+.sidebar-section + .sidebar-section,
+.side-note {
+  margin-top: 16px;
+}
+
+.section-title,
+.select-label {
+  display: block;
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.lesson-list {
+  display: grid;
+  gap: 7px;
+}
+
+.model-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.model-tabs button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f8faf8;
+  color: var(--ink);
+}
+
+.model-tabs button.active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.lesson-button {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f9fbf9;
+  color: var(--ink);
+  text-align: left;
+}
+
+.lesson-button.active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.lesson-number {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--ink);
+  font-weight: 850;
+}
+
+.lesson-button span:last-child {
+  font-weight: 760;
+}
+
+select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fbfcfb;
+  color: var(--ink);
+  padding: 0 10px;
+}
+
+.side-note,
+.try-card,
+.explain-box,
+.formula-box {
+  padding: 12px;
+  border: 1px solid #bed0c5;
+  border-radius: 8px;
+  background: #f1f7f3;
+}
+
+.side-note strong,
+.try-card strong,
+.explain-box strong,
+.formula-box strong,
+.teaching-card strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.workspace {
+  display: grid;
+  gap: 16px;
+}
+
+.lesson-hero {
+  padding: 18px;
+}
+
+.teaching-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.teaching-card {
+  min-height: 102px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+}
+
+.teaching-card ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.sim-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.controls {
+  padding: 15px;
+}
+
+.transport {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.transport button,
+.preset-row button {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f8faf8;
+  color: var(--ink);
+}
+
+.transport .primary {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
+
+.control-list {
+  display: grid;
+  gap: 13px;
+}
+
+.control-row {
+  display: grid;
+  gap: 7px;
+}
+
+.control-row span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.control-row strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--blue);
+}
+
+.try-card {
+  margin-top: 16px;
+}
+
+.preset-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.stage {
+  padding: 16px;
+}
+
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.metric {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diagram-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(#edf2ee 1px, transparent 1px),
+    linear-gradient(90deg, #edf2ee 1px, transparent 1px),
+    #fbfcfb;
+  background-size: 32px 32px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend i {
+  width: 22px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.legend .blue {
+  background: var(--blue);
+}
+
+.legend .green {
+  background: var(--green);
+}
+
+.legend .amber {
+  background: var(--amber);
+}
+
+.legend .violet {
+  background: var(--violet);
+}
+
+.legend .red {
+  background: var(--red);
+}
+
+svg {
+  display: block;
+  width: 100%;
+  min-height: 520px;
+}
+
+.signal-path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.input {
+  stroke: var(--blue);
+}
+
+.memory {
+  stroke: var(--green);
+}
+
+.gate {
+  stroke: var(--amber);
+}
+
+.output {
+  stroke: var(--violet);
+}
+
+.cell {
+  stroke: var(--red);
+}
+
+.dashed {
+  stroke-dasharray: 8 8;
+}
+
+.node rect,
+.node circle,
+.gate-valve rect {
+  fill: #fff;
+  stroke: #20342b;
+  stroke-width: 1.4;
+}
+
+.node text,
+.gate-valve text {
+  fill: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.node .sub,
+.gate-valve .sub {
+  fill: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.valve-track {
+  fill: #e7eee9 !important;
+  stroke: none !important;
+}
+
+.valve-open {
+  fill: var(--amber) !important;
+  stroke: none !important;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover rect,
+.clickable:hover circle,
+.clickable:focus rect,
+.clickable:focus circle {
+  stroke: var(--blue);
+  stroke-width: 2.4;
+  outline: none;
+}
+
+.explain-box,
+.formula-box {
+  margin-top: 12px;
+}
+
+code {
+  display: block;
+  white-space: pre-wrap;
+  color: #24312c;
+}
+
+.narration {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 14px;
+  padding: 15px;
+}
+
+.narration h3,
+.timeline-head h3 {
+  margin: 3px 0 6px;
+  font-size: 20px;
+}
+
+.narration ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.timeline-panel {
+  padding: 15px;
+}
+
+.timeline-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.timeline-head span:last-child {
+  color: var(--muted);
+}
+
+.timeline-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 1160px) {
+  .layout,
+  .sim-grid,
+  .teaching-grid,
+  .narration {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-header {
+    position: static;
+    display: grid;
+  }
+
+  .tick-card {
+    text-align: left;
+  }
+
+  .layout {
+    padding: 14px;
+  }
+
+  .readouts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  svg {
+    min-width: 720px;
+  }
+
+  .diagram-card {
+    overflow-x: auto;
+  }
+}

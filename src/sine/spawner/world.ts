@@ -1,14 +1,33 @@
 import type { MarketTimeline } from "../marketTimeline";
-import { forwardSpawner } from "./brain";
-import { DEFAULT_SPAWNER_CONFIG, OUTPUT_INDEX } from "./config";
-import { recordSpawnerEvent } from "./events";
-import { activeConnections, activeLayerIndexes, activeUnits, createInnovationRegistry, createRandomGenome, mutateGenome } from "./genome";
-import { clamp, interpolate, sigmoid } from "./math";
+import { evaluateSpawnerBrainPure, type BrainEvaluation } from "./brain";
+import { ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
+import { createSyncBrainEvaluationRunner } from "./brainEvaluationRunner";
+import { DEFAULT_SPAWNER_CONFIG } from "./config";
+import { createInnovationRegistry } from "./genome";
+import { captureDecisionTrace, pruneDecisionTraces } from "./learning";
 import { createMarketInputResolver } from "./marketInputs";
-import { emitFood, resolveFoods } from "./reward";
+import { resolveFoods } from "./reward";
+import { createFoodRuntimeIndex, createSpawnerRuntimeIndex, isSpawnerAlive } from "./runtimeIndex";
 import { SeededRng } from "./rng";
 import { recordTelemetry } from "./telemetry";
-import type { SpawnerAgent, SpawnerConfig, SpawnerGenome, SpawnerWorld } from "./types";
+import { decayLearnedState } from "./plasticity";
+import type { SpawnerAgent, SpawnerConfig, SpawnerWorld } from "./types";
+import { chooseSpawnerAction, decodeSpawnerOutputs, tryReproduceSpawner, trySpawnFood } from "./worldActions";
+import {
+  applyEvaluationResult,
+  buildBrainEvaluationJobs,
+  buildSpawnerTickContexts,
+  orderedEvaluationResults,
+  type SpawnerAdvanceOptions,
+} from "./worldBrainEvaluation";
+import { applySpawnerUpkeep, createInitialSpawners, removeDeadSpawners } from "./worldLifecycle";
+import type { BrainEvaluationJob, BrainEvaluationResult } from "../protocol/brainEvalProtocol";
+
+export { chooseSpawnerAction, decodeSpawnerOutputs, tryReproduceSpawner, trySpawnFood, type SpawnerActionChoice, type SpawnerDecodedOutputs } from "./worldActions";
+export { buildSpawnerInputs, energyRatioInput, type SpawnerAdvanceOptions } from "./worldBrainEvaluation";
+export { applySpawnerUpkeep, pruneDeadSpawners, removeDeadSpawners } from "./worldLifecycle";
+
+const syncBrainEvaluationRunner = createSyncBrainEvaluationRunner();
 
 export function createSpawnerWorld(seed = 101, config: Partial<SpawnerConfig> = {}): SpawnerWorld {
   const fullConfig = { ...DEFAULT_SPAWNER_CONFIG, ...config };
@@ -36,10 +55,7 @@ export function createSpawnerWorld(seed = 101, config: Partial<SpawnerConfig> = 
     innovations,
   };
 
-  const initialCount = Math.min(fullConfig.initialSpawners, fullConfig.maxSpawners);
-  for (let index = 0; index < initialCount; index += 1) {
-    world.spawners.push(createSpawner(world, createRandomGenome(rng, fullConfig, innovations)));
-  }
+  createInitialSpawners(world);
 
   return world;
 }
@@ -49,7 +65,26 @@ export function advanceSpawnerWorldToTimeline(world: SpawnerWorld, timeline: Mar
   while (world.tick < timeline.tick && steps < maxSteps) {
     world.tick += 1;
     steps += 1;
-    stepSpawnerWorld(world, timeline);
+    const result = stepSpawnerWorld(world, timeline);
+    if (isPromise(result)) throw new Error("Synchronous spawner advance received an async brain evaluation runner");
+  }
+  return {
+    processedTicks: steps,
+    remainingTicks: timeline.tick - world.tick,
+  };
+}
+
+export async function advanceSpawnerWorldToTimelineAsync(
+  world: SpawnerWorld,
+  timeline: MarketTimeline,
+  maxSteps = Number.POSITIVE_INFINITY,
+  options: SpawnerAdvanceOptions = {},
+) {
+  let steps = 0;
+  while (world.tick < timeline.tick && steps < maxSteps) {
+    world.tick += 1;
+    steps += 1;
+    await stepSpawnerWorld(world, timeline, options);
   }
   return {
     processedTicks: steps,
@@ -71,135 +106,91 @@ export function spawnerAveragePayoff(spawner: SpawnerAgent) {
   return spawner.resolvedCount > 0 ? spawner.totalPayoff / spawner.resolvedCount : 0;
 }
 
-export function isSpawnerAlive(spawner: SpawnerAgent, config: SpawnerConfig) {
-  return spawner.energy > config.deathEnergy && spawner.health > config.deathHealth;
-}
+function stepSpawnerWorld(world: SpawnerWorld, timeline: MarketTimeline, options: SpawnerAdvanceOptions = {}) {
+  resolveFoods(world, timeline, createSpawnerRuntimeIndex(world.spawners, world.config));
+  removeDeadSpawners(world, "payoff");
+  for (const spawner of world.spawners) {
+    spawner.learnedState = decayLearnedState(spawner.learnedState, spawner.genome.plasticityProfile);
+    pruneDecisionTraces(spawner, world.tick, Math.max(world.config.maxHorizonTicksClampMax, world.config.foodHistoryTicks) + 5);
+  }
+  const plansBySpawnerId = new Map<number, CompiledBrainPlan>();
+  for (const spawner of world.spawners) {
+    const plan = ensureCompiledBrainPlan(spawner.genome);
+    plansBySpawnerId.set(spawner.id, plan);
+    applySpawnerUpkeep(world, spawner, plan);
+  }
+  removeDeadSpawners(world, "upkeep");
 
-function stepSpawnerWorld(world: SpawnerWorld, timeline: MarketTimeline) {
-  resolveFoods(world, timeline);
-  world.spawners = pruneDeadSpawners(world);
-
-  const pendingFoodCount = world.foods.filter((food) => food.status === "pending").length;
+  const pendingFoodCount = createFoodRuntimeIndex(world.foods).pendingCount;
   const marketInputResolver = createMarketInputResolver(timeline, world.tick, pendingFoodCount);
   const newborns: SpawnerAgent[] = [];
-
-  for (const spawner of world.spawners) {
-    spawner.ageTicks += 1;
-    spawner.cooldownTicks = Math.max(0, spawner.cooldownTicks - 1);
-    spawner.energy -=
-      world.config.energyDrainPerTick +
-      activeUnits(spawner.genome).length * world.config.brainEnergyCostPerActiveUnit +
-      activeConnections(spawner.genome).length * world.config.brainEnergyCostPerActiveConnection +
-      activeLayerIndexes(spawner.genome).length * world.config.brainEnergyCostPerActiveLayer;
-    spawner.lastAction = "wait";
-
-    const marketInputs = marketInputResolver.resolve(spawner.genome.perception);
-    const inputs = [...marketInputs, clamp(spawner.energy / world.config.reproductionEnergy, -1, 2), clamp(spawner.health / 100, 0, 1)];
-    const outputs = forwardSpawner(spawner, inputs);
-    const longScore = sigmoid(outputs[OUTPUT_INDEX.long] ?? 0) + spawner.genome.thresholdBias;
-    const shortScore = sigmoid(outputs[OUTPUT_INDEX.short] ?? 0) + spawner.genome.thresholdBias;
-    const strength = clamp(sigmoid(outputs[OUTPUT_INDEX.strength] ?? 0), world.config.minSignalStrength, 1);
-    const horizonTicks = Math.max(
-      1,
-      Math.round(interpolate(spawner.genome.minHorizonTicks, spawner.genome.maxHorizonTicks, sigmoid(outputs[OUTPUT_INDEX.horizon] ?? 0))),
+  const contexts = buildSpawnerTickContexts(world, marketInputResolver, plansBySpawnerId);
+  const decisions = buildBrainEvaluationJobs(world, contexts, options);
+  const runner = options.brainEvaluationRunner ?? syncBrainEvaluationRunner;
+  const results = runner.evaluateBatch(decisions.jobs);
+  if (isPromise(results)) {
+    return results.then((resolvedResults) =>
+      finishSpawnerWorldStep(world, timeline, newborns, decisions.spawners, decisions.jobs, resolvedResults, plansBySpawnerId),
     );
-    const cooldownTicks = Math.max(
-      0,
-      Math.round(spawner.genome.cooldownBaseTicks + sigmoid(outputs[OUTPUT_INDEX.cooldown] ?? 0) * world.config.cooldownOutputMultiplierTicks),
+  }
+  finishSpawnerWorldStep(world, timeline, newborns, decisions.spawners, decisions.jobs, results, plansBySpawnerId);
+}
+
+function finishSpawnerWorldStep(
+  world: SpawnerWorld,
+  timeline: MarketTimeline,
+  newborns: SpawnerAgent[],
+  spawners: SpawnerAgent[],
+  jobs: BrainEvaluationJob[],
+  results: BrainEvaluationResult[],
+  plansBySpawnerId: Map<number, CompiledBrainPlan>,
+) {
+  const orderedResults = orderedEvaluationResults(spawners, jobs, results);
+  for (let index = 0; index < spawners.length; index += 1) {
+    const spawner = spawners[index];
+    const result = orderedResults[index];
+    if (!spawner || !result?.evaluation) continue;
+    const evaluation = result.evaluation;
+    applyEvaluationResult(spawner, evaluation, jobs[index]);
+    const decoded = decodeSpawnerOutputs(world, spawner, evaluation.outputs);
+    const action = chooseSpawnerAction(world, spawner, decoded);
+    let traceEvaluation: BrainEvaluation | undefined;
+    const getTraceEvaluation = () => {
+      traceEvaluation =
+        traceEvaluation ??
+        evaluationWithActivations(evaluation, jobs[index], plansBySpawnerId.get(spawner.id));
+      return traceEvaluation;
+    };
+    const traceId = action === "wait" ? undefined : captureDecisionTrace({ spawner, tick: world.tick, evaluation: getTraceEvaluation(), decoded, action });
+    trySpawnFood(world, spawner, decoded, timeline, action, traceId);
+    if (!isSpawnerAlive(spawner, world.config)) continue;
+    tryReproduceSpawner(world, spawner, decoded, newborns, () =>
+      captureDecisionTrace({ spawner, tick: world.tick, evaluation: getTraceEvaluation(), decoded, action: "reproduce" }),
     );
-    const reproductionProbability = sigmoid(outputs[OUTPUT_INDEX.reproduce] ?? 0);
-
-    if (spawner.cooldownTicks <= 0 && spawner.energy > world.config.spawnCost + world.config.minimumSpawnEnergySurplus) {
-      if (longScore >= world.config.spawnThreshold && longScore >= shortScore) {
-        emitFood(world, spawner, "long", strength, horizonTicks, timeline);
-        spawner.cooldownTicks = cooldownTicks;
-      } else if (shortScore >= world.config.spawnThreshold) {
-        emitFood(world, spawner, "short", strength, horizonTicks, timeline);
-        spawner.cooldownTicks = cooldownTicks;
-      } else {
-        spawner.lastAction = "wait";
-      }
-    }
-
-    if (
-      world.spawners.length + newborns.length < world.config.maxSpawners &&
-      spawner.energy >= world.config.reproductionEnergy &&
-      world.rng.next() < reproductionProbability
-    ) {
-      spawner.energy -= world.config.reproductionCost;
-      spawner.children += 1;
-      const child = createSpawner(world, mutateGenome(spawner.genome, world.rng, world.config, world.innovations), spawner.lineageId, spawner);
-      newborns.push(child);
-      recordSpawnerEvent(world, {
-        kind: "reproduction",
-        spawnerId: spawner.id,
-        lineageId: spawner.lineageId,
-        childSpawnerId: child.id,
-        spawnerSnapshot: structuredClone(spawner),
-        childSpawnerSnapshot: structuredClone(child),
-      });
-    }
   }
 
   world.spawners = world.spawners.concat(newborns);
-  world.spawners = pruneDeadSpawners(world);
+  removeDeadSpawners(world, "action");
 
   const minTick = world.tick - world.config.foodHistoryTicks;
   world.foods = world.foods.filter((food) => food.status === "pending" || food.resolveTick >= minTick);
-  recordTelemetry(world);
+  recordTelemetry(world, plansBySpawnerId);
 }
 
-function pruneDeadSpawners(world: SpawnerWorld) {
-  const survivors: SpawnerAgent[] = [];
-  for (const spawner of world.spawners) {
-    if (isSpawnerAlive(spawner, world.config)) {
-      survivors.push(spawner);
-    } else {
-      const lineage = world.lineages[spawner.lineageId];
-      if (lineage) lineage.totalDeaths += 1;
-      recordSpawnerEvent(world, {
-        kind: "death",
-        spawnerId: spawner.id,
-        lineageId: spawner.lineageId,
-        spawnerSnapshot: structuredClone(spawner),
-      });
-    }
-  }
-  return survivors;
+function isPromise<T>(value: T | Promise<T>): value is Promise<T> {
+  return !!value && typeof (value as Promise<T>).then === "function";
 }
 
-function createSpawner(world: SpawnerWorld, genome: SpawnerGenome, lineageId?: number, parent?: SpawnerAgent): SpawnerAgent {
-  const id = world.nextSpawnerId;
-  world.nextSpawnerId += 1;
-  const assignedLineageId = lineageId ?? world.nextLineageId;
-  if (lineageId === undefined) world.nextLineageId += 1;
-  const lineage = world.lineages[assignedLineageId] ?? {
-    id: assignedLineageId,
-    totalBorn: 0,
-    totalDeaths: 0,
-  };
-  lineage.totalBorn += 1;
-  world.lineages[assignedLineageId] = lineage;
-
-  return {
-    id,
-    lineageId: assignedLineageId,
-    generation: parent ? parent.generation + 1 : 0,
-    birthTick: world.tick,
-    parentSpawnerId: parent?.id,
-    genome,
-    hiddenState: Object.fromEntries(genome.units.map((unit) => [unit.unitId, 0])),
-    energy: world.config.initialEnergyMin + world.rng.next() * Math.max(0, world.config.initialEnergyMax - world.config.initialEnergyMin),
-    health: world.config.initialHealth,
-    ageTicks: 0,
-    cooldownTicks: Math.round(world.rng.next() * world.config.initialCooldownMaxTicks),
-    spawnedCount: 0,
-    resolvedCount: 0,
-    wins: 0,
-    losses: 0,
-    totalPayoff: 0,
-    children: 0,
-    lastAction: "wait",
-    recentPayoffs: [],
-  };
+function evaluationWithActivations(evaluation: BrainEvaluation, job: BrainEvaluationJob | undefined, plan: CompiledBrainPlan | undefined) {
+  if (evaluation.activeConnectionIds.length > 0) return evaluation;
+  if (!job?.genome) return evaluation;
+  return evaluateSpawnerBrainPure({
+    genome: job.genome,
+    learnedState: job.learnedState,
+    hiddenState: job.hiddenState,
+    inputs: job.inputs,
+    plan,
+    includeActivations: true,
+    includePreviousState: false,
+  });
 }

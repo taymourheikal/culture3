@@ -1,5 +1,11 @@
 import { advanceMarketTimeline, createCandleMarketTimeline, createMarketTimeline, type MarketCandle, type MarketTimeline } from "./marketTimeline";
-import { advanceSpawnerWorldToTimeline, createSpawnerWorld, type SpawnerWorld } from "./spawnerSimulation";
+import {
+  advanceSpawnerWorldToTimeline,
+  advanceSpawnerWorldToTimelineAsync,
+  createSpawnerWorld,
+  type SpawnerAdvanceOptions,
+  type SpawnerWorld,
+} from "./spawnerSimulation";
 import type { WaveSettings } from "./marketSignal";
 import { isBtcSource, sanitizeMarketRuntimeConfig, type MarketRuntimeConfig } from "./marketRuntimeConfig";
 import type { SpawnerConfig } from "./spawnerSimulation";
@@ -52,6 +58,21 @@ export function advanceSimulationToTarget(
 ) {
   const marketResult = advanceMarketTimeline(simulation.timeline, targetTick, maxTicks);
   const spawnerResult = advanceSpawnerWorldToTimeline(simulation.world, simulation.timeline, maxTicks);
+  return {
+    processedTicks: spawnerResult.processedTicks,
+    remainingTicks: marketResult.ended ? 0 : marketResult.remainingTicks + spawnerResult.remainingTicks,
+    ended: marketResult.ended,
+  };
+}
+
+export async function advanceSimulationToTargetAsync(
+  simulation: MarketSimulationState,
+  targetTick: number,
+  maxTicks = MAX_SIMULATION_TICKS_PER_FRAME,
+  options: SpawnerAdvanceOptions = {},
+) {
+  const marketResult = advanceMarketTimeline(simulation.timeline, targetTick, maxTicks);
+  const spawnerResult = await advanceSpawnerWorldToTimelineAsync(simulation.world, simulation.timeline, maxTicks, options);
   return {
     processedTicks: spawnerResult.processedTicks,
     remainingTicks: marketResult.ended ? 0 : marketResult.remainingTicks + spawnerResult.remainingTicks,

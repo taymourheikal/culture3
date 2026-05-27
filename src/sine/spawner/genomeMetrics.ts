@@ -1,26 +1,19 @@
-import { activeLayerIndexes, activeUnits } from "./genomeCommon";
-import { activeConnections } from "./genomeConnections";
+import { createGenomeIndex, type GenomeIndex } from "./genomeIndex";
 import type { SpawnerGenome } from "./types";
 
 export function architectureMetrics(genome: SpawnerGenome) {
-  const enabledConnections = activeConnections(genome);
-  const recurrentConnections = enabledConnections.filter((connection) => connection.source.kind === "hidden" && connection.source.mode === "previous");
-  const skipConnections = enabledConnections.filter((connection) => {
-    if (connection.source.kind !== "hidden" || connection.source.mode !== "current" || connection.target.kind !== "hidden") return false;
-    const sourceRef = connection.source;
-    const targetRef = connection.target;
-    const source = genome.units.find((unit) => unit.unitId === sourceRef.unitId);
-    const target = genome.units.find((unit) => unit.unitId === targetRef.unitId);
-    return !!source && !!target && target.layerIndex - source.layerIndex > 1;
-  });
+  return architectureMetricsFromIndex(createGenomeIndex(genome));
+}
+
+export function architectureMetricsFromIndex(index: GenomeIndex) {
   return {
-    activeUnits: activeUnits(genome).length,
-    activeLayers: activeLayerIndexes(genome).length,
-    activeConnections: enabledConnections.length,
-    disabledUnits: genome.units.filter((unit) => !unit.enabled).length,
-    disabledConnections: genome.connections.filter((connection) => !connection.enabled).length,
-    recurrentConnections: recurrentConnections.length,
-    skipConnections: skipConnections.length,
-    outputConnections: enabledConnections.filter((connection) => connection.target.kind === "output").length,
+    activeUnits: index.units.length,
+    activeLayers: index.layerIndexes.length,
+    activeConnections: index.connections.length,
+    disabledUnits: index.disabledUnits.length,
+    disabledConnections: index.disabledConnections.length,
+    recurrentConnections: index.connectionGroups.recurrent.length,
+    skipConnections: index.connectionGroups.skip.length,
+    outputConnections: index.connectionGroups.hiddenToOutput.length + index.connectionGroups.inputToOutput.length,
   };
 }

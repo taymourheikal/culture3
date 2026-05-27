@@ -1,19 +1,22 @@
-import { Save } from "lucide-react";
 import { roundForInput } from "../charts/format";
+import type { MarketStatsPacket } from "../marketWorkerProtocol";
 import { saveSpawnerConfigGroup } from "../spawnerSettingsStorage";
 import { INPUT_COUNT, OUTPUT_COUNT, type SpawnerConfig } from "../spawnerSimulation";
 import { SPAWNER_CONTROL_GROUPS, type SpawnerControlConfig } from "../sineControlGroups";
 import { Metric } from "../SineMetric";
-import { ControlSlider } from "./ControlSlider";
+import { ControlGroupSection } from "./ControlGroupSection";
+import { NumberControlGroups } from "./NumberControlGroups";
 
 export function SpawnerControlGroups({
   spawnerConfig,
+  stats,
   savedGroup,
   setSavedGroup,
   updateSpawnerConfig,
   replaceSpawnerConfig,
 }: {
   spawnerConfig: SpawnerConfig;
+  stats?: MarketStatsPacket | null;
   savedGroup: string | null;
   setSavedGroup: (key: string | null) => void;
   updateSpawnerConfig: (key: keyof SpawnerConfig, value: number) => void;
@@ -21,75 +24,40 @@ export function SpawnerControlGroups({
 }) {
   return (
     <div className="sine-parameters-stack">
-      <section className="sine-control-group">
-        <div className="sine-control-group-head">
-          <div className="sine-control-group-title">NN Contract</div>
-        </div>
+      <ControlGroupSection title="NN Contract">
         <div className="sine-readonly-grid">
           <Metric label="Recurrent type" value="GRU-like gates" />
           <Metric label="Inputs" value={String(INPUT_COUNT)} />
           <Metric label="Outputs" value={String(OUTPUT_COUNT)} />
         </div>
-      </section>
-      {SPAWNER_CONTROL_GROUPS.map((group) => (
-        <section className="sine-control-group" key={group.key}>
-          <div className="sine-control-group-head">
-            <div className="sine-control-group-title">{group.title}</div>
-            <button
-              type="button"
-              className="save-group-button"
-              title={`Save ${group.title}`}
-              onClick={() => {
-                const saved = saveSpawnerConfigGroup(
-                  spawnerConfig,
-                  group.controls.map((control) => control.key),
-                );
-                replaceSpawnerConfig(saved);
-                setSavedGroup(`spawners:${group.key}`);
-              }}
-            >
-              <Save size={16} />
-            </button>
-          </div>
-          <div className="sine-parameter-fields">
-            {group.controls.map((control) => (
-              <ConfiguredSpawnerControl
-                key={control.key}
-                control={control}
-                config={spawnerConfig}
-                onChange={(key, value) => {
-                  updateSpawnerConfig(key, value);
-                  if (savedGroup === `spawners:${group.key}`) setSavedGroup(null);
-                }}
-              />
-            ))}
-          </div>
-          {savedGroup === `spawners:${group.key}` ? <div className="saved-defaults">Saved defaults</div> : null}
-        </section>
-      ))}
+      </ControlGroupSection>
+      <ControlGroupSection title="Reproduction Pressure">
+        <div className="sine-readonly-grid">
+          <Metric label="Population room" value={stats ? `${Math.round(stats.populationRoomRatio * 100)}%` : "--"} />
+          <Metric label="Repro required" value={stats ? `${stats.currentReproductionEnergyRequirement.toFixed(1)} energy` : "--"} />
+          <Metric label="Repro cost" value={stats ? `${stats.currentReproductionCost.toFixed(1)} energy` : "--"} />
+          <Metric label="Repro cost x" value={stats ? `${stats.reproductionCostMultiplier.toFixed(2)}x` : "--"} />
+        </div>
+      </ControlGroupSection>
+      <NumberControlGroups<keyof SpawnerConfig, SpawnerControlConfig>
+        groups={SPAWNER_CONTROL_GROUPS}
+        savedGroup={savedGroup}
+        savedPrefix="spawners"
+        getValue={(key) => spawnerConfig[key]}
+        getDisplay={(control) => String(roundForInput(spawnerConfig[control.key], control.step))}
+        onSaveGroup={(group, savedKey) => {
+            const saved = saveSpawnerConfigGroup(
+              spawnerConfig,
+              group.controls.map((control) => control.key),
+            );
+            replaceSpawnerConfig(saved);
+            setSavedGroup(savedKey);
+        }}
+        onChange={(_group, key, value, savedKey) => {
+          updateSpawnerConfig(key, value);
+          if (savedGroup === savedKey) setSavedGroup(null);
+        }}
+      />
     </div>
-  );
-}
-
-function ConfiguredSpawnerControl({
-  control,
-  config,
-  onChange,
-}: {
-  control: SpawnerControlConfig;
-  config: SpawnerConfig;
-  onChange: (key: keyof SpawnerConfig, value: number) => void;
-}) {
-  return (
-    <ControlSlider
-      label={control.label}
-      value={config[control.key]}
-      min={control.min}
-      max={control.max}
-      step={control.step}
-      display={String(roundForInput(config[control.key], control.step))}
-      help={control.help}
-      onChange={(value) => onChange(control.key, value)}
-    />
   );
 }

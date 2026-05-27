@@ -2,6 +2,7 @@ import { INPUT_COUNT, OUTPUT_LABELS } from "./config";
 import { activeLayerIndexes } from "./genome";
 import { groupConnections } from "./genomeIndex";
 import type { ConnectionGene, GateType, HiddenUnitGene, SpawnerGenome } from "./types";
+import { absMean as sharedAbsMean, finiteZero, mean as sharedMean, populationStdDev } from "../stats";
 
 export const UNIQUENESS_GATES: GateType[] = ["update", "reset", "candidate"];
 export const UNIQUENESS_OUTPUT_LABELS = OUTPUT_LABELS;
@@ -41,17 +42,15 @@ export function ratio(numerator: number, denominator: number) {
 }
 
 export function mean(values: number[]) {
-  return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+  return sharedMean(values);
 }
 
 export function absMean(values: number[]) {
-  return values.length > 0 ? values.reduce((sum, value) => sum + Math.abs(value), 0) / values.length : 0;
+  return sharedAbsMean(values);
 }
 
 export function std(values: number[]) {
-  if (values.length === 0) return 0;
-  const average = mean(values);
-  return Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length);
+  return populationStdDev(values);
 }
 
 export function positiveRatio(values: number[]) {
@@ -59,7 +58,7 @@ export function positiveRatio(values: number[]) {
 }
 
 export function finite(value: number) {
-  return Number.isFinite(value) ? value : 0;
+  return finiteZero(value);
 }
 
 export function possibleRecurrentConnections(units: HiddenUnitGene[]) {

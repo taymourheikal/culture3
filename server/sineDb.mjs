@@ -127,8 +127,33 @@ sineDb.exec(`
   CREATE INDEX IF NOT EXISTS sine_deaths_session_spawner_idx ON sine_spawner_deaths (session_id, spawner_id);
   CREATE INDEX IF NOT EXISTS sine_genomes_lookup_idx ON sine_spawner_genome_snapshots (session_id, spawner_id, tick);
   CREATE INDEX IF NOT EXISTS sine_states_lookup_idx ON sine_spawner_state_snapshots (session_id, spawner_id, tick);
-  CREATE INDEX IF NOT EXISTS sine_food_lookup_idx ON sine_food_events (session_id, spawner_id, tick);
-  CREATE INDEX IF NOT EXISTS sine_uniqueness_lookup_idx ON sine_spawner_uniqueness_snapshots (session_id, spawner_id, tick);
+	  CREATE INDEX IF NOT EXISTS sine_food_lookup_idx ON sine_food_events (session_id, spawner_id, tick);
+	  CREATE INDEX IF NOT EXISTS sine_uniqueness_lookup_idx ON sine_spawner_uniqueness_snapshots (session_id, spawner_id, tick);
+	`);
+
+ensureColumn("sine_spawner_births", "plasticity_profile_json", "TEXT NOT NULL DEFAULT '{}'");
+ensureColumn("sine_spawner_births", "plasticity_learning_rate_mean", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_births", "plasticity_decay_rate", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_births", "plasticity_max_learned_delta", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_genome_snapshots", "plasticity_profile_json", "TEXT NOT NULL DEFAULT '{}'");
+ensureColumn("sine_spawner_genome_snapshots", "plasticity_learning_rate_mean", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_genome_snapshots", "plasticity_decay_rate", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_genome_snapshots", "plasticity_max_learned_delta", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_state_snapshots", "learned_delta_norm", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_state_snapshots", "recent_learning_signal", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_state_snapshots", "learning_update_count", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_state_snapshots", "reproduction_learning_count", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_state_snapshots", "plasticity_learning_rate_mean", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_state_snapshots", "plasticity_decay_rate", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_state_snapshots", "plasticity_max_learned_delta", "REAL NOT NULL DEFAULT 0");
+ensureColumn("sine_spawner_state_snapshots", "learned_state_json", "TEXT NOT NULL DEFAULT '{}'");
+ensureColumn("sine_spawner_state_snapshots", "plasticity_profile_json", "TEXT NOT NULL DEFAULT '{}'");
+
+sineDb.exec(`
+  CREATE INDEX IF NOT EXISTS sine_states_learning_idx
+    ON sine_spawner_state_snapshots (session_id, tick, learned_delta_norm);
+  CREATE INDEX IF NOT EXISTS sine_states_learning_counts_idx
+    ON sine_spawner_state_snapshots (session_id, learning_update_count, reproduction_learning_count);
 `);
 
 export const sineStatements = {
@@ -141,30 +166,35 @@ export const sineStatements = {
       settings_json = excluded.settings_json,
       spawner_config_json = excluded.spawner_config_json
   `),
-  insertSineBirth: sineDb.prepare(`
-    INSERT OR IGNORE INTO sine_spawner_births (
-      session_id, spawner_id, parent_spawner_id, lineage_id, generation, birth_tick, birth_time, spawner_json
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `),
+	  insertSineBirth: sineDb.prepare(`
+	    INSERT OR IGNORE INTO sine_spawner_births (
+	      session_id, spawner_id, parent_spawner_id, lineage_id, generation, birth_tick, birth_time, spawner_json,
+	      plasticity_profile_json, plasticity_learning_rate_mean, plasticity_decay_rate, plasticity_max_learned_delta
+	    )
+	    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	  `),
   insertSineDeath: sineDb.prepare(`
     INSERT OR IGNORE INTO sine_spawner_deaths (
       session_id, spawner_id, lineage_id, generation, death_tick, death_time, spawner_json
     )
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `),
-  insertSineGenomeSnapshot: sineDb.prepare(`
-    INSERT OR IGNORE INTO sine_spawner_genome_snapshots (
-      session_id, spawner_id, tick, time, reason, genome_json, spawner_json
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `),
-  insertSineStateSnapshot: sineDb.prepare(`
-    INSERT OR IGNORE INTO sine_spawner_state_snapshots (
-      session_id, spawner_id, lineage_id, generation, tick, time, state_json
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `),
+	  insertSineGenomeSnapshot: sineDb.prepare(`
+	    INSERT OR IGNORE INTO sine_spawner_genome_snapshots (
+	      session_id, spawner_id, tick, time, reason, genome_json, spawner_json,
+	      plasticity_profile_json, plasticity_learning_rate_mean, plasticity_decay_rate, plasticity_max_learned_delta
+	    )
+	    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	  `),
+	  insertSineStateSnapshot: sineDb.prepare(`
+	    INSERT OR IGNORE INTO sine_spawner_state_snapshots (
+	      session_id, spawner_id, lineage_id, generation, tick, time, state_json,
+	      learned_delta_norm, recent_learning_signal, learning_update_count, reproduction_learning_count,
+	      plasticity_learning_rate_mean, plasticity_decay_rate, plasticity_max_learned_delta,
+	      learned_state_json, plasticity_profile_json
+	    )
+	    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	  `),
   insertSineFoodEvent: sineDb.prepare(`
     INSERT OR IGNORE INTO sine_food_events (
       session_id, food_id, event_kind, spawner_id, lineage_id, tick, time, food_json
@@ -357,7 +387,7 @@ export const sineStatements = {
     WHERE session_id = ?
     GROUP BY lineage_id
   `),
-  listSineLatestUniquenessBySpawner: sineDb.prepare(`
+	  listSineLatestUniquenessBySpawner: sineDb.prepare(`
     SELECT uniqueness.*
     FROM sine_spawner_uniqueness_snapshots uniqueness
     JOIN (
@@ -370,5 +400,11 @@ export const sineStatements = {
      AND latest.tick = uniqueness.tick
     WHERE uniqueness.session_id = ?
     ORDER BY uniqueness.score DESC
-  `),
-};
+	  `),
+	};
+
+function ensureColumn(table, column, definition) {
+  const columns = sineDb.prepare(`PRAGMA table_info(${table})`).all();
+  if (columns.some((entry) => entry.name === column)) return;
+  sineDb.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}

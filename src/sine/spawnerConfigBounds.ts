@@ -1,4 +1,5 @@
 import type { SpawnerConfig } from "./spawnerSimulation";
+import { clampNumber, finiteOr } from "./numeric";
 
 export type SpawnerConfigBounds = {
   min: number;
@@ -15,10 +16,10 @@ export const SPAWNER_CONFIG_BOUNDS: Record<keyof SpawnerConfig, SpawnerConfigBou
   initialEnergyMax: { min: 0, max: 250, step: 0.5 },
   initialHealth: { min: 1, max: 300, step: 1 },
   initialCooldownMaxTicks: { min: 0, max: 500, step: 1, integer: true },
-  spawnThreshold: { min: 0, max: 1.5, step: 0.01 },
+  defaultSpawnThreshold: { min: 0, max: 1.5, step: 0.01 },
   spawnCost: { min: 0, max: 20, step: 0.05 },
   minimumSpawnEnergySurplus: { min: 0, max: 20, step: 0.05 },
-  minSignalStrength: { min: 0, max: 1, step: 0.01 },
+  defaultMinSignalStrength: { min: 0, max: 1, step: 0.01 },
   defaultDeltaLag1FromTicks: { min: 0, max: 1000, step: 1, integer: true },
   defaultDeltaLag1ToTicks: { min: 0, max: 1000, step: 1, integer: true },
   defaultDeltaLag2FromTicks: { min: 0, max: 1000, step: 1, integer: true },
@@ -32,6 +33,8 @@ export const SPAWNER_CONFIG_BOUNDS: Record<keyof SpawnerConfig, SpawnerConfigBou
   defaultRollingWindowTicks: { min: 0, max: 1000, step: 1, integer: true },
   defaultLocalScaleWindowTicks: { min: 0, max: 1000, step: 1, integer: true },
   defaultLocalScaleSampleStepTicks: { min: 1, max: 1000, step: 1, integer: true },
+  defaultPayoffScaleWindowTicks: { min: 0, max: 1000, step: 1, integer: true },
+  defaultPayoffScaleSampleStepTicks: { min: 1, max: 1000, step: 1, integer: true },
   defaultTrendWindowTicks: { min: 0, max: 1000, step: 1, integer: true },
   defaultCycleWindowTicks: { min: 0, max: 1000, step: 1, integer: true },
   defaultRoughnessSensitivity: { min: 0, max: 1, step: 0.001 },
@@ -42,6 +45,12 @@ export const SPAWNER_CONFIG_BOUNDS: Record<keyof SpawnerConfig, SpawnerConfigBou
   perceptionWindowMutationStdDev: { min: 0, max: 1000, step: 0.1 },
   perceptionSensitivityMutationStdDev: { min: 0, max: 1, step: 0.0001 },
   perceptionDensityScaleMutationStdDev: { min: 0, max: 1000, step: 0.1 },
+  payoffScaleMutationRate: { min: 0, max: 1, step: 0.001 },
+  payoffScaleWindowMutationStdDev: { min: 0, max: 1000, step: 0.1 },
+  payoffScaleSampleStepMutationStdDev: { min: 0, max: 1000, step: 0.1 },
+  tradingPolicyMutationRate: { min: 0, max: 1, step: 0.001 },
+  spawnThresholdMutationStdDev: { min: 0, max: 1, step: 0.001 },
+  minSignalStrengthMutationStdDev: { min: 0, max: 1, step: 0.001 },
   mutationProfileMutationStdDev: { min: 0, max: 1, step: 0.001 },
   energyDrainPerTick: { min: 0, max: 5, step: 0.001 },
   rewardScale: { min: 0, max: 50, step: 0.1 },
@@ -50,8 +59,20 @@ export const SPAWNER_CONFIG_BOUNDS: Record<keyof SpawnerConfig, SpawnerConfigBou
   recentResolvedPayoffWindow: { min: 1, max: 500, step: 1, integer: true },
   agentRecentPayoffWindow: { min: 1, max: 200, step: 1, integer: true },
   uniquenessPopulationLimit: { min: 1, max: 1000, step: 1, integer: true },
+  plasticityWeightLearningRate: { min: 0, max: 1, step: 0.001 },
+  plasticityBiasLearningRate: { min: 0, max: 1, step: 0.001 },
+  plasticityPositiveRewardMultiplier: { min: 0, max: 10, step: 0.01 },
+  plasticityNegativeRewardMultiplier: { min: 0, max: 10, step: 0.01 },
+  plasticityReproductionRewardStrength: { min: 0, max: 1, step: 0.01 },
+  plasticityExperienceDecayRate: { min: 0, max: 1, step: 0.001 },
+  plasticityMaxLearnedDelta: { min: 0.001, max: 100, step: 0.01 },
+  plasticityEligibilityTraceStrength: { min: 0, max: 1, step: 0.001 },
+  plasticityMutationStdDev: { min: 0, max: 1, step: 0.001 },
   reproductionEnergy: { min: 0, max: 200, step: 0.5 },
   reproductionCost: { min: 0, max: 100, step: 0.5 },
+  reproductionCostMinMultiplier: { min: 0, max: 10, step: 0.01 },
+  reproductionCostMaxMultiplier: { min: 0, max: 20, step: 0.01 },
+  reproductionCostPressureCurve: { min: 0, max: 10, step: 0.01 },
   initialReproductionOutputBias: { min: -12, max: 2, step: 0.1 },
   deathEnergy: { min: -100, max: 100, step: 0.5 },
   deathHealth: { min: -50, max: 100, step: 1 },
@@ -61,7 +82,7 @@ export const SPAWNER_CONFIG_BOUNDS: Record<keyof SpawnerConfig, SpawnerConfigBou
   initialInputConnectionsPerUnit: { min: 0, max: 64, step: 1, integer: true },
   initialRecurrentConnectionsPerUnit: { min: 0, max: 64, step: 1, integer: true },
   initialOutputConnectionsPerOutput: { min: 0, max: 128, step: 1, integer: true },
-  newUnitInitialConnections: { min: 0, max: 128, step: 1, integer: true },
+  newUnitInitialConnections: { min: 2, max: 128, step: 1, integer: true },
   newUnitExistingLayerChance: { min: 0, max: 1, step: 0.001 },
   newUnitNewLayerChance: { min: 0, max: 1, step: 0.001 },
   addUnitRate: { min: 0, max: 1, step: 0.001 },
@@ -106,7 +127,7 @@ export const SPAWNER_CONFIG_BOUNDS: Record<keyof SpawnerConfig, SpawnerConfigBou
 };
 
 export function clampSpawnerValue(value: number | undefined, fallback: number, bounds: SpawnerConfigBounds) {
-  const finiteValue = typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  const finiteValue = finiteOr(value, fallback);
   const rounded = bounds.integer ? Math.round(finiteValue) : finiteValue;
-  return Math.min(bounds.max, Math.max(bounds.min, rounded));
+  return clampNumber(rounded, bounds.min, bounds.max);
 }

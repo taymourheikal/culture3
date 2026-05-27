@@ -1,7 +1,10 @@
 import type { ConnectionSource, ConnectionTarget, GateType, HiddenUnitGene, InnovationRegistry, SpawnerConfig, SpawnerGenome } from "./types";
 import type { SeededRng } from "./rng";
 import { sanitizeMutationProfile } from "./mutationProfile";
+import { sanitizePayoffProfile } from "./payoffProfile";
 import { sanitizePerception } from "./perception";
+import { sanitizePlasticityProfile } from "./plasticity";
+import { sanitizeTradingPolicy } from "./tradingPolicy";
 
 export const GATES: GateType[] = ["update", "reset", "candidate"];
 
@@ -43,7 +46,10 @@ export function cloneGenome(genome: SpawnerGenome): SpawnerGenome {
     maxHorizonTicks: genome.maxHorizonTicks,
     cooldownBaseTicks: genome.cooldownBaseTicks,
     perception: sanitizePerception(genome.perception),
+    payoffProfile: sanitizePayoffProfile(genome.payoffProfile),
+    tradingPolicy: sanitizeTradingPolicy(genome.tradingPolicy),
     mutationProfile: sanitizeMutationProfile(genome.mutationProfile),
+    plasticityProfile: sanitizePlasticityProfile(genome.plasticityProfile),
   };
 }
 

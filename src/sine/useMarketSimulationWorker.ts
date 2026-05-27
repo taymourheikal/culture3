@@ -17,6 +17,8 @@ import { loadSavedSpawnerConfig, sanitizeSpawnerConfig } from "./spawnerSettings
 import type { SpawnerConfig } from "./spawnerSimulation";
 import { createInspectionRequestStore } from "./hooks/inspectionRequestStore";
 import { postSineSnapshot } from "./persistence/sinePersistenceClient";
+import { workerCommands } from "./worker/workerCommands";
+import { routeMarketWorkerMessage } from "./worker/workerMessageRouter";
 
 export function useMarketSimulationWorker() {
   const initialMarketConfig = useMemo(() => loadSavedMarketRuntimeConfig(), []);
@@ -52,64 +54,47 @@ export function useMarketSimulationWorker() {
     };
 
     worker.addEventListener("message", (event: MessageEvent<MarketWorkerMessage>) => {
-      const message = event.data;
-      if (message.type === "chart") {
-        if (message.packet.sessionId !== sessionRef.current) return;
-        latestChartPacketRef.current = message.packet;
-        setError(null);
-        if (!hasChartPacketRef.current) {
-          hasChartPacketRef.current = true;
-          setHasChartPacket(true);
-        }
-      } else if (message.type === "stats") {
-        if (message.packet.sessionId !== sessionRef.current) return;
-        setError(null);
-        setStats(message.packet);
-      } else if (message.type === "roster") {
-        if (message.packet.sessionId !== sessionRef.current) return;
-        setRoster(message.packet);
-      } else if (message.type === "architecture") {
-        if (message.packet.sessionId !== sessionRef.current) return;
-        setArchitecture(message.packet);
-        setArchitectureLoadingId(null);
-      } else if (message.type === "spawnerInspection") {
-        if (message.packet.sessionId !== sessionRef.current) return;
-        const pending = inspectionRequestsRef.current.resolve(message.packet);
-        if (!pending || pending.updateState) {
-          setInspection(message.packet);
-          setInspectionLoadingId(null);
-        }
-      } else if (message.type === "uniquenessDetail") {
-        if (message.packet.sessionId !== sessionRef.current) return;
-        setUniquenessDetail(message.packet);
-        setUniquenessLoadingId(null);
-      } else if (message.type === "persistence") {
-        if (message.packet.sessionId !== sessionRef.current) return;
-        const ackSessionId = message.packet.sessionId;
-        const ackPacketId = message.persistencePacketId;
-        void postPersistencePacket(message.packet)
-          .then(() => {
-            post(worker, {
-              type: "persistenceAck",
-              sessionId: ackSessionId,
-              persistencePacketId: ackPacketId,
-              ok: true,
+      routeMarketWorkerMessage(event.data, sessionRef.current, {
+        chart: (packet) => {
+          latestChartPacketRef.current = packet;
+          if (!hasChartPacketRef.current) {
+            hasChartPacketRef.current = true;
+            setHasChartPacket(true);
+          }
+        },
+        stats: (packet) => {
+          setStats(packet);
+        },
+        roster: setRoster,
+        architecture: (packet) => {
+          setArchitecture(packet);
+          setArchitectureLoadingId(null);
+        },
+        spawnerInspection: (packet) => {
+          const pending = inspectionRequestsRef.current.resolve(packet);
+          if (!pending || pending.updateState) {
+            setInspection(packet);
+            setInspectionLoadingId(null);
+          }
+        },
+        uniquenessDetail: (packet) => {
+          setUniquenessDetail(packet);
+          setUniquenessLoadingId(null);
+        },
+        persistence: (persistencePacketId, packet) => {
+          const ackSessionId = packet.sessionId;
+          void postPersistencePacket(packet)
+            .then(() => {
+              post(worker, workerCommands.persistenceAck(ackSessionId, persistencePacketId, true));
+              setPersistenceStatus("online");
+            })
+            .catch(() => {
+              post(worker, workerCommands.persistenceAck(ackSessionId, persistencePacketId, false));
+              setPersistenceStatus("offline");
             });
-            setPersistenceStatus("online");
-          })
-          .catch(() => {
-            post(worker, {
-              type: "persistenceAck",
-              sessionId: ackSessionId,
-              persistencePacketId: ackPacketId,
-              ok: false,
-            });
-            setPersistenceStatus("offline");
-          });
-      } else if (message.type === "error") {
-        if (message.sessionId !== sessionRef.current) return;
-        setError(message.message);
-      }
+        },
+        error: setError,
+      });
     });
     worker.addEventListener("error", (event) => {
       showWorkerError(event.message || "Simulation worker failed.");
@@ -118,12 +103,7 @@ export function useMarketSimulationWorker() {
       showWorkerError("Simulation worker sent a message the UI could not decode.");
     });
 
-    post(worker, {
-      type: "reset",
-      sessionId: sessionRef.current,
-      marketConfig: initialMarketConfig,
-      spawnerConfig: initialSpawnerConfig,
-    });
+    post(worker, workerCommands.reset(sessionRef.current, initialMarketConfig, initialSpawnerConfig));
 
     return () => {
       inspectionRequestsRef.current.rejectAll(sessionRef.current);
@@ -148,24 +128,28 @@ export function useMarketSimulationWorker() {
 
   const setPlaying = (updater: (value: boolean) => boolean) => {
     const next = updater(statsRef.current?.playing ?? false);
-    send({ type: next ? "start" : "pause", sessionId: sessionRef.current });
+    setError(null);
+    send(next ? workerCommands.start(sessionRef.current) : workerCommands.pause(sessionRef.current));
   };
 
   const start = () => {
-    send({ type: "start", sessionId: sessionRef.current });
+    setError(null);
+    send(workerCommands.start(sessionRef.current));
   };
 
   const pause = () => {
-    send({ type: "pause", sessionId: sessionRef.current });
+    setError(null);
+    send(workerCommands.pause(sessionRef.current));
   };
 
   const stop = () => {
-    send({ type: "stop", sessionId: sessionRef.current });
+    setError(null);
+    send(workerCommands.stop(sessionRef.current));
   };
 
   const updateSetting = <K extends keyof WaveSettings>(key: K, value: WaveSettings[K]) => {
     const settings = sanitizeSettings({ ...currentSettings, [key]: value });
-    send({ type: "setSettings", sessionId: sessionRef.current, patch: { [key]: settings[key] } });
+    send(workerCommands.setSettings(sessionRef.current, { [key]: settings[key] }));
   };
 
   const updatePlaybackSetting = <K extends keyof MarketPlaybackSettings>(key: K, value: MarketPlaybackSettings[K]) => {
@@ -173,35 +157,36 @@ export function useMarketSimulationWorker() {
       ...currentMarketConfig,
       playback: { ...currentMarketConfig.playback, [key]: value },
     });
-    send({ type: "setPlaybackSettings", sessionId: sessionRef.current, patch: { [key]: marketConfig.playback[key] } });
+    send(workerCommands.setPlaybackSettings(sessionRef.current, { [key]: marketConfig.playback[key] }));
   };
 
   const updateMarketSource = (source: MarketDataSource) => {
     const marketConfig = sanitizeMarketRuntimeConfig({ ...currentMarketConfig, source });
-    send({ type: "setMarketSource", sessionId: sessionRef.current, source: marketConfig.source });
+    send(workerCommands.setMarketSource(sessionRef.current, marketConfig.source));
   };
 
   const replaceMarketConfig = (marketConfig: MarketRuntimeConfig) => {
-    send({ type: "setMarketConfig", sessionId: sessionRef.current, patch: sanitizeMarketRuntimeConfig(marketConfig) });
+    send(workerCommands.setMarketConfig(sessionRef.current, sanitizeMarketRuntimeConfig(marketConfig)));
   };
 
   const updateSpawnerConfig = <K extends keyof SpawnerConfig>(key: K, value: SpawnerConfig[K]) => {
     const config = sanitizeSpawnerConfig({ ...currentSpawnerConfig, [key]: value });
-    send({ type: "setSpawnerConfig", sessionId: sessionRef.current, patch: { [key]: config[key] } });
+    send(workerCommands.setSpawnerConfig(sessionRef.current, { [key]: config[key] }));
   };
 
   const replaceSpawnerConfig = (spawnerConfig: SpawnerConfig) => {
-    send({ type: "replaceSpawnerConfig", sessionId: sessionRef.current, spawnerConfig: sanitizeSpawnerConfig(spawnerConfig) });
+    send(workerCommands.replaceSpawnerConfig(sessionRef.current, sanitizeSpawnerConfig(spawnerConfig)));
   };
 
   const requestSpawnerArchitecture = (spawnerId: number) => {
     setArchitectureLoadingId(spawnerId);
     setArchitecture(null);
-    send({ type: "requestSpawnerArchitecture", sessionId: sessionRef.current, spawnerId });
+    send(workerCommands.requestSpawnerArchitecture(sessionRef.current, spawnerId));
   };
 
   const requestSpawnerInspection = (spawnerId: number, options: { updateState?: boolean } = {}) => {
     const updateState = options.updateState ?? true;
+    const requestSessionId = sessionRef.current;
     const requestId = nextInspectionRequestIdRef.current;
     nextInspectionRequestIdRef.current += 1;
     if (updateState) {
@@ -212,7 +197,7 @@ export function useMarketSimulationWorker() {
       const timeout = setTimeout(() => {
         inspectionRequestsRef.current.delete(requestId);
         const packet: SpawnerInspectionPacket = {
-          sessionId: sessionRef.current,
+          sessionId: requestSessionId,
           requestId,
           spawnerId,
           ok: false,
@@ -226,21 +211,22 @@ export function useMarketSimulationWorker() {
         resolve(packet);
       }, 5000);
       inspectionRequestsRef.current.set(requestId, { resolve, timeout, updateState });
-      send({ type: "requestSpawnerInspection", sessionId: sessionRef.current, requestId, spawnerId });
+      send(workerCommands.requestSpawnerInspection(requestSessionId, requestId, spawnerId));
     });
   };
 
   const requestUniquenessDetail = (spawnerId: number) => {
     setUniquenessLoadingId(spawnerId);
     setUniquenessDetail(null);
-    send({ type: "requestUniquenessDetail", sessionId: sessionRef.current, spawnerId });
+    send(workerCommands.requestUniquenessDetail(sessionRef.current, spawnerId));
   };
 
   const setSelectedSpawnerForCharts = (spawnerId: number | null) => {
-    send({ type: "setSelectedSpawnerForCharts", sessionId: sessionRef.current, spawnerId });
+    send(workerCommands.setSelectedSpawnerForCharts(sessionRef.current, spawnerId));
   };
 
   const reset = () => {
+    inspectionRequestsRef.current.rejectAll(sessionRef.current, "cancelled");
     sessionRef.current += 1;
     latestChartPacketRef.current = null;
     hasChartPacketRef.current = false;
@@ -255,12 +241,7 @@ export function useMarketSimulationWorker() {
     setUniquenessLoadingId(null);
     setPersistenceStatus("unknown");
     setError(null);
-    send({
-      type: "reset",
-      sessionId: sessionRef.current,
-      marketConfig: currentMarketConfig,
-      spawnerConfig: currentSpawnerConfig,
-    });
+    send(workerCommands.reset(sessionRef.current, currentMarketConfig, currentSpawnerConfig));
   };
 
   return {

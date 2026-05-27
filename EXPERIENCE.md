@@ -174,7 +174,9 @@ Food-spawner agents do not trade directly. They are scouts. Each one reads recen
 
 Each spawner also has inherited **perception settings**. The 16 input slots stay fixed, but the tick windows used inside those inputs can vary by agent. One spawner may compare very recent ROC movement, while another may look across a longer window. Children inherit these settings, and mutation can shift them.
 
-Each spawner has an inherited **mutation profile** too. This controls how likely its children are to gain units, change connections, drift weights or biases, mutate perception windows, or change their own mutation profile. This is not backpropagation or a training loop during life. It is ordinary inheritance plus mutation at birth.
+Each spawner has an inherited **mutation profile** too. This controls how likely its children are to gain units, change connections, drift weights or biases, mutate perception windows, or change their own mutation profile.
+
+Spawners also have **lifetime learning**. This is not backpropagation. When a marker resolves, the payoff creates a bounded learning signal that nudges temporary learned deltas on the weights and biases involved in that decision. Successful reproduction can also create a positive learning signal. These learned deltas affect the agent's future decisions during life, can fade through experience decay, and are shown separately from the inherited genome. When a spawner reproduces, its current neural learned deltas are folded into the child's inherited neural seed before mutation. The child starts with an empty learned overlay, so it still has to build its own lifetime experience. Only neural deltas fold in; perception settings, horizon/cooldown genes, threshold bias, mutation profile, and plasticity profile remain ordinary inherited and mutated genes.
 
 ## Toy Market RNN Inspection
 
@@ -186,7 +188,7 @@ await window.inspectFoodSpawner(471)
 
 The response includes the spawner's genome, hidden state, gates, weights, active/disabled links, recent payoffs, recent food outcomes, and the current uniqueness score when available.
 
-The visible **Uniqueness** number is a population-relative percentile. It compares the spawner's functional RNN genome against the current living population using a versioned vector of architecture, wiring, weights, biases, output controls, recurrence, input/output usage, reachable graph structure, perception settings, and selected mutation-profile traits. Higher means farther from the current population center than more living peers at that comparison tick. Clicking the score shows the raw distance, nearest similar spawners, and the most typical and most unusual vector dimensions. The **Uniqueness population limit** setting controls when automatic uniqueness scoring pauses to protect responsiveness.
+The visible **Uniqueness** number is a population-relative percentile. It compares the spawner's effective functional RNN against the current living population using a versioned vector of architecture, wiring, effective weights, effective biases, output controls, recurrence, input/output usage, reachable graph structure, perception settings, selected mutation-profile traits, and plasticity-profile traits. Higher means farther from the current population center than more living peers at that comparison tick. Clicking the score shows the raw distance, nearest similar spawners, and the most typical and most unusual vector dimensions. The **Uniqueness population limit** setting controls when automatic uniqueness scoring pauses to protect responsiveness.
 
 ## Toy Market Persistence
 

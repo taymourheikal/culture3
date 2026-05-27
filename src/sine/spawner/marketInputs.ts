@@ -1,9 +1,15 @@
-import { getTimelineSampleByTick, type MarketTimeline } from "../marketTimeline";
+import type { MarketTimeline } from "../marketTimeline";
+import { populationStdDev } from "../stats";
 import { clamp } from "./math";
+import {
+  collectSignalHistory,
+  createTimelineSampleResolver,
+  computeLocalSignalStats,
+  normalizeByLocalScale,
+  type LocalSignalScaleStats,
+} from "./localSignalScale";
 import { perceptionCacheKey, rollingLags, sanitizePerception } from "./perception";
 import type { SpawnerPerception } from "./types";
-
-export const LOCAL_SCALE_FLOOR = 0.0001;
 
 export function createMarketInputResolver(timeline: MarketTimeline, tick: number, pendingFoodCount: number) {
   const cache = new Map<string, number[]>();
@@ -25,14 +31,15 @@ export function createMarketInputResolver(timeline: MarketTimeline, tick: number
 
 export function buildMarketInputs(timeline: MarketTimeline, tick: number, pendingFoodCount: number, perception: SpawnerPerception) {
   const cleanPerception = sanitizePerception(perception);
-  const localHistory = collectSignalHistory(
+  const sampleAtTick = createTimelineSampleResolver(timeline);
+  const localStats = computeLocalSignalStats(
     timeline,
     tick,
     cleanPerception.localScaleWindowTicks,
     cleanPerception.localScaleSampleStepTicks,
+    sampleAtTick,
   );
-  const localStats = summarizeLocalScale(localHistory.map((sample) => sample.value));
-  const sampleAtLag = (ticksAgo: number) => getTimelineSampleByTick(timeline, Math.max(0, tick - ticksAgo));
+  const sampleAtLag = (ticksAgo: number) => sampleAtTick(Math.max(0, tick - ticksAgo));
   const current = sampleAtLag(0).signal;
   const deltas = cleanPerception.deltaLagPairs.map((pair) =>
     normalizeByLocalScale(sampleAtLag(pair.fromTicks).signal - sampleAtLag(pair.toTicks).signal, localStats.scale),
@@ -40,8 +47,8 @@ export function buildMarketInputs(timeline: MarketTimeline, tick: number, pendin
   const window = rollingLags(cleanPerception).map((lag) => sampleAtLag(lag).signal);
   const mean = window.reduce((sum, value) => sum + value, 0) / window.length;
   const rollingStd = standardDeviation(window, mean);
-  const trendHistory = collectSignalHistory(timeline, tick, cleanPerception.trendWindowTicks, cleanPerception.localScaleSampleStepTicks);
-  const cycleHistory = collectSignalHistory(timeline, tick, cleanPerception.cycleWindowTicks, cleanPerception.localScaleSampleStepTicks);
+  const trendHistory = collectSignalHistory(timeline, tick, cleanPerception.trendWindowTicks, cleanPerception.localScaleSampleStepTicks, sampleAtTick);
+  const cycleHistory = collectSignalHistory(timeline, tick, cleanPerception.cycleWindowTicks, cleanPerception.localScaleSampleStepTicks, sampleAtTick);
   const trendShape = estimateTrendShape(trendHistory, localStats);
   const cycleShape = estimateCycleShape(cycleHistory, localStats, cleanPerception.roughnessSensitivity);
 
@@ -59,7 +66,7 @@ export function buildMarketInputs(timeline: MarketTimeline, tick: number, pendin
   ];
 }
 
-function estimateTrendShape(history: Array<{ tick: number; value: number }>, localStats: LocalScaleStats) {
+function estimateTrendShape(history: Array<{ tick: number; value: number }>, localStats: LocalSignalScaleStats) {
   const trend = linearRegression(history);
   const residuals = history.map((sample) => sample.value - (trend.intercept + trend.slope * sample.tick));
   const residualMean = residuals.reduce((sum, value) => sum + value, 0) / Math.max(1, residuals.length);
@@ -71,7 +78,7 @@ function estimateTrendShape(history: Array<{ tick: number; value: number }>, loc
   };
 }
 
-function estimateCycleShape(history: Array<{ tick: number; value: number }>, localStats: LocalScaleStats, roughnessSensitivity: number) {
+function estimateCycleShape(history: Array<{ tick: number; value: number }>, localStats: LocalSignalScaleStats, roughnessSensitivity: number) {
   const values = history.map((sample) => sample.value);
   const normalizedValues = values.map((value) => normalizeByLocalScale(value, localStats.scale));
 
@@ -81,61 +88,8 @@ function estimateCycleShape(history: Array<{ tick: number; value: number }>, loc
   };
 }
 
-function collectSignalHistory(timeline: MarketTimeline, tick: number, ticks: number, stepTicks: number) {
-  const sampleCount = Math.max(2, Math.round(ticks / stepTicks) + 1);
-  const history = [];
-  for (let index = sampleCount - 1; index >= 0; index -= 1) {
-    const sampleTick = Math.max(0, tick - Math.round(index * stepTicks));
-    const sample = getTimelineSampleByTick(timeline, sampleTick);
-    history.push({
-      tick: sample.tick,
-      value: sample.signal,
-    });
-  }
-  const startTick = history[0]?.tick ?? 0;
-  return history.map((sample) => ({
-    tick: sample.tick - startTick,
-    value: sample.value,
-  }));
-}
-
-type LocalScaleStats = {
-  scale: number;
-  positionInRange: (value: number) => number;
-};
-
-function summarizeLocalScale(values: number[]): LocalScaleStats {
-  if (values.length === 0) {
-    return {
-      scale: LOCAL_SCALE_FLOOR,
-      positionInRange: () => 0,
-    };
-  }
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const rollingStd = standardDeviation(values, mean);
-  const halfRange = (max - min) / 2;
-  const scale = Math.max(LOCAL_SCALE_FLOOR, rollingStd, halfRange);
-  const midpoint = (max + min) / 2;
-
-  return {
-    scale,
-    positionInRange: (value: number) => {
-      if (halfRange <= LOCAL_SCALE_FLOOR) return 0;
-      return clamp((value - midpoint) / halfRange, -1, 1);
-    },
-  };
-}
-
-function normalizeByLocalScale(value: number, localScale: number) {
-  return clamp(value / Math.max(LOCAL_SCALE_FLOOR, localScale), -2, 2);
-}
-
 function standardDeviation(values: number[], mean: number) {
-  if (values.length === 0) return 0;
-  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
+  return populationStdDev(values, mean);
 }
 
 function linearRegression(samples: { tick: number; value: number }[]) {

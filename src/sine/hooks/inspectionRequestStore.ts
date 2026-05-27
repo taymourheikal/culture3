@@ -21,7 +21,7 @@ export function createInspectionRequestStore() {
       pending.delete(packet.requestId);
       return request;
     },
-    rejectAll(sessionId: number) {
+    rejectAll(sessionId: number, error: SpawnerInspectionPacket["error"] = "not_found") {
       for (const [requestId, request] of pending) {
         clearTimeout(request.timeout);
         request.resolve({
@@ -30,7 +30,7 @@ export function createInspectionRequestStore() {
           spawnerId: -1,
           ok: false,
           payload: null,
-          error: "not_found",
+          error,
         });
       }
       pending.clear();

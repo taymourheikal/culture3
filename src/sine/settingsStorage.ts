@@ -1,5 +1,4 @@
 import { INITIAL_SETTINGS, type WaveSettings } from "./marketSignal";
-import { MARKET_SETTING_BOUNDS, clampToBounds } from "./marketSettingBounds";
 import {
   INITIAL_MARKET_RUNTIME_CONFIG,
   sanitizeGeneratedSettings,
@@ -7,6 +6,7 @@ import {
   type MarketPlaybackSettings,
   type MarketRuntimeConfig,
 } from "./marketRuntimeConfig";
+import { saveJsonSetting, getBrowserStorage } from "./jsonStorage";
 
 const STORAGE_KEY = "roc-signal-lab.settings.v1";
 const RUNTIME_STORAGE_KEY = "roc-signal-lab.runtime-settings.v1";
@@ -16,7 +16,7 @@ export function loadSavedMarketSettings(): WaveSettings {
 }
 
 export function loadSavedMarketRuntimeConfig(): MarketRuntimeConfig {
-  const storage = browserStorage();
+  const storage = getBrowserStorage();
   if (!storage) return structuredClone(INITIAL_MARKET_RUNTIME_CONFIG);
 
   try {
@@ -64,39 +64,9 @@ export function saveMarketSourceDefault(config: MarketRuntimeConfig) {
 }
 
 export function sanitizeSettings(settings: WaveSettings): WaveSettings {
-  return {
-    amplitude: sanitizeSetting("amplitude", settings.amplitude),
-    frequency: sanitizeSetting("frequency", settings.frequency),
-    phase: sanitizeSetting("phase", settings.phase),
-    slope: sanitizeSetting("slope", settings.slope),
-    noiseAmplitude: sanitizeSetting("noiseAmplitude", settings.noiseAmplitude),
-    noiseFrequency: sanitizeSetting("noiseFrequency", settings.noiseFrequency),
-    noiseSeed: sanitizeSetting("noiseSeed", settings.noiseSeed),
-    amplitudeDrift: sanitizeSetting("amplitudeDrift", settings.amplitudeDrift),
-    frequencyDrift: sanitizeSetting("frequencyDrift", settings.frequencyDrift),
-    slopeDrift: sanitizeSetting("slopeDrift", settings.slopeDrift),
-    noiseAmplitudeDrift: sanitizeSetting("noiseAmplitudeDrift", settings.noiseAmplitudeDrift),
-    noiseFrequencyDrift: sanitizeSetting("noiseFrequencyDrift", settings.noiseFrequencyDrift),
-    regimeSpeed: sanitizeSetting("regimeSpeed", settings.regimeSpeed),
-    regimeSeed: sanitizeSetting("regimeSeed", settings.regimeSeed),
-  };
-}
-
-function sanitizeSetting(key: keyof WaveSettings, value: number) {
-  return clampToBounds(value, INITIAL_SETTINGS[key], MARKET_SETTING_BOUNDS[key]);
-}
-
-type BrowserStorage = {
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => void;
-};
-
-function browserStorage(): BrowserStorage | null {
-  return (globalThis as { localStorage?: BrowserStorage }).localStorage ?? null;
+  return sanitizeGeneratedSettings(settings);
 }
 
 function saveRuntimeConfig(config: MarketRuntimeConfig) {
-  const storage = browserStorage();
-  if (!storage) return;
-  storage.setItem(RUNTIME_STORAGE_KEY, JSON.stringify(config));
+  saveJsonSetting(RUNTIME_STORAGE_KEY, config);
 }

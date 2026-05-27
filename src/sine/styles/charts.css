@@ -1,9 +1,9 @@
 .sine-chart-wrap {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  background: #0d1216;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: var(--sine-radius-panel);
+  background: var(--sine-bg-soft);
 }
 
 .price-chart-wrap {
@@ -59,37 +59,37 @@
   left: 64px;
   padding: 6px 8px;
   border-radius: 999px;
-  background: rgba(13, 18, 22, 0.84);
+  background: color-mix(in srgb, var(--sine-bg-soft) 88%, transparent);
 }
 
 .noise-chart-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(185, 137, 255, 0.3);
+  border: 1px solid rgb(var(--sine-purple-rgb) / 0.26);
 }
 
 .parameter-chart-title {
-  border: 1px solid rgba(105, 215, 208, 0.28);
+  border: 1px solid rgb(var(--sine-accent-rgb) / 0.24);
   color: #d7efed;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 740;
   text-transform: uppercase;
 }
 
 .telemetry-chart-title {
-  border: 1px solid rgba(255, 143, 112, 0.28);
+  border: 1px solid rgb(var(--sine-negative-rgb) / 0.24);
   color: #ffe6dd;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 740;
   text-transform: uppercase;
 }
 
 .uniqueness-chart-title {
-  border: 1px solid rgba(185, 137, 255, 0.3);
+  border: 1px solid rgb(var(--sine-purple-rgb) / 0.26);
   color: #eadcff;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 740;
   text-transform: uppercase;
 }
 
@@ -108,38 +108,42 @@
 .parameter-legend span,
 .telemetry-legend span,
 .uniqueness-legend span {
+  max-width: 100%;
+  overflow: hidden;
   padding: 4px 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.065);
+  background: color-mix(in srgb, var(--sine-surface-muted) 72%, transparent);
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 740;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .legend-amplitude,
 .legend-population {
-  color: #69d7d0;
+  color: var(--sine-accent);
 }
 
 .legend-frequency {
-  color: #ffd680;
+  color: var(--sine-amber);
 }
 
 .legend-slope {
-  color: #86d87a;
+  color: var(--sine-positive);
 }
 
 .legend-noise-amplitude {
-  color: #b989ff;
+  color: var(--sine-purple);
 }
 
 .legend-noise-frequency,
 .legend-loss {
-  color: #ff8f70;
+  color: var(--sine-negative);
 }
 
 .legend-uniqueness-median,
 .legend-uniqueness-band {
-  color: #b989ff;
+  color: var(--sine-purple);
 }
 
 .legend-uniqueness-selected {
@@ -149,7 +153,7 @@
 .noise-chart-title span {
   color: #bba8d8;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 740;
   text-transform: uppercase;
 }
 
@@ -163,12 +167,12 @@
   top: 12px;
   left: 50%;
   padding: 5px 8px;
-  border: 1px solid rgba(255, 214, 128, 0.35);
+  border: 1px solid rgb(var(--sine-amber-rgb) / 0.32);
   border-radius: 999px;
-  background: rgba(13, 18, 22, 0.84);
-  color: #ffd680;
+  background: color-mix(in srgb, var(--sine-bg-soft) 88%, transparent);
+  color: var(--sine-amber);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 740;
   transform: translateX(-50%);
 }
 
