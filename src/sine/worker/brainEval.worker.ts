@@ -80,9 +80,10 @@ function resolveGenome(job: BrainEvaluationJob): BrainEvaluationJob {
 function resolveCompactGenome(job: CompactBrainEvaluationJob): CompactBrainEvaluationJob {
   if (job.genomePayload) compactGenomePayloadCache.set(job.genomeKey, job.genomePayload);
   if (job.genomeKey && job.genome) compactGenomeCache.set(job.genomeKey, job.genome);
-  if (job.genome) return job;
+  const genomePayload = job.genomePayload ?? compactGenomePayloadCache.get(job.genomeKey);
+  if (job.genome) return { ...job, genomePayload };
   const genome = compactGenomeCache.get(job.genomeKey);
-  return genome ? { ...job, genome } : job;
+  return genome ? { ...job, genome, genomePayload } : job;
 }
 
 function nowMs() {

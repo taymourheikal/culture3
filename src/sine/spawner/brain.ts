@@ -6,10 +6,11 @@ import {
   type EffectiveGenomeView,
   type PlanAlignedEffectiveBrainValues,
 } from "./effectiveGenome";
-import { compileBrainPlan, ensureCompiledBrainPlan, type CompiledBrainConnection, type CompiledBrainPlan, type CompiledBrainUnit } from "./brainPlan";
+import { compileBrainPlan, ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
+import { evaluateCompactBrainKernel } from "./brainKernel";
 import { alignedHiddenStateRecord, hiddenArrayToCurrentRecord, hiddenRecordToArray, type HiddenStateArray } from "./brainState";
-import { sigmoid } from "./math";
-import type { ConnectionGene, GateType, SpawnerAgent, SpawnerGenome, SpawnerLearnedState } from "./types";
+import type { PlanAlignedLearnedStateView } from "./learnedStateView";
+import type { SpawnerAgent, SpawnerGenome, SpawnerLearnedState } from "./types";
 
 export function forwardSpawner(spawner: SpawnerAgent, inputs: number[]) {
   const evaluation = evaluateSpawnerBrain(spawner, inputs);
@@ -31,7 +32,7 @@ export type BrainTraceActivations = {
   owned: boolean;
 };
 
-type RuntimeBrainEvaluation = {
+export type BrainRuntimeEvaluation = {
   outputs: number[];
   inputs: number[];
   previousStateArray: HiddenStateArray;
@@ -43,7 +44,7 @@ type RuntimeBrainEvaluation = {
   connectionActivations?: BrainEvaluation["connectionActivations"];
 };
 
-const runtimeByEvaluation = new WeakMap<BrainEvaluation, RuntimeBrainEvaluation>();
+const runtimeByEvaluation = new WeakMap<BrainEvaluation, BrainRuntimeEvaluation>();
 
 export type BrainEvaluationOptions = {
   plan?: CompiledBrainPlan;
@@ -60,6 +61,7 @@ export type BrainEvaluationInstrumentation = {
 export type PureBrainEvaluationInput = {
   genome: SpawnerGenome;
   learnedState?: Partial<SpawnerLearnedState>;
+  learnedStateView?: PlanAlignedLearnedStateView;
   hiddenState: Record<number, number>;
   inputs: number[];
   plan?: CompiledBrainPlan;
@@ -72,6 +74,7 @@ export type PureBrainEvaluationInput = {
 export type BrainEvaluationRuntimeArraysInput = {
   genome: SpawnerGenome;
   learnedState?: Partial<SpawnerLearnedState>;
+  learnedStateView?: PlanAlignedLearnedStateView;
   hiddenState: Record<number, number>;
   inputs: number[];
   plan: CompiledBrainPlan;
@@ -109,6 +112,7 @@ export function evaluateSpawnerBrain(
 export function evaluateSpawnerBrainPure({
   genome,
   learnedState,
+  learnedStateView,
   hiddenState,
   inputs,
   plan,
@@ -120,6 +124,7 @@ export function evaluateSpawnerBrainPure({
   return evaluateBrainKernel({
     genome,
     learnedState,
+    learnedStateView,
     hiddenState,
     inputs,
     plan,
@@ -145,7 +150,7 @@ export function materializeBrainEvaluationFromRuntimeArrays({
   connectionActivations,
 }: BrainEvaluationRuntimeArraysInput): BrainEvaluation {
   const effectiveValues = createPlanAlignedEffectiveBrainValues(genome, learnedState, plan);
-  const runtime: RuntimeBrainEvaluation = {
+  const runtime: BrainRuntimeEvaluation = {
     outputs,
     inputs,
     previousStateArray: [...previousStateArray],
@@ -159,9 +164,33 @@ export function materializeBrainEvaluationFromRuntimeArrays({
   return materializeBrainEvaluation(runtime, genome, hiddenState, { includeActivations, includePreviousState });
 }
 
+export function evaluateSpawnerBrainRuntime(input: PureBrainEvaluationInput): BrainRuntimeEvaluation {
+  return evaluateBrainRuntime({
+    genome: input.genome,
+    learnedState: input.learnedState,
+    learnedStateView: input.learnedStateView,
+    hiddenState: input.hiddenState,
+    inputs: input.inputs,
+    plan: input.plan,
+    useCachedPlan: input.useCachedPlan,
+    includeActivations: input.includeActivations,
+    instrumentation: input.instrumentation,
+  });
+}
+
+export function materializeBrainRuntimeEvaluation(
+  runtime: BrainRuntimeEvaluation,
+  genome: SpawnerGenome,
+  hiddenState: Record<number, number>,
+  options: Pick<BrainEvaluationOptions, "includeActivations" | "includePreviousState"> = {},
+): BrainEvaluation {
+  return materializeBrainEvaluation(runtime, genome, hiddenState, options);
+}
+
 function evaluateBrainKernel({
   genome,
   learnedState,
+  learnedStateView,
   hiddenState,
   inputs,
   plan: providedPlan,
@@ -175,6 +204,7 @@ function evaluateBrainKernel({
   const runtime = timeBrain(instrumentation, "runtimeEvaluation", () => evaluateBrainRuntime({
     genome,
     learnedState,
+    learnedStateView,
     hiddenState,
     inputs,
     plan: providedPlan,
@@ -190,6 +220,7 @@ function evaluateBrainKernel({
 function evaluateBrainRuntime({
   genome,
   learnedState,
+  learnedStateView,
   hiddenState,
   inputs,
   plan: providedPlan,
@@ -201,7 +232,7 @@ function evaluateBrainRuntime({
 }: Omit<PureBrainEvaluationInput, "includePreviousState"> & {
   effectiveValues?: EffectiveBrainValues;
   assumeNormalizedLearnedState?: boolean;
-}): RuntimeBrainEvaluation {
+}): BrainRuntimeEvaluation {
   const connectionActivations: BrainEvaluation["connectionActivations"] | undefined = includeActivations
     ? timeBrain(instrumentation, "activationMapAllocation", () => ({}))
     : undefined;
@@ -209,19 +240,26 @@ function evaluateBrainRuntime({
     providedPlan ?? (useCachedPlan === false ? compileBrainPlan(genome) : ensureCompiledBrainPlan(genome)),
   );
   const runtimeValues = timeBrain(instrumentation, "effectiveValueArrayConstruction", () =>
-    effectiveValues ?? createPlanAlignedEffectiveBrainValues(genome, learnedState, plan, { assumeNormalizedLearnedState }),
+    effectiveValues ?? createPlanAlignedEffectiveBrainValues(genome, learnedStateView ?? learnedState, plan, { assumeNormalizedLearnedState }),
   );
   const planValues = timeBrain(instrumentation, "effectiveValuePlanAlignmentCheck", () =>
     isPlanAlignedEffectiveBrainValues(runtimeValues) && runtimeValues.planSignature === plan.signature ? runtimeValues : undefined,
   );
   const previousArray = timeBrain(instrumentation, "hiddenRecordToArray", () => hiddenRecordToArray(plan, hiddenState), plan.unitIds.length);
   const currentArray = timeBrain(instrumentation, "currentStateArrayAllocation", () => new Array<number>(plan.unitIds.length), plan.unitIds.length);
+  const outputs = timeBrain(instrumentation, "outputArrayAllocation", () => new Array<number>(OUTPUT_COUNT), OUTPUT_COUNT);
 
-  timeBrain(instrumentation, "hiddenLayerMath", () =>
-    evaluateHiddenLayers({ plan, inputs, previousState: previousArray, currentState: currentArray, effectiveValues: runtimeValues, planValues, connectionActivations }),
-  );
-  const outputs = timeBrain(instrumentation, "outputMathAndArrayAllocation", () =>
-    evaluateOutputs({ plan, inputs, previousState: previousArray, currentState: currentArray, effectiveValues: runtimeValues, planValues, connectionActivations }),
+  timeBrain(instrumentation, "compactBrainKernel", () =>
+    evaluateCompactBrainKernel({
+      plan,
+      inputs,
+      previousState: previousArray,
+      currentState: currentArray,
+      outputs,
+      effectiveValues: runtimeValues,
+      planValues,
+      connectionActivations,
+    }),
   );
 
   return {
@@ -248,7 +286,7 @@ function timeBrain<T>(instrumentation: BrainEvaluationInstrumentation | undefine
 }
 
 function materializeBrainEvaluation(
-  runtime: RuntimeBrainEvaluation,
+  runtime: BrainRuntimeEvaluation,
   genome: SpawnerGenome,
   hiddenState: Record<number, number>,
   {
@@ -256,12 +294,17 @@ function materializeBrainEvaluation(
     includePreviousState = true,
   }: Pick<BrainEvaluationOptions, "includeActivations" | "includePreviousState">,
 ): BrainEvaluation {
+  const activations = includeActivations
+    ? runtime.connectionActivations
+      ? { activeConnectionIds: runtime.activeConnectionIds ?? runtime.plan.activeConnectionIds, connectionActivations: runtime.connectionActivations }
+      : materializeBrainRuntimeTraceActivations(runtime)
+    : undefined;
   const evaluation = {
     outputs: runtime.outputs,
     previousState: includePreviousState ? alignedHiddenState(genome, hiddenState) : {},
     currentState: hiddenArrayToCurrentRecord(runtime.plan, runtime.currentStateArray),
-    activeConnectionIds: includeActivations ? [...(runtime.activeConnectionIds ?? runtime.plan.activeConnectionIds)] : [],
-    connectionActivations: includeActivations ? runtime.connectionActivations ?? {} : {},
+    activeConnectionIds: activations ? [...activations.activeConnectionIds] : [],
+    connectionActivations: activations ? activations.connectionActivations : {},
   };
   if (!includeActivations) runtimeByEvaluation.set(evaluation, runtime);
   return evaluation;
@@ -293,21 +336,21 @@ export function materializeBrainEvaluationTraceActivations(evaluation: BrainEval
   }
   const runtime = runtimeByEvaluation.get(evaluation);
   if (!runtime) return undefined;
+  return materializeBrainRuntimeTraceActivations(runtime);
+}
+
+export function materializeBrainRuntimeTraceActivations(runtime: BrainRuntimeEvaluation): BrainTraceActivations {
   const connectionActivations: BrainEvaluation["connectionActivations"] = {};
-  const replayCurrentState = recordHiddenLayerActivations({
-    plan: runtime.plan,
-    inputs: runtime.inputs,
-    previousState: runtime.previousStateArray,
-    effectiveValues: runtime.effectiveValues,
-    planValues: runtime.planValues,
-    connectionActivations,
-  });
-  recordOutputActivations({
+  const replayCurrentState = new Array<number>(runtime.plan.unitIds.length);
+  const replayOutputs = new Array<number>(OUTPUT_COUNT);
+  evaluateCompactBrainKernel({
     plan: runtime.plan,
     inputs: runtime.inputs,
     previousState: runtime.previousStateArray,
     currentState: replayCurrentState,
-    outputs: runtime.outputs,
+    outputs: replayOutputs,
+    effectiveValues: runtime.effectiveValues,
+    planValues: runtime.planValues,
     connectionActivations,
   });
   return {
@@ -315,54 +358,6 @@ export function materializeBrainEvaluationTraceActivations(evaluation: BrainEval
     connectionActivations,
     owned: true,
   };
-}
-
-function recordHiddenLayerActivations({
-  plan,
-  inputs,
-  previousState,
-  effectiveValues,
-  planValues,
-  connectionActivations,
-}: {
-  plan: CompiledBrainPlan;
-  inputs: number[];
-  previousState: HiddenStateArray;
-  effectiveValues: EffectiveBrainValues;
-  planValues: PlanAlignedEffectiveBrainValues | undefined;
-  connectionActivations: BrainEvaluation["connectionActivations"];
-}) {
-  const currentState = new Array<number>(plan.unitIds.length);
-  for (const layer of plan.layers) {
-    for (const unitPlan of layer.units) {
-      evaluateHiddenUnit({ unitPlan, inputs, previousState, currentState, effectiveValues, planValues, connectionActivations });
-    }
-  }
-  return currentState;
-}
-
-function recordOutputActivations({
-  plan,
-  inputs,
-  previousState,
-  currentState,
-  outputs,
-  connectionActivations,
-}: {
-  plan: CompiledBrainPlan;
-  inputs: number[];
-  previousState: HiddenStateArray;
-  currentState: HiddenStateArray;
-  outputs: number[];
-  connectionActivations: BrainEvaluation["connectionActivations"];
-}) {
-  for (let outputIndex = 0; outputIndex < OUTPUT_COUNT; outputIndex += 1) {
-    const outputConnections = plan.outputInputRefs[outputIndex] ?? [];
-    const output = outputs[outputIndex] ?? 0;
-    for (const connectionRef of outputConnections) {
-      recordConnectionActivation(connectionActivations, connectionRef.connection, sourceValue(connectionRef, inputs, previousState, currentState), output);
-    }
-  }
 }
 
 export function applyBrainEvaluation(spawner: SpawnerAgent, evaluation: BrainEvaluation) {
@@ -376,159 +371,4 @@ export function alignHiddenState(spawner: SpawnerAgent) {
 
 export function alignedHiddenState(genome: Pick<SpawnerGenome, "units">, hiddenState: Record<number, number>) {
   return alignedHiddenStateRecord(genome, hiddenState);
-}
-
-function evaluateHiddenLayers({
-  plan,
-  inputs,
-  previousState,
-  currentState,
-  effectiveValues,
-  planValues,
-  connectionActivations,
-}: {
-  plan: CompiledBrainPlan;
-  inputs: number[];
-  previousState: HiddenStateArray;
-  currentState: HiddenStateArray;
-  effectiveValues: EffectiveBrainValues;
-  planValues: PlanAlignedEffectiveBrainValues | undefined;
-  connectionActivations: BrainEvaluation["connectionActivations"] | undefined;
-}) {
-  for (const layer of plan.layers) {
-    for (const unitPlan of layer.units) {
-      evaluateHiddenUnit({ unitPlan, inputs, previousState, currentState, effectiveValues, planValues, connectionActivations });
-    }
-  }
-}
-
-function evaluateHiddenUnit({
-  unitPlan,
-  inputs,
-  previousState,
-  currentState,
-  effectiveValues,
-  planValues,
-  connectionActivations,
-}: {
-  unitPlan: CompiledBrainUnit;
-  inputs: number[];
-  previousState: HiddenStateArray;
-  currentState: HiddenStateArray;
-  effectiveValues: EffectiveBrainValues;
-  planValues: PlanAlignedEffectiveBrainValues | undefined;
-  connectionActivations: BrainEvaluation["connectionActivations"] | undefined;
-}) {
-  const update = sigmoid(evaluateGateSum(unitPlan, "update", unitPlan.updateInputRefs, inputs, previousState, currentState, effectiveValues, planValues, connectionActivations));
-  const reset = sigmoid(evaluateGateSum(unitPlan, "reset", unitPlan.resetInputRefs, inputs, previousState, currentState, effectiveValues, planValues, connectionActivations));
-  const candidate = Math.tanh(
-    evaluateGateSum(unitPlan, "candidate", unitPlan.candidateInputRefs, inputs, previousState, currentState, effectiveValues, planValues, connectionActivations, reset),
-  );
-  currentState[unitPlan.unitIndex] = (1 - update) * (previousState[unitPlan.unitIndex] ?? 0) + update * candidate;
-}
-
-function evaluateOutputs({
-  plan,
-  inputs,
-  previousState,
-  currentState,
-  effectiveValues,
-  planValues,
-  connectionActivations,
-}: {
-  plan: CompiledBrainPlan;
-  inputs: number[];
-  previousState: HiddenStateArray;
-  currentState: HiddenStateArray;
-  effectiveValues: EffectiveBrainValues;
-  planValues: PlanAlignedEffectiveBrainValues | undefined;
-  connectionActivations: BrainEvaluation["connectionActivations"] | undefined;
-}) {
-  const outputs = new Array<number>(OUTPUT_COUNT);
-  for (let outputIndex = 0; outputIndex < OUTPUT_COUNT; outputIndex += 1) {
-    const outputConnections = plan.outputInputRefs[outputIndex] ?? [];
-    let output = planValues?.outputBiases[outputIndex] ?? effectiveValues.getOutputBias(outputIndex);
-    for (const connectionRef of outputConnections) {
-      output += connectionWeight(connectionRef, effectiveValues, planValues) * sourceValue(connectionRef, inputs, previousState, currentState);
-    }
-    if (connectionActivations) {
-      for (const connectionRef of outputConnections) {
-        recordConnectionActivation(connectionActivations, connectionRef.connection, sourceValue(connectionRef, inputs, previousState, currentState), output);
-      }
-    }
-    outputs[outputIndex] = output;
-  }
-  return outputs;
-}
-
-function evaluateGateSum(
-  unitPlan: CompiledBrainUnit,
-  gate: GateType,
-  connections: CompiledBrainConnection[],
-  inputs: number[],
-  previousState: HiddenStateArray,
-  currentState: HiddenStateArray,
-  effectiveValues: EffectiveBrainValues,
-  planValues: PlanAlignedEffectiveBrainValues | undefined,
-  connectionActivations: BrainEvaluation["connectionActivations"] | undefined,
-  reset = 1,
-) {
-  let sum = gateBias(unitPlan, gate, effectiveValues, planValues);
-  for (const connectionRef of connections) {
-    const value = sourceValue(connectionRef, inputs, previousState, currentState);
-    const gatedValue = gate === "candidate" && connectionRef.connection.source.kind === "hidden" && connectionRef.connection.source.mode === "previous" ? value * reset : value;
-    sum += connectionWeight(connectionRef, effectiveValues, planValues) * gatedValue;
-  }
-  const target = gate === "candidate" ? Math.tanh(sum) : sigmoid(sum);
-  if (connectionActivations) {
-    for (const connectionRef of connections) {
-      const value = sourceValue(connectionRef, inputs, previousState, currentState);
-      const gatedValue = gate === "candidate" && connectionRef.connection.source.kind === "hidden" && connectionRef.connection.source.mode === "previous" ? value * reset : value;
-      recordConnectionActivation(connectionActivations, connectionRef.connection, gatedValue, target);
-    }
-  }
-  return sum;
-}
-
-function connectionWeight(
-  connectionRef: CompiledBrainConnection,
-  effectiveValues: EffectiveBrainValues,
-  planValues: PlanAlignedEffectiveBrainValues | undefined,
-) {
-  if (planValues) return planValues.connectionWeightsByPlanIndex[connectionRef.connectionIndex] ?? 0;
-  return effectiveValues.getConnectionWeight(connectionRef.connection);
-}
-
-function gateBias(unitPlan: CompiledBrainUnit, gate: GateType, effectiveValues: EffectiveBrainValues, planValues: PlanAlignedEffectiveBrainValues | undefined) {
-  if (!planValues) return effectiveValues.getGateBias(unitPlan.unit, gate);
-  return gate === "update"
-    ? planValues.updateGateBiasesByUnitIndex[unitPlan.unitIndex] ?? 0
-    : gate === "reset"
-      ? planValues.resetGateBiasesByUnitIndex[unitPlan.unitIndex] ?? 0
-      : planValues.candidateGateBiasesByUnitIndex[unitPlan.unitIndex] ?? 0;
-}
-
-function recordConnectionActivation(
-  connectionActivations: BrainEvaluation["connectionActivations"] | undefined,
-  connection: ConnectionGene,
-  source: number,
-  target: number,
-) {
-  if (!connectionActivations) return;
-  connectionActivations[String(connection.innovationId)] = { source, target };
-}
-
-function sourceValue(
-  connectionRef: CompiledBrainConnection,
-  inputs: number[],
-  previousState: HiddenStateArray,
-  currentState: HiddenStateArray,
-) {
-  const connection = connectionRef.connection;
-  const source = connection.source;
-  if (source.kind === "input") return inputs[source.index] ?? 0;
-  const unitIndex = connectionRef.sourceUnitIndex;
-  if (unitIndex === undefined) return 0;
-  if (source.mode === "previous") return previousState[unitIndex] ?? 0;
-  return currentState[unitIndex] ?? 0;
 }

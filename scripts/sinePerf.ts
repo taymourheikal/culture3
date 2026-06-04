@@ -11,7 +11,7 @@ import {
 } from "../src/sine/spawnerSimulation";
 import { createMarketChartPacket, createMarketRosterPacket, createMarketStatsPacket } from "../src/sine/marketWorkerSnapshot";
 import { createMarketInputResolver } from "../src/sine/spawner/marketInputs";
-import { buildBrainEvaluationJobs, buildSpawnerTickContexts, type BrainTraceInstrumentation } from "../src/sine/spawner/worldBrainEvaluation";
+import { buildBrainEvaluationJobs, buildSpawnerEvaluationFrame, type BrainTraceInstrumentation } from "../src/sine/spawner/worldBrainEvaluation";
 import { compactJobFromBrainEvaluationJob, evaluateCompactBrainJob } from "../src/sine/spawner/compactBrainEvaluation";
 import { createBrainEvalPool } from "../src/sine/worker/brainEvalPool";
 import { BRAIN_EVAL_TIMEOUT_MS, defaultBrainEvalWorkerCount } from "../src/sine/worker/brainEvalConfig";
@@ -292,16 +292,16 @@ function buildInputs(simulation: ReturnType<typeof createSimulationState>) {
 function payloadProxySizes(simulation: ReturnType<typeof createSimulationState>) {
   const pendingFoodCount = simulation.world.foods.filter((food) => food.status === "pending").length;
   const resolver = createMarketInputResolver(simulation.timeline, simulation.world.tick, pendingFoodCount);
-  const contexts = buildSpawnerTickContexts(simulation.world, resolver);
-  const { jobs } = buildBrainEvaluationJobs(simulation.world, contexts, {
+  const frame = buildSpawnerEvaluationFrame(simulation.world, resolver);
+  const jobs = buildBrainEvaluationJobs(frame, {
     sessionId: 1,
     runGeneration: 1,
     batchId: simulation.world.tick,
   });
-  const compactFirstSendJobs = jobs.map((job) => compactJobFromBrainEvaluationJob(job, { plan: contexts[job.index]?.plan }));
+  const compactFirstSendJobs = jobs.map((job) => compactJobFromBrainEvaluationJob(job, { plan: frame.plans[job.index] }));
   const compactCachedJobs = jobs.map((job) =>
     compactJobFromBrainEvaluationJob(job, {
-      plan: contexts[job.index]?.plan,
+      plan: frame.plans[job.index],
       includeGenome: false,
       includeGenomePayload: false,
     }),

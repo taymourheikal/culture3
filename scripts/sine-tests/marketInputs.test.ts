@@ -197,6 +197,64 @@ function testGeneratedMarketInputsGoldenVector() {
   ]);
 }
 
+function testCustomCandleMarketInputsGoldenVectorWithVolume() {
+  const values = Array.from({ length: 120 }, (_, tick) => Math.sin(tick / 6) * 1.2 + Math.cos(tick / 13) * 0.45 + (tick % 11) / 40);
+  const volumes = Array.from({ length: 120 }, (_, tick) => 150 + tick * 2.5 + Math.sin(tick / 5) * 35 + Math.cos(tick / 17) * 12);
+  const closes = Array.from({ length: 120 }, (_, tick) => 100 + tick * 0.35 + Math.sin(tick / 8) * 2.4 + Math.cos(tick / 19));
+  const timeline = createCandleMarketTimeline({
+    source: "btcusd_5m",
+    candles: values.map((roc, index) => ({
+      timestamp: index,
+      datetime: new Date(index * 60_000).toISOString(),
+      open: closes[index] ?? 100,
+      high: closes[index] ?? 100,
+      low: closes[index] ?? 100,
+      close: closes[index] ?? 100,
+      volume: volumes[index],
+      roc,
+      isStart: index === 0,
+    })),
+  });
+  const perception = {
+    ...defaultPerceptionFromConfig(DEFAULT_SPAWNER_CONFIG),
+    deltaLagPairs: [
+      { fromTicks: 0, toTicks: 5 },
+      { fromTicks: 5, toTicks: 17 },
+      { fromTicks: 17, toTicks: 31 },
+      { fromTicks: 31, toTicks: 47 },
+      { fromTicks: 47, toTicks: 73 },
+    ],
+    rollingWindowTicks: 47,
+    localScaleWindowTicks: 61,
+    localScaleSampleStepTicks: 4,
+    trendWindowTicks: 89,
+    cycleWindowTicks: 37,
+    roughnessSensitivity: 0.017,
+    volumeScaleWindowTicks: 71,
+    volumeScaleSampleStepTicks: 5,
+    volumeDeltaLagTicks: 9,
+    volumeAccelerationLagTicks: 6,
+    rsiWindowTicks: 11,
+    volumePriceAgreementLagTicks: 8,
+    pendingDensityScale: 120,
+  };
+  advanceMarketTimeline(timeline, 83, 120);
+  const inputs = buildMarketInputs(timeline, timeline.tick, 37, perception).map((value) => Number(value.toFixed(6)));
+
+  assert.deepEqual(inputs, [
+    1.158373, 0.51942, 1.329937, -1.176822, 0.937469, -1.626666, 0.143939, 0.589014, 1, -0.210375, 0.604277, 0.113238,
+    0, 0.700718, -0.211134, -0.109992, 1, -0.158768, 0.308333,
+  ]);
+}
+
+function testMarketInputsHandleShortHistoryMissingVolumeAndTinyScale() {
+  const inputs = inputsForRocValues([0, 0, 0.000001], 4).map((value) => Number(value.toFixed(6)));
+
+  assert.equal(inputs.length, 19);
+  assert(inputs.every(Number.isFinite));
+  assert.deepEqual(inputs.slice(13, 18), [0, 0, 0, 0, 0]);
+}
+
 function inputsForRocValues(
   values: number[],
   pendingFoodCount = 20,
@@ -284,4 +342,6 @@ export const tests: SineTest[] = [
   { name: "Volume RSI Helpers Are Finite And Directional", run: testVolumeRsiHelpersAreFiniteAndDirectional },
   { name: "Market Inputs Golden Vector", run: testMarketInputsGoldenVector },
   { name: "Generated Market Inputs Golden Vector", run: testGeneratedMarketInputsGoldenVector },
+  { name: "Custom Candle Market Inputs Golden Vector With Volume", run: testCustomCandleMarketInputsGoldenVectorWithVolume },
+  { name: "Market Inputs Handle Short History Missing Volume And Tiny Scale", run: testMarketInputsHandleShortHistoryMissingVolumeAndTinyScale },
 ];

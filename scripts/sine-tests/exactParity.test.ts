@@ -47,14 +47,18 @@ function testStrictDigestCoversRuntimeParityFields() {
   assert.notDeepEqual(traceDrift, traceBaseline);
 }
 
-function testStrictDigestCoversNormalAndHighActionWorlds() {
+function testStrictDigestCoversNormalHighActionAndHighReproductionWorlds() {
   const normal = strictWorldDigest(createNormalWorld());
   const highAction = strictWorldDigest(createHighActionWorld());
+  const highReproduction = strictWorldDigest(createHighReproductionWorld());
 
   assert.deepEqual(normal, strictWorldDigest(createNormalWorld()));
   assert.deepEqual(highAction, strictWorldDigest(createHighActionWorld()));
+  assert.deepEqual(highReproduction, strictWorldDigest(createHighReproductionWorld()));
   assert.notDeepEqual(normal, highAction);
+  assert.notDeepEqual(normal, highReproduction);
   assert.ok(highAction.spawners.some((spawner: any) => Object.keys(spawner.learnedState.connectionDeltas).length > 0));
+  assert.ok(highReproduction.spawners.some((spawner: any) => spawner.generation > 0));
 }
 
 async function testHeadlessChunkSizesPreserveStrictDigest() {
@@ -192,6 +196,35 @@ function createHighActionWorld() {
   return world;
 }
 
+function createHighReproductionWorld() {
+  const timeline = createMarketTimeline(INITIAL_SETTINGS);
+  const world = createSpawnerWorld(404, {
+    initialSpawners: 4,
+    maxSpawners: 16,
+    initialEnergyMin: 100,
+    initialEnergyMax: 100,
+    initialCooldownMaxTicks: 0,
+    defaultSpawnThreshold: 10,
+    minimumSpawnEnergySurplus: 0,
+    energyDrainPerTick: 0,
+    brainEnergyCostPerActiveUnit: 0,
+    brainEnergyCostPerActiveConnection: 0,
+    brainEnergyCostPerActiveLayer: 0,
+    reproductionEnergy: 1,
+    reproductionCost: 0,
+    plasticityReproductionRewardStrength: 0.5,
+  });
+  for (const spawner of world.spawners) {
+    spawner.cooldownTicks = 0;
+    spawner.genome.outputBias = Array.from({ length: OUTPUT_COUNT }, (_, index) =>
+      index === OUTPUT_INDEX.reproduce ? 100 : index === OUTPUT_INDEX.long ? -100 : index === OUTPUT_INDEX.short ? -100 : 0,
+    );
+  }
+  advanceMarketTimeline(timeline, 12, 100);
+  advanceSpawnerWorldToTimeline(world, timeline, 100);
+  return world;
+}
+
 function createTraceRetentionWorld() {
   const timeline = createMarketTimeline(INITIAL_SETTINGS);
   const world = createSpawnerWorld(303, {
@@ -241,7 +274,7 @@ function sameTickFood({ id, traceId, spawner }: { id: number; traceId: number; s
 
 export const tests: SineTest[] = [
   { name: "Strict Digest Covers Runtime Parity Fields", run: testStrictDigestCoversRuntimeParityFields },
-  { name: "Strict Digest Covers Normal And High Action Worlds", run: testStrictDigestCoversNormalAndHighActionWorlds },
+  { name: "Strict Digest Covers Normal High Action And High Reproduction Worlds", run: testStrictDigestCoversNormalHighActionAndHighReproductionWorlds },
   { name: "Headless Chunk Sizes Preserve Strict Digest", run: testHeadlessChunkSizesPreserveStrictDigest },
   { name: "Same Tick Food Resolution Order And Learning Are Characterized", run: testSameTickFoodResolutionOrderAndLearningAreCharacterized },
 ];

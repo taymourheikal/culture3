@@ -1,5 +1,12 @@
 import type { MarketTimeline } from "../marketTimeline";
-import { evaluateSpawnerBrainPure, materializeBrainEvaluationTraceActivations, type BrainEvaluation, type BrainTraceActivations } from "./brain";
+import {
+  evaluateSpawnerBrainPure,
+  materializeBrainEvaluationTraceActivations,
+  materializeBrainRuntimeTraceActivations,
+  type BrainEvaluation,
+  type BrainRuntimeEvaluation,
+  type BrainTraceActivations,
+} from "./brain";
 import { ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
 import { createSyncBrainEvaluationRunner } from "./brainEvaluationRunner";
 import { DEFAULT_SPAWNER_CONFIG } from "./config";
@@ -16,12 +23,20 @@ import { chooseSpawnerAction, decodeSpawnerOutputs, tryReproduceSpawner, trySpaw
 import {
   applyEvaluationResult,
   buildBrainEvaluationJobs,
-  buildSpawnerTickContexts,
+  buildSpawnerEvaluationFrame,
+  evaluateSpawnerFrameSync,
+  frameEvaluationSource,
   orderedEvaluationResults,
+  outputsFromEvaluationResult,
+  publicEvaluationFromResult,
+  runtimeEvaluationFromResult,
+  type BrainEvaluationSource,
+  type SpawnerEvaluationResult,
   type SpawnerAdvanceOptions,
+  type SpawnerEvaluationFrame,
 } from "./worldBrainEvaluation";
 import { applySpawnerUpkeep, createInitialSpawners, removeDeadSpawners } from "./worldLifecycle";
-import type { BrainEvaluationJob, BrainEvaluationResult } from "../protocol/brainEvalProtocol";
+import type { BrainEvaluationJob } from "../protocol/brainEvalProtocol";
 
 export { chooseSpawnerAction, decodeSpawnerOutputs, tryReproduceSpawner, trySpawnFood, type SpawnerActionChoice, type SpawnerDecodedOutputs } from "./worldActions";
 export { buildSpawnerInputs, energyRatioInput, type SpawnerAdvanceOptions, type SpawnerPhaseInstrumentation } from "./worldBrainEvaluation";
@@ -141,61 +156,64 @@ function stepSpawnerWorld(world: SpawnerWorld, timeline: MarketTimeline, options
     createMarketInputResolver(timeline, world.tick, pendingFoodCount, options.marketFeatureInstrumentation),
   );
   const newborns: SpawnerAgent[] = [];
-  const contexts = timePhase(
+  const frame = timePhase(
     options,
     "spawnerContextInputConstruction",
-    () => buildSpawnerTickContexts(world, marketInputResolver, plansBySpawnerId, options),
+    () => buildSpawnerEvaluationFrame(world, marketInputResolver, plansBySpawnerId, options),
     world.spawners.length,
   );
   recordMarketResolverMetrics(options, marketInputResolver);
-  const decisions = timePhase(options, "brainJobConstruction", () => buildBrainEvaluationJobs(world, contexts, options), contexts.length);
   const runner = options.brainEvaluationRunner ?? syncBrainEvaluationRunner;
+  const jobs = runner === syncBrainEvaluationRunner
+    ? undefined
+    : timePhase(options, "brainJobConstruction", () => buildBrainEvaluationJobs(frame, options), frame.spawners.length);
+  if (!jobs) recordPhase(options, "brainJobConstruction", 0, frame.spawners.length);
   const evaluationStarted = nowMs();
-  const results = runner.evaluateBatch(decisions.jobs);
+  const results = jobs ? runner.evaluateBatch(jobs) : evaluateSpawnerFrameSync(frame);
   if (isPromise(results)) {
     return results.then((resolvedResults) => {
-      recordFirstPassTiming(options, decisions.jobs.length, nowMs() - evaluationStarted);
-      recordPhase(options, "brainEvaluation", nowMs() - evaluationStarted, decisions.jobs.length);
-      return finishSpawnerWorldStep(world, timeline, newborns, decisions.spawners, decisions.jobs, resolvedResults, plansBySpawnerId, options);
+      recordFirstPassTiming(options, frame.spawners.length, nowMs() - evaluationStarted);
+      recordPhase(options, "brainEvaluation", nowMs() - evaluationStarted, frame.spawners.length);
+      return finishSpawnerWorldStep(world, timeline, newborns, frame, resolvedResults, plansBySpawnerId, options, jobs);
     });
   }
-  recordFirstPassTiming(options, decisions.jobs.length, nowMs() - evaluationStarted);
-  recordPhase(options, "brainEvaluation", nowMs() - evaluationStarted, decisions.jobs.length);
-  finishSpawnerWorldStep(world, timeline, newborns, decisions.spawners, decisions.jobs, results, plansBySpawnerId, options);
+  recordFirstPassTiming(options, frame.spawners.length, nowMs() - evaluationStarted);
+  recordPhase(options, "brainEvaluation", nowMs() - evaluationStarted, frame.spawners.length);
+  finishSpawnerWorldStep(world, timeline, newborns, frame, results, plansBySpawnerId, options, jobs);
 }
 
 function finishSpawnerWorldStep(
   world: SpawnerWorld,
   timeline: MarketTimeline,
   newborns: SpawnerAgent[],
-  spawners: SpawnerAgent[],
-  jobs: BrainEvaluationJob[],
-  results: BrainEvaluationResult[],
+  frame: SpawnerEvaluationFrame,
+  results: SpawnerEvaluationResult[],
   plansBySpawnerId: Map<number, CompiledBrainPlan>,
   options: SpawnerAdvanceOptions,
+  jobs?: BrainEvaluationJob[],
 ) {
-  const orderedResults = timePhase(options, "resultOrdering", () => orderedEvaluationResults(spawners, jobs, results), results.length);
-  for (let index = 0; index < spawners.length; index += 1) {
-    const spawner = spawners[index];
+  const orderedResults = timePhase(options, "resultOrdering", () => orderedEvaluationResults(frame, results, jobs), results.length);
+  for (let index = 0; index < frame.spawners.length; index += 1) {
+    const spawner = frame.spawners[index];
     const result = orderedResults[index];
-    if (!spawner || !result?.evaluation) continue;
-    const evaluation = result.evaluation;
-    timePhase(options, "resultApplication", () => applyEvaluationResult(spawner, evaluation, jobs[index]));
-    const decoded = timePhase(options, "outputDecoding", () => decodeSpawnerOutputs(world, spawner, evaluation.outputs));
+    if (!spawner || !result) continue;
+    timePhase(options, "resultApplication", () => applyEvaluationResult(spawner, result, jobs?.[index] ?? { includePreviousState: false }));
+    const decoded = timePhase(options, "outputDecoding", () => decodeSpawnerOutputs(world, spawner, outputsFromEvaluationResult(result)));
     const action = timePhase(options, "actionSelection", () => chooseSpawnerAction(world, spawner, decoded));
     recordAction(options, action);
+    const source = jobs?.[index] ?? frameEvaluationSource(frame, index);
     let traceActivations: BrainTraceActivations | undefined;
     const getTraceActivations = () => {
       traceActivations =
         traceActivations ??
-        traceActivationsForEvaluation(evaluation, jobs[index], plansBySpawnerId.get(spawner.id), options);
+        traceActivationsForEvaluation(result, source, plansBySpawnerId.get(spawner.id), options);
       return traceActivations;
     };
     const traceId =
       action === "wait"
         ? undefined
         : timePhase(options, "decisionTraceCapture", () =>
-            captureDecisionTrace({ spawner, tick: world.tick, evaluation, traceActivations: getTraceActivations(), decoded, action }),
+            captureDecisionTrace({ spawner, tick: world.tick, evaluation: publicEvaluationFromResult(result), traceActivations: getTraceActivations(), decoded, action }),
           );
     const spawned = timePhase(options, "foodSpawning", () => trySpawnFood(world, spawner, decoded, timeline, action, traceId));
     if (spawned) recordMetric(options, "spawnedFoodCount", 1);
@@ -203,7 +221,7 @@ function finishSpawnerWorldStep(
     const beforeBirths = newborns.length;
     timePhase(options, "reproductionAttempt", () =>
       tryReproduceSpawner(world, spawner, decoded, newborns, () =>
-        captureReproductionTrace(world, spawner, evaluation, decoded, getTraceActivations, options),
+        captureReproductionTrace(world, spawner, publicEvaluationFromResult(result), decoded, getTraceActivations, options),
       ),
     );
     if (newborns.length > beforeBirths) recordMetric(options, "reproductionCount", newborns.length - beforeBirths);
@@ -227,11 +245,21 @@ function isPromise<T>(value: T | Promise<T>): value is Promise<T> {
 }
 
 function traceActivationsForEvaluation(
-  evaluation: BrainEvaluation,
-  job: BrainEvaluationJob | undefined,
+  result: SpawnerEvaluationResult,
+  source: BrainEvaluationSource | undefined,
   plan: CompiledBrainPlan | undefined,
   options: SpawnerAdvanceOptions,
 ) {
+  const runtime = runtimeEvaluationFromResult(result);
+  if (runtime) return traceActivationsForRuntime(runtime, options);
+  const evaluation = publicEvaluationFromResult(result);
+  if (!evaluation) {
+    return {
+      activeConnectionIds: [],
+      connectionActivations: {},
+      owned: false,
+    };
+  }
   if (evaluation.activeConnectionIds.length > 0) {
     return {
       activeConnectionIds: evaluation.activeConnectionIds,
@@ -248,21 +276,22 @@ function traceActivationsForEvaluation(
     }
     return materialized;
   }
-  if (!job?.genome) {
+  if (!source?.genome) {
     return {
       activeConnectionIds: evaluation.activeConnectionIds,
       connectionActivations: evaluation.connectionActivations,
       owned: false,
     };
   }
-  const genome = job.genome;
+  const genome = source.genome;
   const started = nowMs();
   try {
     const fallback = timePhase(options, "traceFallbackEvaluation", () => evaluateSpawnerBrainPure({
       genome,
-      learnedState: job.learnedState,
-      hiddenState: job.hiddenState,
-      inputs: job.inputs,
+      learnedState: source.learnedState,
+      learnedStateView: source.learnedStateView,
+      hiddenState: source.hiddenState,
+      inputs: source.inputs,
       plan,
       includeActivations: true,
       includePreviousState: false,
@@ -280,10 +309,27 @@ function traceActivationsForEvaluation(
   }
 }
 
+function traceActivationsForRuntime(runtime: BrainRuntimeEvaluation, options: SpawnerAdvanceOptions) {
+  if (runtime.activeConnectionIds && runtime.connectionActivations) {
+    return {
+      activeConnectionIds: runtime.activeConnectionIds,
+      connectionActivations: runtime.connectionActivations,
+      owned: false,
+    };
+  }
+  const materializeStarted = nowMs();
+  const materialized = timePhase(options, "traceActivationMaterialization", () => materializeBrainRuntimeTraceActivations(runtime));
+  if (options.traceInstrumentation) {
+    options.traceInstrumentation.optimizedTraceMaterializations += 1;
+    options.traceInstrumentation.optimizedTraceMaterializationMs += nowMs() - materializeStarted;
+  }
+  return materialized;
+}
+
 function captureReproductionTrace(
   world: SpawnerWorld,
   spawner: SpawnerAgent,
-  evaluation: BrainEvaluation,
+  evaluation: BrainEvaluation | undefined,
   decoded: ReturnType<typeof decodeSpawnerOutputs>,
   getTraceActivations: () => BrainTraceActivations,
   options: SpawnerAdvanceOptions,

@@ -24,7 +24,7 @@ export function captureDecisionTrace({
 }: {
   spawner: SpawnerAgent;
   tick: number;
-  evaluation: BrainEvaluation;
+  evaluation?: Pick<BrainEvaluation, "activeConnectionIds" | "connectionActivations">;
   decoded: SpawnerDecodedOutputs;
   action: Exclude<SpawnerActionChoice, "wait"> | "reproduce";
   traceActivations?: BrainTraceActivations;
@@ -33,8 +33,8 @@ export function captureDecisionTrace({
   const id = Math.max(1, Math.round(spawner.traceStore.nextTraceId || 1));
   spawner.traceStore.nextTraceId = id + 1;
   const activations = traceActivations ?? {
-    activeConnectionIds: evaluation.activeConnectionIds,
-    connectionActivations: evaluation.connectionActivations,
+    activeConnectionIds: evaluation?.activeConnectionIds ?? [],
+    connectionActivations: evaluation?.connectionActivations ?? {},
     owned: false,
   };
   const consumeOwnedActivations = activations.owned;

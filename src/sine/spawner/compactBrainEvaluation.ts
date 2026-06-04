@@ -1,18 +1,19 @@
 import {
-  evaluateSpawnerBrainPure,
   materializeBrainEvaluationFromRuntimeArrays,
   type BrainEvaluation,
 } from "./brain";
+import { evaluateCompactBrainKernel } from "./brainKernel";
 import { compileBrainPlan, brainGenomeCacheSignature, brainPlanSignature, type CompiledBrainPlan } from "./brainPlan";
-import { hiddenArrayToCurrentRecord, hiddenRecordToArray } from "./brainState";
+import { hiddenRecordToArray } from "./brainState";
 import { OUTPUT_COUNT } from "./config";
+import { createPlanAlignedEffectiveBrainValuesFromArrays } from "./effectiveGenome";
 import {
   connectionDeltaKey,
   createEmptyLearnedState,
   gateBiasDeltaKey,
   outputBiasDeltaKey,
-  sanitizeLearnedState,
 } from "./plasticity";
+import { createPlanAlignedLearnedStateView } from "./learnedStateView";
 import type { SpawnerGenome, SpawnerLearnedState } from "./types";
 import type {
   BrainEvaluationJob,
@@ -108,16 +109,16 @@ export function compactLearnedStatePayload(
   learnedState: Partial<SpawnerLearnedState> | undefined,
   plan: CompiledBrainPlan,
 ): CompactLearnedStatePayload {
-  const sanitized = sanitizeLearnedState(learnedState, genome.plasticityProfile.maxLearnedDelta);
+  const view = createPlanAlignedLearnedStateView(genome, learnedState, plan);
   return {
-    connectionDeltasByPlanIndex: plan.activeConnectionIds.map((innovationId) => finiteOr(sanitized.connectionDeltas[connectionDeltaKey(innovationId)], 0)),
-    outputBiasDeltas: Array.from({ length: OUTPUT_COUNT }, (_, outputIndex) => finiteOr(sanitized.outputBiasDeltas[outputBiasDeltaKey(outputIndex)], 0)),
-    updateGateBiasDeltasByUnitIndex: plan.unitIds.map((unitId) => finiteOr(sanitized.gateBiasDeltas[gateBiasDeltaKey(unitId, "update")], 0)),
-    resetGateBiasDeltasByUnitIndex: plan.unitIds.map((unitId) => finiteOr(sanitized.gateBiasDeltas[gateBiasDeltaKey(unitId, "reset")], 0)),
-    candidateGateBiasDeltasByUnitIndex: plan.unitIds.map((unitId) => finiteOr(sanitized.gateBiasDeltas[gateBiasDeltaKey(unitId, "candidate")], 0)),
-    recentLearningSignal: sanitized.recentLearningSignal,
-    learningUpdateCount: sanitized.learningUpdateCount,
-    reproductionLearningCount: sanitized.reproductionLearningCount,
+    connectionDeltasByPlanIndex: denseNumericArray(view.connectionDeltasByPlanIndex, plan.activeConnectionCount),
+    outputBiasDeltas: denseNumericArray(view.outputBiasDeltas, OUTPUT_COUNT),
+    updateGateBiasDeltasByUnitIndex: denseNumericArray(view.updateGateBiasDeltasByUnitIndex, plan.activeUnitCount),
+    resetGateBiasDeltasByUnitIndex: denseNumericArray(view.resetGateBiasDeltasByUnitIndex, plan.activeUnitCount),
+    candidateGateBiasDeltasByUnitIndex: denseNumericArray(view.candidateGateBiasDeltasByUnitIndex, plan.activeUnitCount),
+    recentLearningSignal: view.recentLearningSignal,
+    learningUpdateCount: view.learningUpdateCount,
+    reproductionLearningCount: view.reproductionLearningCount,
   };
 }
 
@@ -149,16 +150,19 @@ export function evaluateCompactBrainJob(
   try {
     if (!genome) throw new Error(`Missing genome for compact brain evaluation job ${job.spawnerId}`);
     const plan = cachedCompactPlan(genome, job.genomePayload?.planSignature, planCache);
-    const learnedState = materializeCompactLearnedState(job.learnedState, plan);
-    const hiddenState = hiddenArrayToCurrentRecord(plan, job.hiddenState);
-    const evaluation = evaluateSpawnerBrainPure({
-      genome,
-      learnedState,
-      hiddenState,
-      inputs: job.inputs,
+    const effectiveValues = compactEffectiveBrainValues(job, genome, plan);
+    const currentState = new Array<number>(plan.unitIds.length);
+    const outputs = new Array<number>(OUTPUT_COUNT);
+    const connectionActivations: BrainEvaluation["connectionActivations"] | undefined = job.includeActivations ? {} : undefined;
+    evaluateCompactBrainKernel({
       plan,
-      includeActivations: job.includeActivations,
-      includePreviousState: job.includePreviousState,
+      inputs: job.inputs,
+      previousState: job.hiddenState,
+      currentState,
+      outputs,
+      effectiveValues,
+      planValues: effectiveValues,
+      connectionActivations,
     });
     return {
       sessionId: job.sessionId,
@@ -168,7 +172,7 @@ export function evaluateCompactBrainJob(
       tick: job.tick,
       index: job.index,
       spawnerId: job.spawnerId,
-      evaluation: compactEvaluationPayload(evaluation, job, plan),
+      evaluation: compactEvaluationPayloadFromArrays({ outputs, currentState, connectionActivations }, job, plan),
     };
   } catch (error) {
     return {
@@ -184,6 +188,29 @@ export function evaluateCompactBrainJob(
   }
 }
 
+function compactEffectiveBrainValues(job: CompactBrainEvaluationJob, genome: SpawnerGenome, plan: CompiledBrainPlan) {
+  const payload = job.genomePayload ?? compactGenomePayload(job.genomeKey, genome, plan);
+  return createPlanAlignedEffectiveBrainValuesFromArrays(
+    genome,
+    plan,
+    {
+      connectionWeightsByPlanIndex: payload.baseConnectionWeights,
+      outputBiases: payload.outputBiases,
+      updateGateBiasesByUnitIndex: payload.updateGateBiases,
+      resetGateBiasesByUnitIndex: payload.resetGateBiases,
+      candidateGateBiasesByUnitIndex: payload.candidateGateBiases,
+    },
+    {
+      connectionDeltasByPlanIndex: job.learnedState.connectionDeltasByPlanIndex,
+      outputBiasDeltas: job.learnedState.outputBiasDeltas,
+      updateGateBiasDeltasByUnitIndex: job.learnedState.updateGateBiasDeltasByUnitIndex,
+      resetGateBiasDeltasByUnitIndex: job.learnedState.resetGateBiasDeltasByUnitIndex,
+      candidateGateBiasDeltasByUnitIndex: job.learnedState.candidateGateBiasDeltasByUnitIndex,
+      maxLearnedDelta: payload.maxLearnedDelta,
+    },
+  );
+}
+
 export function compactEvaluationPayload(
   evaluation: BrainEvaluation,
   job: Pick<CompactBrainEvaluationJob, "hiddenState" | "inputs" | "includeActivations" | "includePreviousState">,
@@ -195,6 +222,24 @@ export function compactEvaluationPayload(
     previousState: job.includePreviousState ? hiddenRecordToArray(plan, evaluation.previousState) : undefined,
     activeConnectionIds: job.includeActivations ? [...evaluation.activeConnectionIds] : undefined,
     connectionActivations: job.includeActivations ? cloneActivationMap(evaluation.connectionActivations) : undefined,
+    runtimeTraceState: {
+      previousState: [...job.hiddenState],
+      inputs: [...job.inputs],
+    },
+  };
+}
+
+function compactEvaluationPayloadFromArrays(
+  evaluation: Pick<CompactBrainEvaluationPayload, "outputs" | "currentState" | "connectionActivations">,
+  job: Pick<CompactBrainEvaluationJob, "hiddenState" | "inputs" | "includeActivations" | "includePreviousState">,
+  plan: CompiledBrainPlan,
+): CompactBrainEvaluationPayload {
+  return {
+    outputs: [...evaluation.outputs],
+    currentState: [...evaluation.currentState],
+    previousState: job.includePreviousState ? [...job.hiddenState] : undefined,
+    activeConnectionIds: job.includeActivations ? [...plan.activeConnectionIds] : undefined,
+    connectionActivations: job.includeActivations ? cloneActivationMap(evaluation.connectionActivations ?? {}) : undefined,
     runtimeTraceState: {
       previousState: [...job.hiddenState],
       inputs: [...job.inputs],
@@ -267,6 +312,10 @@ function cloneActivationMap(record: BrainEvaluation["connectionActivations"]) {
 
 function finiteOr(value: number | undefined, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function denseNumericArray(values: ArrayLike<number | undefined>, length: number) {
+  return Array.from({ length }, (_, index) => finiteOr(values[index], 0));
 }
 
 function nonNegativeInteger(value: number | undefined) {

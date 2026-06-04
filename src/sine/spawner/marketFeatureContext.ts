@@ -4,7 +4,6 @@ import { populationStdDev } from "../stats";
 import {
   collectNumericHistory,
   collectSignalHistory,
-  computeLocalSignalStats,
   createTimelineSampleResolver,
   normalizeByLocalScale,
   summarizeLocalNumericScale,
@@ -62,8 +61,9 @@ export function createMarketFeatureContext(timeline: MarketTimeline, tick: numbe
       const key = sampleWindowKey(windowTicks, sampleStepTicks);
       const cached = localStatsCache.get(key);
       if (cached) return cached;
+      const history = context.signalHistory(windowTicks, sampleStepTicks);
       const stats = timeFeature(instrumentation, "localSignalStats", () =>
-        computeLocalSignalStats(timeline, tick, windowTicks, sampleStepTicks, sampleAtTick),
+        summarizeLocalNumericScale(history.map((sample) => sample.value)),
       );
       localStatsCache.set(key, stats);
       return stats;

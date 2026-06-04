@@ -8,7 +8,7 @@ import {
   probability,
 } from "../numeric";
 
-const LEARNED_DELTA_SAFETY_MAX = 100;
+export const LEARNED_DELTA_SAFETY_MAX = 100;
 const TRACE_RETENTION_SAFETY_MAX = 10_000;
 
 export type SpawnerLearnedState = {
