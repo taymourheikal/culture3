@@ -5,11 +5,14 @@ import {
   createSyncBrainEvaluationRunner,
   DEFAULT_SPAWNER_CONFIG,
   computeSpawnerUniqueness,
+  evaluateBrainJob,
   evaluateSpawnerBrain,
   type SpawnerConfig,
 } from "../src/sine/spawnerSimulation";
 import { createMarketChartPacket, createMarketRosterPacket, createMarketStatsPacket } from "../src/sine/marketWorkerSnapshot";
 import { createMarketInputResolver } from "../src/sine/spawner/marketInputs";
+import { buildBrainEvaluationJobs, buildSpawnerTickContexts, type BrainTraceInstrumentation } from "../src/sine/spawner/worldBrainEvaluation";
+import { compactJobFromBrainEvaluationJob, evaluateCompactBrainJob } from "../src/sine/spawner/compactBrainEvaluation";
 import { createBrainEvalPool } from "../src/sine/worker/brainEvalPool";
 import { BRAIN_EVAL_TIMEOUT_MS, defaultBrainEvalWorkerCount } from "../src/sine/worker/brainEvalConfig";
 import { buildSinePersistencePacket } from "../src/sine/persistence/buildSinePersistencePacket";
@@ -80,6 +83,28 @@ for (const population of POPULATIONS) {
   pool.dispose?.();
 }
 
+for (const scenario of traceScenarios()) {
+  const simulation = createSimulation(scenario.population, scenario.config);
+  const runner = createSyncBrainEvaluationRunner();
+  const traceInstrumentation = createTraceInstrumentation();
+  await printAsyncBench(`trace fallback ${scenario.name} @ ${scenario.population} pop / ${ADVANCE_TICKS} ticks`, async () => {
+    const before = simulation.world.tick;
+    const result = await advanceSimulationToTargetAsync(simulation, simulation.world.tick + ADVANCE_TICKS, ADVANCE_TICKS, {
+      brainEvaluationRunner: runner,
+      sessionId: 1,
+      runGeneration: 1,
+      traceInstrumentation,
+    });
+    return {
+      processed: simulation.world.tick - before,
+      finalTick: simulation.world.tick,
+      finalPopulation: simulation.world.spawners.length,
+      remaining: result.remainingTicks,
+      traceInstrumentation: summarizeTraceInstrumentation(traceInstrumentation),
+    };
+  });
+}
+
 for (const population of POPULATIONS) {
   const simulation = createSimulation(population);
   advanceSimulationToTarget(simulation, 50, 50);
@@ -106,6 +131,12 @@ for (const population of POPULATIONS) {
     },
     20,
   );
+}
+
+for (const population of POPULATIONS) {
+  const simulation = createSimulation(population);
+  advanceSimulationToTarget(simulation, 50, 50);
+  printBench(`brain worker payload proxy sizes @ ${population} pop`, () => payloadProxySizes(simulation));
 }
 
 for (const population of POPULATIONS) {
@@ -186,19 +217,109 @@ for (const population of POPULATIONS) {
   );
 }
 
-function createSimulation(initialSpawners: number) {
+function createSimulation(initialSpawners: number, config: Partial<SpawnerConfig> = {}) {
   return createSimulationState(INITIAL_MARKET_RUNTIME_CONFIG, {
     ...DEFAULT_SPAWNER_CONFIG,
     initialSpawners,
     maxSpawners: initialSpawners,
     uniquenessPopulationLimit: 1000,
+    ...config,
   } satisfies Partial<SpawnerConfig>);
+}
+
+function traceScenarios() {
+  return [
+    {
+      name: "mostly waiting",
+      population: 250,
+      config: {
+        defaultSpawnThreshold: 2,
+        initialReproductionOutputBias: -20,
+      } satisfies Partial<SpawnerConfig>,
+    },
+    {
+      name: "high action",
+      population: 250,
+      config: {
+        defaultSpawnThreshold: 0,
+        defaultMinSignalStrength: 0,
+        initialCooldownMaxTicks: 0,
+        cooldownBaseTicksInitialMin: 0,
+        cooldownBaseTicksInitialMax: 0,
+        cooldownOutputMultiplierTicks: 0,
+        initialEnergyMin: 100,
+        initialEnergyMax: 100,
+        initialReproductionOutputBias: -20,
+      } satisfies Partial<SpawnerConfig>,
+    },
+  ];
+}
+
+function createTraceInstrumentation(): BrainTraceInstrumentation {
+  return {
+    evaluatedAgents: 0,
+    firstPassBatches: 0,
+    firstPassMs: 0,
+    waitActions: 0,
+    longActions: 0,
+    shortActions: 0,
+    reproductionTraces: 0,
+    optimizedTraceMaterializations: 0,
+    optimizedTraceMaterializationMs: 0,
+    fallbackTraceEvaluations: 0,
+    fallbackTraceMs: 0,
+  };
+}
+
+function summarizeTraceInstrumentation(stats: BrainTraceInstrumentation) {
+  const actionCount = stats.longActions + stats.shortActions;
+  return {
+    ...stats,
+    actionCount,
+    firstPassMsPerAgent: stats.evaluatedAgents > 0 ? stats.firstPassMs / stats.evaluatedAgents : 0,
+    optimizedTraceMaterializationMsPerEvaluation:
+      stats.optimizedTraceMaterializations > 0 ? stats.optimizedTraceMaterializationMs / stats.optimizedTraceMaterializations : 0,
+    fallbackTraceMsPerEvaluation: stats.fallbackTraceEvaluations > 0 ? stats.fallbackTraceMs / stats.fallbackTraceEvaluations : 0,
+  };
 }
 
 function buildInputs(simulation: ReturnType<typeof createSimulationState>) {
   const pendingFoodCount = simulation.world.foods.filter((food) => food.status === "pending").length;
   const resolver = createMarketInputResolver(simulation.timeline, simulation.world.tick, pendingFoodCount);
   return new Map(simulation.world.spawners.map((spawner) => [spawner.id, resolver.resolve(spawner.genome.perception)]));
+}
+
+function payloadProxySizes(simulation: ReturnType<typeof createSimulationState>) {
+  const pendingFoodCount = simulation.world.foods.filter((food) => food.status === "pending").length;
+  const resolver = createMarketInputResolver(simulation.timeline, simulation.world.tick, pendingFoodCount);
+  const contexts = buildSpawnerTickContexts(simulation.world, resolver);
+  const { jobs } = buildBrainEvaluationJobs(simulation.world, contexts, {
+    sessionId: 1,
+    runGeneration: 1,
+    batchId: simulation.world.tick,
+  });
+  const compactFirstSendJobs = jobs.map((job) => compactJobFromBrainEvaluationJob(job, { plan: contexts[job.index]?.plan }));
+  const compactCachedJobs = jobs.map((job) =>
+    compactJobFromBrainEvaluationJob(job, {
+      plan: contexts[job.index]?.plan,
+      includeGenome: false,
+      includeGenomePayload: false,
+    }),
+  );
+  const objectResults = jobs.map((job) => evaluateBrainJob(job));
+  const compactResults = compactFirstSendJobs.map((job) => evaluateCompactBrainJob(job));
+  return {
+    population: jobs.length,
+    objectRequestKb: jsonSizeKb({ type: "evaluateBrainShard", requestId: 1, jobs }),
+    compactFirstRequestKb: jsonSizeKb({ type: "evaluateBrainShard", requestId: 1, protocol: "compact", compactJobs: compactFirstSendJobs }),
+    compactCachedRequestKb: jsonSizeKb({ type: "evaluateBrainShard", requestId: 1, protocol: "compact", compactJobs: compactCachedJobs }),
+    objectResponseKb: jsonSizeKb({ type: "brainShardResult", requestId: 1, results: objectResults }),
+    compactResponseKb: jsonSizeKb({ type: "brainShardResult", requestId: 1, protocol: "compact", results: [], compactResults }),
+  };
+}
+
+function jsonSizeKb(value: unknown) {
+  return Math.round((JSON.stringify(value).length / 1024) * 100) / 100;
 }
 
 function printBench(name: string, fn: () => unknown, iterations = 1) {

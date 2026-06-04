@@ -18,9 +18,9 @@ async function main() {
         await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(syntheticCandleResponse()) });
       });
 
-      const controls = page.locator(".sine-control-actions");
+      const controls = page.getByRole("region", { name: "Run controls" });
       await page.goto(SINE_BROWSER_URL);
-      await expect(page.getByRole("heading", { name: "ROC Signal Lab" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Sine Workbench" })).toBeVisible();
       await expect(controls.getByRole("button", { name: /Play/ })).toBeEnabled();
 
       await controls.getByRole("button", { name: /Play/ }).click();
@@ -51,7 +51,7 @@ async function main() {
       await page.getByLabel("Source").selectOption("btcusd_5m");
       candleMode = "fail";
       await controls.getByRole("button", { name: /Play/ }).click();
-      await expect(page.getByText("Sine API request failed (500)")).toBeVisible();
+      await expect(page.getByText(/forced failure|Sine API request failed \(500\)/)).toBeVisible();
 
       candleMode = "delay";
       await page.getByRole("button", { name: /New Run/ }).click();
@@ -63,28 +63,30 @@ async function main() {
 
       candleMode = "pass";
       await controls.getByRole("button", { name: /Play/ }).click();
-      await expect(page.getByText(/BTCUSD 5m|BTC Playback/).first()).toBeVisible();
+      await expect(page.getByText("BTCUSD 5m Price")).toBeVisible();
       await controls.getByRole("button", { name: "Stop" }).click();
 
       await page.getByLabel("Simulator parameter menu").getByRole("button", { name: "Market" }).click();
       await page.getByLabel("Source").selectOption("generated");
       await page.getByLabel("Simulator parameter menu").getByRole("button", { name: "Spawner Agents" }).click();
       await expect(page.getByText("NN Contract")).toBeVisible();
+      await page.getByRole("button", { name: "Population", exact: true }).click();
       const initialSpawnersInput = page.locator("label.sine-slider").filter({ hasText: "Initial spawner agents" }).locator('input[type="number"]').first();
       const maxPopulationInput = page.locator("label.sine-slider").filter({ hasText: "Max population" }).locator('input[type="number"]').first();
       await initialSpawnersInput.fill("500");
       await maxPopulationInput.fill("500");
       await page.getByRole("button", { name: /New Run/ }).click();
       await controls.getByRole("button", { name: /Play/ }).click();
-      await expect(page.getByText("sync")).toBeVisible();
+      await expect(page.getByText("sync").first()).toBeVisible();
       await controls.getByRole("button", { name: "Stop" }).click();
 
       await page.getByLabel("Food spawner agents").locator("button").first().click();
-      await page.locator(".spawner-detail .architecture-open-card").click();
+      const selectedSpawnerPanel = page.locator(".selected-spawner-panel");
+      await selectedSpawnerPanel.getByRole("button", { name: "RNN" }).click();
       await expect(page.getByRole("dialog", { name: /RNN architecture/ })).toBeVisible();
       await page.getByLabel("Close architecture inspector").click();
 
-      await page.locator(".spawner-detail .uniqueness-open-card").click();
+      await selectedSpawnerPanel.getByRole("button", { name: "Unique" }).click();
       await expect(page.getByRole("heading", { name: "Uniqueness" })).toBeVisible();
       await page.getByLabel("Close uniqueness modal").click();
 

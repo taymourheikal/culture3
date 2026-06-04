@@ -17,7 +17,7 @@ export function SineHeader({
     <div className="sine-header">
       <div>
         <span className="sine-eyebrow">Toy Market Simulator</span>
-        <h1>ROC Signal Lab</h1>
+        <h1>Sine Workbench</h1>
       </div>
       <SineViewTabs activeView={activeView} onViewChange={onViewChange} />
       {showReadout ? (

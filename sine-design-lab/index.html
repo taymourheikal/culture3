@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sine Design Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="theme-terminal">
+    <div class="design-lab">
+      <header class="lab-header">
+        <div>
+          <span class="eyebrow">Sine UI Redesign Sandbox</span>
+          <h1>Choose the product direction before touching runtime code.</h1>
+        </div>
+        <nav class="direction-tabs" aria-label="Visual directions">
+          <button type="button" data-direction="terminal" class="active">Trading Terminal</button>
+          <button type="button" data-direction="lab">Scientific Lab</button>
+          <button type="button" data-direction="control">Control Room</button>
+          <button type="button" data-direction="observatory">Neural Observatory</button>
+        </nav>
+      </header>
+
+      <section class="direction-brief" aria-live="polite">
+        <span id="direction-label">Trading Terminal</span>
+        <p id="direction-summary">Dense, sharp, high-contrast market instrumentation with chart-first hierarchy.</p>
+      </section>
+
+      <main class="prototype-shell">
+        <section class="stage-panel">
+          <div class="stage-head">
+            <div>
+              <span class="eyebrow">Toy Market Simulator</span>
+              <h2>ROC Signal Lab</h2>
+            </div>
+            <div class="signal-readout">
+              <span>Current ROC</span>
+              <strong>+1.16%</strong>
+            </div>
+          </div>
+
+          <section class="chart-card hero-chart">
+            <div class="chart-head">
+              <span>Market signal and active trade projections</span>
+              <strong>tick 248</strong>
+            </div>
+            <div id="main-chart" class="mock-chart"></div>
+          </section>
+
+          <div class="secondary-grid">
+            <section class="chart-card">
+              <div class="chart-head">
+                <span>Smooth random noise</span>
+                <strong>+0.06%</strong>
+              </div>
+              <div id="noise-chart" class="mock-chart compact"></div>
+            </section>
+            <section class="chart-card">
+              <div class="chart-head">
+                <span>Effective parameters</span>
+                <strong>live drift</strong>
+              </div>
+              <div id="parameter-chart" class="mock-chart compact"></div>
+            </section>
+          </div>
+
+          <section class="agent-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Food Spawner RNNs</span>
+                <h3>Opportunity scouts</h3>
+              </div>
+              <div class="chip-row">
+                <span>20 active</span>
+                <span>9 pending</span>
+                <span>58% unique pct</span>
+              </div>
+            </div>
+            <div class="spawner-grid" id="spawner-grid"></div>
+          </section>
+
+          <div class="secondary-grid telemetry-grid">
+            <section class="chart-card">
+              <div class="chart-head">
+                <span>Population and loss</span>
+                <strong>stable</strong>
+              </div>
+              <div id="telemetry-chart" class="mock-chart compact"></div>
+            </section>
+            <section class="chart-card">
+              <div class="chart-head">
+                <span>Uniqueness over time</span>
+                <strong>median 4.67</strong>
+              </div>
+              <div id="uniqueness-chart" class="mock-chart compact"></div>
+            </section>
+          </div>
+
+          <section class="history-browser">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">SQLite Run Browser</span>
+                <h3>Saved run analysis</h3>
+              </div>
+              <div class="history-actions">
+                <button type="button">Refresh</button>
+                <button type="button">Load</button>
+                <button type="button">Delete</button>
+              </div>
+            </div>
+            <div class="history-layout">
+              <div class="run-list">
+                <button type="button" class="selected">
+                  <strong>run 6f05080a</strong>
+                  <span>20 spawners · 411 ticks · stopped</span>
+                </button>
+                <button type="button">
+                  <strong>run 4b7a2291</strong>
+                  <span>84 spawners · 1,204 ticks · paused</span>
+                </button>
+                <button type="button">
+                  <strong>run 83ca901e</strong>
+                  <span>45 spawners · 860 ticks · stopped</span>
+                </button>
+              </div>
+              <div class="run-analysis">
+                <div class="summary-strip">
+                  <span><b>Wins</b> 64</span>
+                  <span><b>Losses</b> 41</span>
+                  <span><b>Best lineage</b> L14</span>
+                  <span><b>Peak pop</b> 62</span>
+                </div>
+                <div id="history-chart" class="mock-chart mini"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="modal-preview-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Modal previews</span>
+                <h3>Inspection surfaces</h3>
+              </div>
+            </div>
+            <div class="modal-preview-grid">
+              <article class="architecture-preview">
+                <div class="modal-titlebar">
+                  <span>RNN Architecture Inspector</span>
+                  <strong>Spawner #1</strong>
+                </div>
+                <div class="architecture-preview-body">
+                  <div id="architecture-graph" class="architecture-graph"></div>
+                  <aside>
+                    <span>Genome</span>
+                    <strong>6 units · 66 links</strong>
+                    <span>Trading policy</span>
+                    <strong>threshold 0.56</strong>
+                    <span>Learning</span>
+                    <strong>plasticity 0.009</strong>
+                  </aside>
+                </div>
+              </article>
+              <article class="uniqueness-preview">
+                <div class="modal-titlebar">
+                  <span>Uniqueness</span>
+                  <strong>Spawner #1</strong>
+                </div>
+                <div class="uniqueness-stats">
+                  <span><b>58%</b> percentile</span>
+                  <span><b>4.674</b> raw distance</span>
+                  <span><b>91</b> active features</span>
+                  <span><b>#15 #20 #2</b> nearest</span>
+                </div>
+                <ol>
+                  <li>Input 6 mean absolute weight</li>
+                  <li>Positive weight ratio</li>
+                  <li>Perception delta window</li>
+                </ol>
+              </article>
+            </div>
+          </section>
+        </section>
+
+        <aside class="control-panel">
+          <div class="command-grid">
+            <button type="button" class="primary">Play</button>
+            <button type="button">Pause</button>
+            <button type="button">Stop</button>
+            <button type="button">New Run</button>
+          </div>
+          <div class="mode-switch">
+            <button type="button" class="active">Market</button>
+            <button type="button">Spawner Agents</button>
+          </div>
+
+          <section class="control-group">
+            <div class="control-group-head">
+              <span>Data source</span>
+              <b>Generated</b>
+            </div>
+            <div class="select-mock">Generated sine waves</div>
+          </section>
+
+          <section class="control-group">
+            <div class="control-group-head">
+              <span>Market signal</span>
+              <b>live defaults</b>
+            </div>
+            <div class="slider-mock"><span>Amplitude</span><strong>1.20%</strong><i style="--value: 36%"></i></div>
+            <div class="slider-mock"><span>Frequency</span><strong>0.029 cyc/tick</strong><i style="--value: 24%"></i></div>
+            <div class="slider-mock"><span>Slope</span><strong>+0.004%/tick</strong><i style="--value: 52%"></i></div>
+          </section>
+
+          <section class="control-group emphasis">
+            <div class="control-group-head">
+              <span>Spawner genome</span>
+              <b>founder defaults</b>
+            </div>
+            <div class="slider-mock"><span>Spawn threshold</span><strong>0.56</strong><i style="--value: 56%"></i></div>
+            <div class="slider-mock"><span>Signal strength</span><strong>0.05</strong><i style="--value: 15%"></i></div>
+            <div class="slider-mock"><span>Mutation rate</span><strong>0.037</strong><i style="--value: 42%"></i></div>
+          </section>
+
+          <section class="control-group">
+            <div class="control-group-head">
+              <span>Runtime stats</span>
+              <b>tick 248</b>
+            </div>
+            <div class="stat-grid">
+              <span><b>20</b> spawners</span>
+              <span><b>9</b> pending</span>
+              <span><b>sync</b> brain eval</span>
+              <span><b>45.6 KB</b> packet</span>
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -8,13 +8,22 @@ import {
   createSyncBrainEvaluationRunner,
   DEFAULT_SPAWNER_CONFIG,
   evaluateSpawnerBrainPure,
+  INPUT_COUNT,
+  materializeBrainEvaluationActivations,
   type SpawnerConfig,
   type SpawnerWorld,
 } from "../../src/sine/spawnerSimulation";
 import { worldDigest } from "../../src/sine/testing/worldDigest";
-import { evaluateBrainJob, type BrainPlanCache } from "../../src/sine/spawner/brainEvaluationRunner";
-import { brainGenomeCacheSignature, brainPlanSignature } from "../../src/sine/spawner/brainPlan";
-import { outputBiasDeltaKey } from "../../src/sine/spawner/plasticity";
+import { createCompactSyncBrainEvaluationRunner, evaluateBrainJob, type BrainPlanCache } from "../../src/sine/spawner/brainEvaluationRunner";
+import { brainGenomeCacheSignature, brainPlanSignature, compileBrainPlan } from "../../src/sine/spawner/brainPlan";
+import {
+  compactJobFromBrainEvaluationJob,
+  evaluateCompactBrainJob,
+  materializeCompactBrainEvaluationResult,
+  materializeCompactLearnedState,
+} from "../../src/sine/spawner/compactBrainEvaluation";
+import { connectionDeltaKey, gateBiasDeltaKey, outputBiasDeltaKey, sanitizeLearnedState } from "../../src/sine/spawner/plasticity";
+import { applyEvaluationResult } from "../../src/sine/spawner/worldBrainEvaluation";
 import { createBrainEvalPool, type BrowserWorker } from "../../src/sine/worker/brainEvalPool";
 import { BoundedCache } from "../../src/sine/worker/boundedCache";
 import type { BrainEvalWorkerRequest, BrainEvalWorkerResponse, BrainEvaluationJob, BrainEvaluationResult, BrainEvaluationRunner } from "../../src/sine/protocol/brainEvalProtocol";
@@ -77,6 +86,273 @@ function testPureEvaluationCanSkipTraceOnlyPayloads() {
   assert.deepEqual(compact.connectionActivations, {});
 }
 
+function testPureEvaluationMatchesCompiledPlanGolden() {
+  const world = createSpawnerWorld(101, { ...PARITY_CONFIG, initialSpawners: 1, maxSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert.ok(spawner);
+  const inputs = Array.from({ length: INPUT_COUNT }, (_, index) => Math.sin(index / 3) * 0.4);
+  const plan = compileBrainPlan(spawner.genome);
+  const implicitPlan = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: spawner.learnedState,
+    hiddenState: spawner.hiddenState,
+    inputs,
+  });
+  const explicitPlan = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: spawner.learnedState,
+    hiddenState: spawner.hiddenState,
+    inputs,
+    plan,
+  });
+
+  assert.deepEqual(explicitPlan.outputs.map(round), implicitPlan.outputs.map(round));
+  assert.deepEqual(roundRecord(explicitPlan.previousState), roundRecord(implicitPlan.previousState));
+  assert.deepEqual(roundRecord(explicitPlan.currentState), roundRecord(implicitPlan.currentState));
+  assert.deepEqual(explicitPlan.activeConnectionIds, implicitPlan.activeConnectionIds);
+  assert.deepEqual(roundActivationMap(explicitPlan.connectionActivations), roundActivationMap(implicitPlan.connectionActivations));
+  assert.ok(explicitPlan.activeConnectionIds.length > 0);
+  assert.ok(Object.keys(explicitPlan.connectionActivations).length > 0);
+}
+
+function testCompactEvaluationPreservesTraceFallbackSourceState() {
+  const world = createSpawnerWorld(101, { ...PARITY_CONFIG, initialSpawners: 1, maxSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert.ok(spawner);
+  for (const unit of spawner.genome.units) spawner.hiddenState[unit.unitId] = Math.sin(unit.unitId) * 0.25;
+  const inputs = Array.from({ length: INPUT_COUNT }, (_, index) => Math.cos(index / 2) * 0.5);
+  const plan = compileBrainPlan(spawner.genome);
+  const job = {
+    ...brainJobForSpawner(spawner, inputs, 0),
+    includeActivations: false,
+    includePreviousState: false,
+  };
+  const originalHiddenState = job.hiddenState;
+  const compact = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: spawner.learnedState,
+    hiddenState: job.hiddenState,
+    inputs,
+    plan,
+    includeActivations: false,
+    includePreviousState: false,
+  });
+  const full = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: spawner.learnedState,
+    hiddenState: job.hiddenState,
+    inputs,
+    plan,
+    includeActivations: true,
+    includePreviousState: true,
+  });
+
+  applyEvaluationResult(spawner, compact, job);
+  const traceFallback = evaluateSpawnerBrainPure({
+    genome: job.genome!,
+    learnedState: job.learnedState,
+    hiddenState: job.hiddenState,
+    inputs: job.inputs,
+    plan,
+    includeActivations: true,
+    includePreviousState: false,
+  });
+
+  assert.notEqual(spawner.hiddenState, originalHiddenState);
+  assert.equal(job.hiddenState, originalHiddenState);
+  assert.deepEqual(compact.outputs.map(round), full.outputs.map(round));
+  assert.deepEqual(roundRecord(spawner.hiddenState), roundRecord({ ...full.previousState, ...full.currentState }));
+  assert.deepEqual(traceFallback.outputs.map(round), full.outputs.map(round));
+  assert.deepEqual(roundRecord(traceFallback.currentState), roundRecord(full.currentState));
+  assert.deepEqual(traceFallback.activeConnectionIds, full.activeConnectionIds);
+  assert.deepEqual(roundActivationMap(traceFallback.connectionActivations), roundActivationMap(full.connectionActivations));
+}
+
+function testRuntimeActivationMaterializerMatchesFullEvaluation() {
+  const world = createSpawnerWorld(101, { ...PARITY_CONFIG, initialSpawners: 1, maxSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert.ok(spawner);
+  for (const unit of spawner.genome.units) spawner.hiddenState[unit.unitId] = Math.sin(unit.unitId / 3) * 0.35;
+  const inputs = Array.from({ length: INPUT_COUNT }, (_, index) => Math.sin(index + 0.375) * 0.4);
+  const plan = compileBrainPlan(spawner.genome);
+  const compact = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: spawner.learnedState,
+    hiddenState: spawner.hiddenState,
+    inputs,
+    plan,
+    includeActivations: false,
+    includePreviousState: false,
+  });
+  const materialized = materializeBrainEvaluationActivations(compact);
+  const full = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: spawner.learnedState,
+    hiddenState: spawner.hiddenState,
+    inputs,
+    plan,
+    includeActivations: true,
+    includePreviousState: false,
+  });
+
+  assert.ok(materialized);
+  assert.deepEqual(materialized.outputs.map(round), full.outputs.map(round));
+  assert.deepEqual(roundRecord(materialized.currentState), roundRecord(full.currentState));
+  assert.deepEqual(materialized.activeConnectionIds, full.activeConnectionIds);
+  assert.deepEqual(roundActivationMap(materialized.connectionActivations), roundActivationMap(full.connectionActivations));
+}
+
+function testRuntimeEvaluationResultsDoNotAliasSubsequentEvaluations() {
+  const world = createSpawnerWorld(101, { ...PARITY_CONFIG, initialSpawners: 2, maxSpawners: 2 });
+  const first = world.spawners[0];
+  const second = world.spawners[1];
+  assert.ok(first);
+  assert.ok(second);
+  const firstInputs = Array.from({ length: INPUT_COUNT }, (_, index) => Math.sin(index / 5));
+  const secondInputs = Array.from({ length: INPUT_COUNT }, (_, index) => Math.cos(index / 7));
+  const firstEvaluation = evaluateSpawnerBrainPure({
+    genome: first.genome,
+    learnedState: first.learnedState,
+    hiddenState: first.hiddenState,
+    inputs: firstInputs,
+    includeActivations: false,
+    includePreviousState: false,
+  });
+  const firstOutputs = firstEvaluation.outputs.map(round);
+  const firstCurrentState = roundRecord(firstEvaluation.currentState);
+  evaluateSpawnerBrainPure({
+    genome: second.genome,
+    learnedState: second.learnedState,
+    hiddenState: second.hiddenState,
+    inputs: secondInputs,
+    includeActivations: false,
+    includePreviousState: false,
+  });
+  const materialized = materializeBrainEvaluationActivations(firstEvaluation);
+
+  assert.deepEqual(firstEvaluation.outputs.map(round), firstOutputs);
+  assert.deepEqual(roundRecord(firstEvaluation.currentState), firstCurrentState);
+  assert.ok(materialized);
+  assert.deepEqual(materialized.outputs.map(round), firstOutputs);
+  assert.deepEqual(roundRecord(materialized.currentState), firstCurrentState);
+}
+
+function testCompactJobSerializationAndResponseMaterializationMatchObjectEvaluation() {
+  const world = createSpawnerWorld(101, { ...PARITY_CONFIG, initialSpawners: 1, maxSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert.ok(spawner);
+  const plan = compileBrainPlan(spawner.genome);
+  for (const unit of spawner.genome.units) spawner.hiddenState[unit.unitId] = Math.sin(unit.unitId / 4) * 0.4;
+  const connection = spawner.genome.connections.find((candidate) => candidate.enabled);
+  const unit = spawner.genome.units.find((candidate) => candidate.enabled);
+  assert.ok(connection);
+  assert.ok(unit);
+  spawner.genome.plasticityProfile.maxLearnedDelta = 0.2;
+  const learnedState = structuredClone(spawner.learnedState);
+  learnedState.connectionDeltas[connectionDeltaKey(connection.innovationId)] = 5;
+  learnedState.outputBiasDeltas[outputBiasDeltaKey(0)] = -5;
+  learnedState.gateBiasDeltas[gateBiasDeltaKey(unit.unitId, "candidate")] = 5;
+  const inputs = Array.from({ length: INPUT_COUNT }, (_, index) => Math.sin(index + 0.25) * 0.5);
+  const objectJob = {
+    ...brainJobForSpawner(spawner, inputs, 0),
+    learnedState,
+    includeActivations: false,
+    includePreviousState: false,
+  };
+  const compactJob = structuredClone(compactJobFromBrainEvaluationJob(objectJob, { plan }));
+  const compactResult = structuredClone(evaluateCompactBrainJob(compactJob));
+  const materialized = materializeCompactBrainEvaluationResult(compactResult, objectJob, plan);
+  const objectResult = evaluateBrainJob(objectJob);
+  const sanitized = sanitizeLearnedState(learnedState, spawner.genome.plasticityProfile.maxLearnedDelta);
+  const rematerializedLearned = materializeCompactLearnedState(compactJob.learnedState, plan);
+
+  assert.equal(compactJob.genomeKey.includes(String(spawner.id)), true);
+  assert.equal(compactJob.hiddenState.length, plan.unitIds.length);
+  assert.deepEqual(compactJob.inputs.map(round), inputs.map(round));
+  assert.equal(compactJob.genomePayload?.planSignature, plan.signature);
+  assert.deepEqual(compactJob.genomePayload?.structuralPlan.unitIds, plan.unitIds);
+  assert.deepEqual(roundRecord(rematerializedLearned.connectionDeltas), roundRecord(sanitized.connectionDeltas));
+  assert.deepEqual(roundRecord(rematerializedLearned.outputBiasDeltas), roundRecord(sanitized.outputBiasDeltas));
+  assert.deepEqual(roundRecord(rematerializedLearned.gateBiasDeltas), roundRecord(sanitized.gateBiasDeltas));
+  assert.deepEqual(materialized.evaluation?.outputs.map(round), objectResult.evaluation?.outputs.map(round));
+  assert.deepEqual(roundRecord(materialized.evaluation?.currentState ?? {}), roundRecord(objectResult.evaluation?.currentState ?? {}));
+}
+
+function testCompactResponseMaterializationPreservesTraceActivationMaterializer() {
+  const world = createSpawnerWorld(101, { ...PARITY_CONFIG, initialSpawners: 1, maxSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert.ok(spawner);
+  for (const unit of spawner.genome.units) spawner.hiddenState[unit.unitId] = Math.cos(unit.unitId / 5) * 0.3;
+  const plan = compileBrainPlan(spawner.genome);
+  const inputs = Array.from({ length: INPUT_COUNT }, (_, index) => Math.cos(index + 0.125) * 0.45);
+  const objectJob = {
+    ...brainJobForSpawner(spawner, inputs, 0),
+    includeActivations: false,
+    includePreviousState: false,
+  };
+  const compactJob = structuredClone(compactJobFromBrainEvaluationJob(objectJob, { plan }));
+  const compactResult = structuredClone(evaluateCompactBrainJob(compactJob));
+  const materialized = materializeCompactBrainEvaluationResult(compactResult, objectJob, plan);
+  const activated = materialized.evaluation ? materializeBrainEvaluationActivations(materialized.evaluation) : undefined;
+  const full = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: spawner.learnedState,
+    hiddenState: spawner.hiddenState,
+    inputs,
+    plan,
+    includeActivations: true,
+    includePreviousState: false,
+  });
+
+  assert.ok(activated);
+  assert.deepEqual(activated.outputs.map(round), full.outputs.map(round));
+  assert.deepEqual(roundRecord(activated.currentState), roundRecord(full.currentState));
+  assert.deepEqual(activated.activeConnectionIds, full.activeConnectionIds);
+  assert.deepEqual(roundActivationMap(activated.connectionActivations), roundActivationMap(full.connectionActivations));
+}
+
+function testLearnedDeltaFixtureCoversClampingAndPrecisionSensitiveValues() {
+  const world = createSpawnerWorld(101, { ...PARITY_CONFIG, initialSpawners: 1, maxSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert.ok(spawner);
+  const connection = spawner.genome.connections.find((candidate) => candidate.enabled);
+  const unit = spawner.genome.units.find((candidate) => candidate.enabled);
+  assert.ok(connection);
+  assert.ok(unit);
+  spawner.genome.plasticityProfile.maxLearnedDelta = 0.125;
+  const learned = structuredClone(spawner.learnedState);
+  learned.connectionDeltas[connectionDeltaKey(connection.innovationId)] = 10 + Number.EPSILON;
+  learned.outputBiasDeltas[outputBiasDeltaKey(0)] = -10 - Number.EPSILON;
+  learned.gateBiasDeltas[gateBiasDeltaKey(unit.unitId, "update")] = 10 + Number.EPSILON;
+  const sanitized = sanitizeLearnedState(learned, spawner.genome.plasticityProfile.maxLearnedDelta);
+  const inputs = Array.from({ length: INPUT_COUNT }, (_, index) => Math.sin(index + 0.125) * 0.75);
+  const base = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: spawner.learnedState,
+    hiddenState: spawner.hiddenState,
+    inputs,
+  });
+  const rawLearned = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: learned,
+    hiddenState: spawner.hiddenState,
+    inputs,
+  });
+  const sanitizedLearned = evaluateSpawnerBrainPure({
+    genome: spawner.genome,
+    learnedState: sanitized,
+    hiddenState: spawner.hiddenState,
+    inputs,
+  });
+
+  assert.equal(sanitized.connectionDeltas[connectionDeltaKey(connection.innovationId)], 0.125);
+  assert.equal(sanitized.outputBiasDeltas[outputBiasDeltaKey(0)], -0.125);
+  assert.equal(sanitized.gateBiasDeltas[gateBiasDeltaKey(unit.unitId, "update")], 0.125);
+  assert.notDeepEqual(rawLearned.outputs.map(round), base.outputs.map(round));
+  assert.deepEqual(rawLearned.outputs.map(round), sanitizedLearned.outputs.map(round));
+  assert.deepEqual(roundRecord(rawLearned.currentState), roundRecord(sanitizedLearned.currentState));
+}
+
 async function testAsyncOutOfOrderRunnerMatchesSyncParity() {
   const sync = runSyncParity();
   const asyncDigest = await runAsyncParity({
@@ -88,11 +364,42 @@ async function testAsyncOutOfOrderRunnerMatchesSyncParity() {
   assert.deepEqual(asyncDigest, sync);
 }
 
+async function testCompactRunnerMatchesSyncParityWithOutOfOrderResults() {
+  const sync = runSyncParity();
+  const compactRunner = createCompactSyncBrainEvaluationRunner();
+  const asyncDigest = await runAsyncParity({
+    evaluateBatch(jobs) {
+      const results = compactRunner.evaluateBatch(jobs) as BrainEvaluationResult[];
+      return Promise.resolve([...results].reverse());
+    },
+  });
+  assert.deepEqual(asyncDigest, sync);
+}
+
 async function testAsyncStaleResultFailsBeforeDecisionMutation() {
   const { timeline, world } = createOneTickWorld();
   const runner: BrainEvaluationRunner = {
     evaluateBatch(jobs) {
       const results = createSyncBrainEvaluationRunner().evaluateBatch(jobs) as BrainEvaluationResult[];
+      const first = results[0];
+      if (first) first.batchId += 1;
+      return Promise.resolve(results);
+    },
+  };
+  await assert.rejects(
+    () => advanceSpawnerWorldToTimelineAsync(world, timeline, 1, { brainEvaluationRunner: runner, sessionId: 1, runGeneration: 1 }),
+    /identity mismatch/,
+  );
+  assert.equal(world.foods.length, 0);
+  assert.equal(world.spawners.every((spawner) => spawner.spawnedCount === 0), true);
+}
+
+async function testCompactAsyncStaleResultFailsBeforeDecisionMutation() {
+  const { timeline, world } = createOneTickWorld();
+  const compactRunner = createCompactSyncBrainEvaluationRunner();
+  const runner: BrainEvaluationRunner = {
+    evaluateBatch(jobs) {
+      const results = compactRunner.evaluateBatch(jobs) as BrainEvaluationResult[];
       const first = results[0];
       if (first) first.batchId += 1;
       return Promise.resolve(results);
@@ -121,6 +428,22 @@ async function testAsyncMissingResultFailsBeforeDecisionMutation() {
   assert.equal(world.foods.length, 0);
 }
 
+async function testCompactAsyncMissingResultFailsBeforeDecisionMutation() {
+  const { timeline, world } = createOneTickWorld();
+  const compactRunner = createCompactSyncBrainEvaluationRunner();
+  const runner: BrainEvaluationRunner = {
+    evaluateBatch(jobs) {
+      const results = compactRunner.evaluateBatch(jobs) as BrainEvaluationResult[];
+      return Promise.resolve(results.slice(1));
+    },
+  };
+  await assert.rejects(
+    () => advanceSpawnerWorldToTimelineAsync(world, timeline, 1, { brainEvaluationRunner: runner, sessionId: 1, runGeneration: 1 }),
+    /result count mismatch/,
+  );
+  assert.equal(world.foods.length, 0);
+}
+
 async function testAsyncFailedResultFailsBeforeDecisionMutation() {
   const { timeline, world } = createOneTickWorld();
   const runner: BrainEvaluationRunner = {
@@ -137,6 +460,27 @@ async function testAsyncFailedResultFailsBeforeDecisionMutation() {
   await assert.rejects(
     () => advanceSpawnerWorldToTimelineAsync(world, timeline, 1, { brainEvaluationRunner: runner, sessionId: 1, runGeneration: 1 }),
     /forced shard failure/,
+  );
+  assert.equal(world.foods.length, 0);
+}
+
+async function testCompactAsyncFailedResultFailsBeforeDecisionMutation() {
+  const { timeline, world } = createOneTickWorld();
+  const compactRunner = createCompactSyncBrainEvaluationRunner();
+  const runner: BrainEvaluationRunner = {
+    evaluateBatch(jobs) {
+      const results = compactRunner.evaluateBatch(jobs) as BrainEvaluationResult[];
+      const first = results[0];
+      if (first) {
+        delete first.evaluation;
+        first.error = "forced compact shard failure";
+      }
+      return Promise.resolve(results);
+    },
+  };
+  await assert.rejects(
+    () => advanceSpawnerWorldToTimelineAsync(world, timeline, 1, { brainEvaluationRunner: runner, sessionId: 1, runGeneration: 1 }),
+    /forced compact shard failure/,
   );
   assert.equal(world.foods.length, 0);
 }
@@ -264,7 +608,7 @@ async function testBrainEvalPoolResendsEvictedGenomeKeys() {
     },
     postMessage(message) {
       requests.push(message);
-      const results = message.jobs.map((job) => {
+      const results = (message.jobs ?? []).map((job) => {
         if (job.genomeKey && job.genome) genomeCache.set(job.genomeKey, job.genome);
         const genome = job.genome ?? (job.genomeKey ? genomeCache.get(job.genomeKey) : undefined);
         return evaluateBrainJob(genome ? { ...job, genome } : job);
@@ -296,11 +640,11 @@ async function testBrainEvalPoolResendsEvictedGenomeKeys() {
   await pool.evaluateBatch([firstJob]);
 
   assert.equal(requests.length, 4);
-  assert.ok(requests[0]?.jobs[0]?.genome);
-  assert.equal(requests[1]?.jobs[0]?.genome, undefined);
+  assert.ok(requests[0]?.jobs?.[0]?.genome);
+  assert.equal(requests[1]?.jobs?.[0]?.genome, undefined);
   assert.deepEqual(learnedOnlyResult[0]?.evaluation?.outputs.map(round), learnedOnlySync.evaluation?.outputs.map(round));
-  assert.ok(requests[2]?.jobs[0]?.genome);
-  assert.ok(requests[3]?.jobs[0]?.genome);
+  assert.ok(requests[2]?.jobs?.[0]?.genome);
+  assert.ok(requests[3]?.jobs?.[0]?.genome);
   pool.dispose?.();
 }
 
@@ -314,7 +658,7 @@ async function testBrainEvalPoolResendsGenomeAfterFailedShard() {
     postMessage(message) {
       requests.push(message);
       if (requests.length === 1) return;
-      const results = message.jobs.map((job) => evaluateBrainJob(job));
+      const results = (message.jobs ?? []).map((job) => evaluateBrainJob(job));
       queueMicrotask(() => {
         for (const listener of listeners) listener({ data: { type: "brainShardResult", requestId: message.requestId, results } });
       });
@@ -337,8 +681,103 @@ async function testBrainEvalPoolResendsGenomeAfterFailedShard() {
   await pool.evaluateBatch([job]);
 
   assert.equal(requests.length, 2);
-  assert.ok(requests[0]?.jobs[0]?.genome);
-  assert.ok(requests[1]?.jobs[0]?.genome);
+  assert.ok(requests[0]?.jobs?.[0]?.genome);
+  assert.ok(requests[1]?.jobs?.[0]?.genome);
+  pool.dispose?.();
+}
+
+async function testCompactBrainEvalPoolResendsEvictedGenomePayloads() {
+  const requests: BrainEvalWorkerRequest[] = [];
+  const listeners: Array<(event: { data: BrainEvalWorkerResponse }) => void> = [];
+  const genomeCache = new Map<string, NonNullable<BrainEvaluationJob["genome"]>>();
+  const worker: BrowserWorker = {
+    addEventListener(type: string, listener: unknown) {
+      if (type === "message") listeners.push(listener as (event: { data: BrainEvalWorkerResponse }) => void);
+    },
+    postMessage(message) {
+      requests.push(message);
+      const compactResults = (message.compactJobs ?? []).map((job) => {
+        if (job.genomeKey && job.genome) genomeCache.set(job.genomeKey, job.genome);
+        const genome = job.genome ?? genomeCache.get(job.genomeKey);
+        return evaluateCompactBrainJob({ ...job, genome });
+      });
+      queueMicrotask(() => {
+        for (const listener of listeners) listener({ data: { type: "brainShardResult", requestId: message.requestId, protocol: "compact", results: [], compactResults } });
+      });
+    },
+    terminate() {},
+  };
+  const world = createSpawnerWorld(101, { ...PARITY_CONFIG, initialSpawners: 2, maxSpawners: 2 });
+  const first = world.spawners[0];
+  const second = world.spawners[1];
+  assert.ok(first);
+  assert.ok(second);
+  const firstJob = brainJobForSpawner(first, Array.from({ length: 16 }, () => 0), 0);
+  const secondJob = brainJobForSpawner(second, Array.from({ length: 16 }, () => 0), 1);
+  const learnedOnlyJob = {
+    ...firstJob,
+    learnedState: structuredClone(firstJob.learnedState),
+  };
+  learnedOnlyJob.learnedState.outputBiasDeltas[outputBiasDeltaKey(0)] = 0.5;
+  const pool = createBrainEvalPool({ workerCount: 1, timeoutMs: 100, cacheLimit: 1, protocol: "compact", workerFactory: () => worker });
+
+  await pool.evaluateBatch([firstJob]);
+  const learnedOnlyResult = await pool.evaluateBatch([learnedOnlyJob]);
+  const learnedOnlySync = evaluateBrainJob(learnedOnlyJob);
+  await pool.evaluateBatch([secondJob]);
+  await pool.evaluateBatch([firstJob]);
+
+  assert.equal(requests.length, 4);
+  assert.ok(requests[0]?.compactJobs?.[0]?.genome);
+  assert.ok(requests[0]?.compactJobs?.[0]?.genomePayload);
+  assert.equal(requests[1]?.compactJobs?.[0]?.genome, undefined);
+  assert.equal(requests[1]?.compactJobs?.[0]?.genomePayload, undefined);
+  assert.deepEqual(learnedOnlyResult[0]?.evaluation?.outputs.map(round), learnedOnlySync.evaluation?.outputs.map(round));
+  assert.ok(requests[2]?.compactJobs?.[0]?.genome);
+  assert.ok(requests[2]?.compactJobs?.[0]?.genomePayload);
+  assert.ok(requests[3]?.compactJobs?.[0]?.genome);
+  assert.ok(requests[3]?.compactJobs?.[0]?.genomePayload);
+  pool.dispose?.();
+}
+
+async function testCompactBrainEvalPoolResendsGenomePayloadAfterFailedShard() {
+  const requests: BrainEvalWorkerRequest[] = [];
+  const listeners: Array<(event: { data: BrainEvalWorkerResponse }) => void> = [];
+  const worker: BrowserWorker = {
+    addEventListener(type: string, listener: unknown) {
+      if (type === "message") listeners.push(listener as (event: { data: BrainEvalWorkerResponse }) => void);
+    },
+    postMessage(message) {
+      requests.push(message);
+      if (requests.length === 1) return;
+      const compactResults = (message.compactJobs ?? []).map((job) => evaluateCompactBrainJob(job));
+      queueMicrotask(() => {
+        for (const listener of listeners) listener({ data: { type: "brainShardResult", requestId: message.requestId, protocol: "compact", results: [], compactResults } });
+      });
+    },
+    terminate() {},
+  };
+  const world = createSpawnerWorld(101, { ...PARITY_CONFIG, initialSpawners: 1, maxSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert.ok(spawner);
+  const job = brainJobForSpawner(spawner, Array.from({ length: 16 }, () => 0), 0);
+  const pool = createBrainEvalPool({
+    workerCount: 1,
+    timeoutMs: 5,
+    disableAfterFailures: 2,
+    cacheLimit: 10,
+    protocol: "compact",
+    workerFactory: () => worker,
+  });
+
+  await pool.evaluateBatch([job]);
+  await pool.evaluateBatch([job]);
+
+  assert.equal(requests.length, 2);
+  assert.ok(requests[0]?.compactJobs?.[0]?.genome);
+  assert.ok(requests[0]?.compactJobs?.[0]?.genomePayload);
+  assert.ok(requests[1]?.compactJobs?.[0]?.genome);
+  assert.ok(requests[1]?.compactJobs?.[0]?.genomePayload);
   pool.dispose?.();
 }
 
@@ -417,19 +856,42 @@ async function runAsyncParity(runner: BrainEvaluationRunner) {
   return worldDigest(world);
 }
 
+function roundRecord(record: Record<number, number>) {
+  return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, round(value)]));
+}
+
+function roundActivationMap(record: Record<string, { source: number; target: number }>) {
+  return Object.fromEntries(
+    Object.entries(record).map(([key, value]) => [key, { source: round(value.source), target: round(value.target) }]),
+  );
+}
+
 export const tests: SineTest[] = [
   { name: "Pure Evaluation Does Not Mutate Spawner State", run: testPureEvaluationDoesNotMutateSpawnerState },
   { name: "Pure Evaluation Can Skip Trace Only Payloads", run: testPureEvaluationCanSkipTraceOnlyPayloads },
+  { name: "Pure Evaluation Matches Compiled Plan Golden", run: testPureEvaluationMatchesCompiledPlanGolden },
+  { name: "Compact Evaluation Preserves Trace Fallback Source State", run: testCompactEvaluationPreservesTraceFallbackSourceState },
+  { name: "Runtime Activation Materializer Matches Full Evaluation", run: testRuntimeActivationMaterializerMatchesFullEvaluation },
+  { name: "Runtime Evaluation Results Do Not Alias Subsequent Evaluations", run: testRuntimeEvaluationResultsDoNotAliasSubsequentEvaluations },
+  { name: "Compact Job Serialization And Response Materialization Match Object Evaluation", run: testCompactJobSerializationAndResponseMaterializationMatchObjectEvaluation },
+  { name: "Compact Response Materialization Preserves Trace Activation Materializer", run: testCompactResponseMaterializationPreservesTraceActivationMaterializer },
+  { name: "Learned Delta Fixture Covers Clamping And Precision Sensitive Values", run: testLearnedDeltaFixtureCoversClampingAndPrecisionSensitiveValues },
   { name: "Async Out Of Order Runner Matches Sync Parity", run: testAsyncOutOfOrderRunnerMatchesSyncParity },
+  { name: "Compact Runner Matches Sync Parity With Out Of Order Results", run: testCompactRunnerMatchesSyncParityWithOutOfOrderResults },
   { name: "Async Stale Result Fails Before Decision Mutation", run: testAsyncStaleResultFailsBeforeDecisionMutation },
+  { name: "Compact Async Stale Result Fails Before Decision Mutation", run: testCompactAsyncStaleResultFailsBeforeDecisionMutation },
   { name: "Async Missing Result Fails Before Decision Mutation", run: testAsyncMissingResultFailsBeforeDecisionMutation },
+  { name: "Compact Async Missing Result Fails Before Decision Mutation", run: testCompactAsyncMissingResultFailsBeforeDecisionMutation },
   { name: "Async Failed Result Fails Before Decision Mutation", run: testAsyncFailedResultFailsBeforeDecisionMutation },
+  { name: "Compact Async Failed Result Fails Before Decision Mutation", run: testCompactAsyncFailedResultFailsBeforeDecisionMutation },
   { name: "Async Advance Epoch Mismatch Fails Before Decision Mutation", run: testAsyncAdvanceEpochMismatchFailsBeforeDecisionMutation },
   { name: "Brain Plan Cache Uses Current Forward Values And Invalidates Topology", run: testBrainPlanCacheUsesCurrentForwardValuesAndInvalidatesTopology },
   { name: "Brain Genome Cache Signature Includes Forward Values Only", run: testBrainGenomeCacheSignatureIncludesForwardValuesOnly },
   { name: "Brain Eval Pool Disables After Worker Failures", run: testBrainEvalPoolDisablesAfterWorkerFailures },
   { name: "Brain Eval Pool Resends Evicted Genome Keys", run: testBrainEvalPoolResendsEvictedGenomeKeys },
   { name: "Brain Eval Pool Resends Genome After Failed Shard", run: testBrainEvalPoolResendsGenomeAfterFailedShard },
+  { name: "Compact Brain Eval Pool Resends Evicted Genome Payloads", run: testCompactBrainEvalPoolResendsEvictedGenomePayloads },
+  { name: "Compact Brain Eval Pool Resends Genome Payload After Failed Shard", run: testCompactBrainEvalPoolResendsGenomePayloadAfterFailedShard },
   { name: "Bounded Cache Evicts Least Recently Used Entries", run: testBoundedCacheEvictsLeastRecentlyUsedEntries },
   { name: "Brain Eval Pool Falls Back When Workers Unavailable", run: testBrainEvalPoolFallsBackWhenWorkersUnavailable },
 ];

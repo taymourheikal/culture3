@@ -10,6 +10,7 @@ import {
   valueToY,
   type ChartBounds,
 } from "./canvas";
+import { chartTheme } from "./chartTheme";
 import { formatPercentAxis, formatSignedPercent } from "./format";
 
 export function drawSignalChart(canvas: HTMLCanvasElement, packet: MarketChartPacket, selectedSpawnerId: number | null) {
@@ -22,7 +23,7 @@ export function drawSignalChart(canvas: HTMLCanvasElement, packet: MarketChartPa
   const { chartWidth, valueMin, valueMax } = geometry;
   const centerX = bounds.left + chartWidth / 2;
 
-  context.fillStyle = "#0d1216";
+  context.fillStyle = chartTheme.background;
   context.fillRect(0, 0, cssWidth, cssHeight);
   drawGrid(context, bounds, valueMin, valueMax, formatPercentAxis);
   if (packet.marketSource !== "generated") {
@@ -30,7 +31,7 @@ export function drawSignalChart(canvas: HTMLCanvasElement, packet: MarketChartPa
   }
 
   const zeroY = valueToY(0, valueMin, valueMax, bounds);
-  context.strokeStyle = "rgba(255, 255, 255, 0.22)";
+  context.strokeStyle = chartTheme.gridStrong;
   context.lineWidth = 1;
   context.beginPath();
   context.moveTo(bounds.left, zeroY);
@@ -45,10 +46,10 @@ export function drawSignalChart(canvas: HTMLCanvasElement, packet: MarketChartPa
     if (index === 0) context.moveTo(x, y);
     else context.lineTo(x, y);
   });
-  context.strokeStyle = "#69d7d0";
+  context.strokeStyle = chartTheme.accent;
   context.lineWidth = 3;
   context.shadowBlur = 18;
-  context.shadowColor = "rgba(105, 215, 208, 0.38)";
+  context.shadowColor = chartTheme.accentShadow;
   context.stroke();
   context.shadowBlur = 0;
 
@@ -62,19 +63,19 @@ export function drawSignalChart(canvas: HTMLCanvasElement, packet: MarketChartPa
   });
 
   const currentY = valueToY(packet.currentSignal, valueMin, valueMax, bounds);
-  context.strokeStyle = "rgba(255, 214, 128, 0.95)";
+  context.strokeStyle = chartTheme.amberStrong;
   context.lineWidth = 2;
   context.beginPath();
   context.moveTo(centerX, bounds.top);
   context.lineTo(centerX, bounds.bottom);
   context.stroke();
 
-  context.fillStyle = "#ffd680";
+  context.fillStyle = chartTheme.amber;
   context.beginPath();
   context.arc(centerX, currentY, 5, 0, Math.PI * 2);
   context.fill();
 
-  context.fillStyle = "#dce8e5";
+  context.fillStyle = chartTheme.text;
   context.font = "700 12px Inter, system-ui, sans-serif";
   context.textAlign = "left";
   context.fillText(formatSignedPercent(packet.currentSignal), centerX + 10, currentY - 10);
@@ -161,8 +162,8 @@ function drawSpawnerMarkers(
     const resolvedY = food.exitSignal === undefined ? y : valueToY(food.exitSignal, valueMin, valueMax, bounds);
     const radius = 6 + food.strength * 5;
     const isLong = food.direction === "long";
-    const outcomeColor = food.status === "pending" ? "#ffd680" : food.status === "win" ? "#86d87a" : "#ff8f70";
-    const directionFill = isLong ? "rgba(105, 215, 208, 0.92)" : "rgba(255, 143, 112, 0.92)";
+    const outcomeColor = food.status === "pending" ? chartTheme.amber : food.status === "win" ? chartTheme.positive : chartTheme.negative;
+    const directionFill = isLong ? chartTheme.accent : chartTheme.negative;
     const spawnVisible = food.spawnTick >= geometry.start && food.spawnTick <= geometry.end;
     const resolvedVisible = food.status !== "pending" && food.resolveTick >= geometry.start && food.resolveTick <= geometry.end;
     const lineStartTick = clamp(food.spawnTick, geometry.start, geometry.end);
@@ -182,20 +183,20 @@ function drawSpawnerMarkers(
     context.stroke();
 
     if (spawnVisible) {
-      context.fillStyle = food.status === "pending" ? "rgba(13, 18, 22, 0.9)" : directionFill;
+      context.fillStyle = food.status === "pending" ? chartTheme.backgroundStrong : directionFill;
       drawDirectionMarker(context, x, spawnY, radius, isLong);
       context.fill();
       context.strokeStyle = outcomeColor;
       context.stroke();
 
-      context.fillStyle = food.status === "pending" ? "#ffd680" : "#071014";
+      context.fillStyle = food.status === "pending" ? chartTheme.amber : chartTheme.backgroundStrong;
       context.fillText(isLong ? "L" : "S", x, spawnY);
     }
 
     if (resolvedVisible) {
       const markerSize = radius * 0.78;
-      context.fillStyle = food.status === "win" ? "rgba(134, 216, 122, 0.95)" : "rgba(255, 143, 112, 0.95)";
-      context.strokeStyle = "#0d1216";
+      context.fillStyle = food.status === "win" ? chartTheme.positiveStrong : chartTheme.negativeStrong;
+      context.strokeStyle = chartTheme.background;
       context.lineWidth = 2;
       context.beginPath();
       context.moveTo(exitX, clampedResolvedY - markerSize);
@@ -206,7 +207,7 @@ function drawSpawnerMarkers(
       context.fill();
       context.stroke();
 
-      context.fillStyle = "#071014";
+      context.fillStyle = chartTheme.backgroundStrong;
       context.font = "900 10px Inter, system-ui, sans-serif";
       context.fillText(food.status === "win" ? "+" : "-", exitX, clampedResolvedY + 0.5);
       context.font = "800 9px Inter, system-ui, sans-serif";

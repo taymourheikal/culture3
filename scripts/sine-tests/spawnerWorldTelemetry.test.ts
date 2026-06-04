@@ -3,6 +3,7 @@ import { INITIAL_SETTINGS } from "../../src/sine/marketSignal";
 import { advanceMarketTimeline, createCandleMarketTimeline, createMarketTimeline } from "../../src/sine/marketTimeline";
 import { recordSpawnerEvent } from "../../src/sine/spawner/events";
 import { calculateFoodPayoff, resolveFoods } from "../../src/sine/spawner/reward";
+import { recordTelemetry } from "../../src/sine/spawner/telemetry";
 import {
   activeConnections,
   activeUnits,
@@ -32,6 +33,11 @@ function testLongSparseRunAvoidsInvalidNumbers() {
     assert(metrics.activeConnections >= 0);
   }
   for (const sample of world.telemetry) {
+    assert(Number.isFinite(sample.rollingHitRate));
+    assert(Number.isFinite(sample.rollingAveragePayoff));
+    assert(Number.isFinite(sample.resolvedVolume));
+    assert(Number.isFinite(sample.totalResolved));
+    assert(Number.isFinite(sample.cumulativeNetPayoff));
     assert(Number.isFinite(sample.averageActiveUnits));
     assert(Number.isFinite(sample.averageActiveConnections));
     assert(Number.isFinite(sample.averageActiveLayers));
@@ -109,6 +115,36 @@ function testTelemetryTrimKeepsValidRange() {
   }
 }
 
+function testTradingPerformanceTelemetryTracksResolvedVolume() {
+  const world = createSpawnerWorld(101, { initialSpawners: 4 });
+
+  recordTelemetry(world);
+  assert.equal(world.telemetry.at(-1)?.resolvedVolume, 0);
+  assert.equal(world.telemetry.at(-1)?.totalResolved, 0);
+
+  world.tick += 1;
+  world.totalResolved = 2;
+  world.cumulativeNetPayoff = 0.5;
+  world.recentResolvedPayoffs.push(0.75, -0.25);
+  recordTelemetry(world);
+
+  const second = world.telemetry.at(-1);
+  assert(second);
+  assert.equal(second.resolvedVolume, 2);
+  assert.equal(second.totalResolved, 2);
+  assert.equal(second.rollingHitRate, 0.5);
+  assert.equal(second.rollingAveragePayoff, 0.125);
+  assert.equal(second.cumulativeNetPayoff, 0.5);
+
+  world.tick += 1;
+  recordTelemetry(world);
+
+  const third = world.telemetry.at(-1);
+  assert(third);
+  assert.equal(third.resolvedVolume, 0);
+  assert.equal(third.totalResolved, 2);
+}
+
 function testEventSinkReceivesEventsBeyondVisualRetentionCap() {
   const world = createSpawnerWorld(101, { initialSpawners: 1 });
   const captured: number[] = [];
@@ -136,5 +172,6 @@ export const tests: SineTest[] = [
   { name: "Large Mutable Perception Run Avoids Invalid Numbers", run: testLargeMutablePerceptionRunAvoidsInvalidNumbers },
   { name: "Thousand Spawner Large Window Run Avoids Invalid Numbers", run: testThousandSpawnerLargeWindowRunAvoidsInvalidNumbers },
   { name: "Telemetry Trim Keeps Valid Range", run: testTelemetryTrimKeepsValidRange },
+  { name: "Trading Performance Telemetry Tracks Resolved Volume", run: testTradingPerformanceTelemetryTracksResolvedVolume },
   { name: "Event Sink Receives Events Beyond Visual Retention Cap", run: testEventSinkReceivesEventsBeyondVisualRetentionCap },
 ];

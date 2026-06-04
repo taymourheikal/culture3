@@ -34,43 +34,73 @@ async function main() {
             simulationRuntime.advanceSimulationToTarget(syncSimulation, tick, 1);
           }
 
-          const parallelSimulation = createSimulation();
-          const pool = brainEvalPool.createBrainEvalPool({
+          const objectWorkerSimulation = createSimulation();
+          const objectPool = brainEvalPool.createBrainEvalPool({
             workerCount: brainEvalConfig.defaultBrainEvalWorkerCount(),
             timeoutMs: brainEvalConfig.BRAIN_EVAL_TIMEOUT_MS,
           });
-          const startedMode = pool.currentMode?.() ?? pool.mode ?? "sync";
+          const objectStartedMode = objectPool.currentMode?.() ?? objectPool.mode ?? "sync";
           for (let tick = 1; tick <= advanceTicks; tick += 1) {
-            await simulationRuntime.advanceSimulationToTargetAsync(parallelSimulation, tick, 1, {
-              brainEvaluationRunner: pool,
+            await simulationRuntime.advanceSimulationToTargetAsync(objectWorkerSimulation, tick, 1, {
+              brainEvaluationRunner: objectPool,
               sessionId: 1,
               runGeneration: 1,
               advanceEpoch: 1,
               batchId: tick,
             });
           }
-          const endedMode = pool.currentMode?.() ?? pool.mode ?? "sync";
-          const stats = pool.stats?.();
-          pool.dispose?.();
+          const objectEndedMode = objectPool.currentMode?.() ?? objectPool.mode ?? "sync";
+          const objectStats = objectPool.stats?.();
+          objectPool.dispose?.();
+
+          const compactWorkerSimulation = createSimulation();
+          const compactPool = brainEvalPool.createBrainEvalPool({
+            workerCount: brainEvalConfig.defaultBrainEvalWorkerCount(),
+            timeoutMs: brainEvalConfig.BRAIN_EVAL_TIMEOUT_MS,
+            protocol: "compact",
+          });
+          const compactStartedMode = compactPool.currentMode?.() ?? compactPool.mode ?? "sync";
+          for (let tick = 1; tick <= advanceTicks; tick += 1) {
+            await simulationRuntime.advanceSimulationToTargetAsync(compactWorkerSimulation, tick, 1, {
+              brainEvaluationRunner: compactPool,
+              sessionId: 1,
+              runGeneration: 1,
+              advanceEpoch: 1,
+              batchId: tick,
+            });
+          }
+          const compactEndedMode = compactPool.currentMode?.() ?? compactPool.mode ?? "sync";
+          const compactStats = compactPool.stats?.();
+          compactPool.dispose?.();
 
           return {
-            startedMode,
-            endedMode,
-            stats,
+            objectStartedMode,
+            objectEndedMode,
+            objectStats,
+            compactStartedMode,
+            compactEndedMode,
+            compactStats,
             sync: digest.worldDigest(syncSimulation.world),
-            parallel: digest.worldDigest(parallelSimulation.world),
+            objectWorker: digest.worldDigest(objectWorkerSimulation.world),
+            compactWorker: digest.worldDigest(compactWorkerSimulation.world),
           };
         },
         { population: POPULATION, advanceTicks: ADVANCE_TICKS },
       );
 
-      assert.equal(result.startedMode, "parallel");
-      assert.equal(result.endedMode, "parallel");
-      assert.equal(result.stats?.syncFallbackBatches, 0);
-      assert.equal(result.stats?.disabledBatches, 0);
-      assert.ok((result.stats?.parallelBatches ?? 0) >= ADVANCE_TICKS);
-      assert.deepEqual(result.parallel, result.sync);
-      console.log(`Browser brain worker parity passed at ${POPULATION} pop / ${ADVANCE_TICKS} ticks.`);
+      assert.equal(result.objectStartedMode, "parallel");
+      assert.equal(result.objectEndedMode, "parallel");
+      assert.equal(result.objectStats?.syncFallbackBatches, 0);
+      assert.equal(result.objectStats?.disabledBatches, 0);
+      assert.ok((result.objectStats?.parallelBatches ?? 0) >= ADVANCE_TICKS);
+      assert.deepEqual(result.objectWorker, result.sync);
+      assert.equal(result.compactStartedMode, "parallel");
+      assert.equal(result.compactEndedMode, "parallel");
+      assert.equal(result.compactStats?.syncFallbackBatches, 0);
+      assert.equal(result.compactStats?.disabledBatches, 0);
+      assert.ok((result.compactStats?.parallelBatches ?? 0) >= ADVANCE_TICKS);
+      assert.deepEqual(result.compactWorker, result.sync);
+      console.log(`Browser brain object and compact worker parity passed at ${POPULATION} pop / ${ADVANCE_TICKS} ticks.`);
     });
   } finally {
     server.stop();

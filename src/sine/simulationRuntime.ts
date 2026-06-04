@@ -18,9 +18,17 @@ export type MarketSimulationState = {
   marketConfig: MarketRuntimeConfig;
 };
 
-export function createSimulationState(settings: WaveSettings | MarketRuntimeConfig, spawnerConfig?: SpawnerConfig): MarketSimulationState {
+export type SimulationRuntimeOptions = {
+  seed?: number;
+};
+
+export function createSimulationState(
+  settings: WaveSettings | MarketRuntimeConfig,
+  spawnerConfig?: SpawnerConfig,
+  options: SimulationRuntimeOptions = {},
+): MarketSimulationState {
   const marketConfig = sanitizeMarketRuntimeConfig(isRuntimeConfig(settings) ? settings : { generated: settings });
-  const world = createSpawnerWorld(undefined, spawnerConfig);
+  const world = createSpawnerWorld(options.seed, spawnerConfig);
   const timeline = createMarketTimeline(marketConfig.generated);
   return { timeline, world, marketConfig: { ...marketConfig, source: "generated" } };
 }
@@ -31,16 +39,18 @@ export function createCandleSimulationState({
   candles,
   snappedStartTimestamp,
   snappedStartDatetime,
+  seed,
 }: {
   marketConfig: MarketRuntimeConfig;
   spawnerConfig?: SpawnerConfig;
   candles: MarketCandle[];
   snappedStartTimestamp?: number;
   snappedStartDatetime?: string;
+  seed?: number;
 }): MarketSimulationState {
   const sanitized = sanitizeMarketRuntimeConfig(marketConfig);
-  if (!isBtcSource(sanitized.source)) return createSimulationState(sanitized, spawnerConfig);
-  const world = createSpawnerWorld(undefined, spawnerConfig);
+  if (!isBtcSource(sanitized.source)) return createSimulationState(sanitized, spawnerConfig, { seed });
+  const world = createSpawnerWorld(seed, spawnerConfig);
   const timeline = createCandleMarketTimeline({
     candles,
     source: sanitized.source,

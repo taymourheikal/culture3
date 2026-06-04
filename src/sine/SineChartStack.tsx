@@ -3,25 +3,36 @@ import { formatSignedPercent } from "./charts/format";
 import { isBtcSource, sourceLabel, type MarketRuntimeConfig } from "./marketRuntimeConfig";
 
 export function SineChartStack({
-  activeMarketConfig,
+  marketConfig,
   currentSignal,
   currentNoise,
   priceCanvasRef,
   noiseCanvasRef,
   parameterCanvasRef,
   onSignalChartClick,
+  onOpenTradeLedger,
 }: {
-  activeMarketConfig: MarketRuntimeConfig;
+  marketConfig: MarketRuntimeConfig;
   currentSignal: number;
   currentNoise: number;
   priceCanvasRef: RefObject<HTMLCanvasElement | null>;
   noiseCanvasRef: RefObject<HTMLCanvasElement | null>;
   parameterCanvasRef: RefObject<HTMLCanvasElement | null>;
   onSignalChartClick: (clientX: number, clientY: number) => void;
+  onOpenTradeLedger?: () => void;
 }) {
   return (
     <>
       <div className="sine-chart-wrap price-chart-wrap">
+        <div className="price-chart-title">
+          <span>World view</span>
+          <strong>Market Signal + Active Trades · {formatSignedPercent(currentSignal)}</strong>
+          {onOpenTradeLedger ? (
+            <button type="button" className="price-chart-ledger-button" onClick={onOpenTradeLedger}>
+              Trade Ledger
+            </button>
+          ) : null}
+        </div>
         <canvas
           ref={priceCanvasRef}
           className="sine-canvas"
@@ -31,10 +42,10 @@ export function SineChartStack({
         <div className="time-marker-label">Current tick</div>
       </div>
 
-      {isBtcSource(activeMarketConfig.source) ? (
+      {isBtcSource(marketConfig.source) ? (
         <div className="sine-chart-wrap noise-chart-wrap btc-price-chart-wrap">
           <div className="noise-chart-title">
-            <span>{sourceLabel(activeMarketConfig.source)} Price</span>
+            <span>{sourceLabel(marketConfig.source)} Price</span>
             <strong>{formatSignedPercent(currentSignal)}</strong>
           </div>
           <canvas ref={noiseCanvasRef} className="noise-canvas btc-price-canvas" />

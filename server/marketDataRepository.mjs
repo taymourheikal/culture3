@@ -60,7 +60,7 @@ function normalizeSource(source) {
   return value === "btcusd_1m" || value === "btcusd_5m" ? value : null;
 }
 
-function parseStartTimestamp(value) {
+export function parseStartTimestamp(value) {
   if (value === null || value === undefined || value === "") return Number.NaN;
   if (typeof value === "number") return Math.floor(value);
   const numeric = Number(value);
@@ -85,5 +85,6 @@ function normalizeCandle(row) {
     high: row.high,
     low: row.low,
     close: row.close,
+    volume: row.volume,
   };
 }

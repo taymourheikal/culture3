@@ -1,5 +1,6 @@
 import type { LeanSelectedUniquenessSample, LeanUniquenessTelemetrySample } from "../marketWorkerProtocol";
 import { clamp, tickToX, type ChartBounds } from "./canvas";
+import { chartTheme } from "./chartTheme";
 import { drawChartEmptyMessage, drawFrameGrid, prepareChartFrame } from "./chartFrame";
 import { drawNormalizedLine, drawTickAxis } from "./series";
 
@@ -50,7 +51,7 @@ export function drawUniquenessChart(
   if (skippedReason === "population_limit") {
     context.textAlign = "right";
     context.textBaseline = "top";
-    context.fillStyle = "#f4c568";
+    context.fillStyle = chartTheme.amber;
     context.font = "800 11px Inter, system-ui, sans-serif";
     context.fillText("paused above population limit", bounds.right, bounds.top + 4);
   }
@@ -80,7 +81,7 @@ function drawBand(
     context.lineTo(tickToX(sample.tick, startTick, endTick, bounds), rawDistanceToY(sample.p25RawDistance, max, bounds));
   }
   context.closePath();
-  context.fillStyle = "rgba(185, 137, 255, 0.18)";
+  context.fillStyle = chartTheme.purpleBand;
   context.fill();
 }
 
@@ -92,7 +93,17 @@ function drawAggregateLine(
   endTick: number,
   max: number,
 ) {
-  drawNormalizedLine(context, extendAggregateSamples(samples, endTick), bounds, startTick, endTick, "#b989ff", (sample) => sample.medianRawDistance / max, 2.6, 3.6);
+  drawNormalizedLine(
+    context,
+    extendAggregateSamples(samples, endTick),
+    bounds,
+    startTick,
+    endTick,
+    chartTheme.purple,
+    (sample) => sample.medianRawDistance / max,
+    2.6,
+    3.6,
+  );
 }
 
 function drawSelectedLine(
@@ -103,7 +114,17 @@ function drawSelectedLine(
   endTick: number,
   max: number,
 ) {
-  drawNormalizedLine(context, extendSelectedSamples(samples, endTick), bounds, startTick, endTick, "#f4c568", (sample) => sample.rawDistance / max, 2.2, 3.6);
+  drawNormalizedLine(
+    context,
+    extendSelectedSamples(samples, endTick),
+    bounds,
+    startTick,
+    endTick,
+    chartTheme.amber,
+    (sample) => sample.rawDistance / max,
+    2.2,
+    3.6,
+  );
 }
 
 function rawDistanceToY(rawDistance: number, max: number, bounds: Pick<ChartBounds, "top" | "bottom">) {

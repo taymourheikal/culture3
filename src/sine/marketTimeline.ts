@@ -19,6 +19,7 @@ export type MarketCandle = {
   high: number;
   low: number;
   close: number;
+  volume?: number;
   roc: number | null;
   isStart?: boolean;
 };

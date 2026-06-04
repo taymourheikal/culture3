@@ -6,7 +6,9 @@ import { Metric } from "./SineMetric";
 export function SineFooterMetrics({
   stats,
   settings,
-  tick,
+  marketTick,
+  worldTick,
+  renderTick,
   pendingFoods,
   resolvedFoods,
   backlogTicks,
@@ -14,7 +16,9 @@ export function SineFooterMetrics({
 }: {
   stats: MarketStatsPacket;
   settings: WaveSettings;
-  tick: number;
+  marketTick: number;
+  worldTick: number;
+  renderTick: number;
   pendingFoods: number;
   resolvedFoods: number;
   backlogTicks: number;
@@ -22,7 +26,9 @@ export function SineFooterMetrics({
 }) {
   return (
     <div className="sine-footer-readout">
-      <Metric label="Tick" value={String(tick)} />
+      <Metric label="Market tick" value={String(marketTick)} />
+      <Metric label="Agent tick" value={String(worldTick)} />
+      <Metric label="Render tick" value={String(renderTick)} />
       <Metric label="Base ROC" value={`${BASE_ROC.toFixed(2)}%`} />
       <Metric label="Amplitude" value={`${settings.amplitude.toFixed(2)}%`} />
       <Metric label="Frequency" value={`${settings.frequency.toFixed(3)} cyc/tick`} />

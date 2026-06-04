@@ -1,13 +1,17 @@
 import type { ReactNode } from "react";
+import { SineHelpTooltip } from "../SineHelpTooltip";
 
 export function shortSessionId(sessionId: string) {
   return sessionId.slice(0, 8);
 }
 
-export function HistorySummaryItem({ label, value }: { label: string; value: string }) {
+export function HistorySummaryItem({ label, value, help }: { label: string; value: string; help?: string }) {
   return (
     <div className="sine-history-summary">
-      <span>{label}</span>
+      <span className="sine-history-summary-label">
+        {label}
+        {help ? <SineHelpTooltip help={help} /> : null}
+      </span>
       <strong>{value}</strong>
     </div>
   );

@@ -34,6 +34,7 @@ export function createCandleSample(timeline: MarketTimeline, tick: number): Sign
     settings: { ...timeline.settings },
     signal: candle?.roc ?? 0,
     price: candle?.close,
+    volume: candle?.volume,
     sourceTimestamp: candle?.timestamp,
     sourceDatetime: candle?.datetime,
   };

@@ -32,6 +32,7 @@ export type SignalSample = {
   parameters: EffectiveParameters;
   settings: WaveSettings;
   price?: number;
+  volume?: number;
   sourceTimestamp?: number;
   sourceDatetime?: string;
 };

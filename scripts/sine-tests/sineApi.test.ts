@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { deleteSineSession, getSineSpawnerInspection, listSineSessions } from "../../src/sine/history/sineHistoryApi";
+import { deleteSineSession, getSineSessionAnalysis, getSineSessionCohortAnalysis, getSineSpawnerInspection, listSineSessions } from "../../src/sine/history/sineHistoryApi";
 import { fetchMarketCandles } from "../../src/sine/worker/marketDataLoader";
 import { postSineSnapshot } from "../../src/sine/persistence/sinePersistenceClient";
 import { fetchSineJson, getSineJson, sineApiUrl } from "../../src/sine/sineApi";
@@ -17,6 +17,8 @@ async function testSineApiClientsSendExactRequests() {
   const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
   await withMockFetch(calls, async () => {
     await listSineSessions(7);
+    await getSineSessionAnalysis("session/1", { fromPercent: 40, toPercent: 100 });
+    await getSineSessionCohortAnalysis("session/1", { fromPercent: 40, toPercent: 100, minTrades: 50, minAgePercentile: 75, bucketCount: 100 });
     await getSineSpawnerInspection("session/1", 4, 12);
     await deleteSineSession("session/1");
     await postSineSnapshot({ persistentSessionId: "session/1", births: [] });
@@ -34,15 +36,17 @@ async function testSineApiClientsSendExactRequests() {
 
   assert.equal(calls[0]?.url, "http://127.0.0.1:8787/api/sine/sessions?limit=7");
   assert.equal(calls[0]?.init?.method, undefined);
-  assert.equal(calls[1]?.url, "http://127.0.0.1:8787/api/sine/sessions/session%2F1/spawners/4?tick=12");
-  assert.equal(calls[2]?.url, "http://127.0.0.1:8787/api/sine/sessions/session%2F1");
-  assert.equal(calls[2]?.init?.method, "DELETE");
-  assert.equal(calls[3]?.url, "http://127.0.0.1:8787/api/sine/snapshots");
-  assert.equal(calls[3]?.init?.method, "POST");
-  assert.deepEqual(calls[3]?.init?.headers, { "Content-Type": "application/json" });
-  assert.equal(calls[3]?.init?.body, JSON.stringify({ persistentSessionId: "session/1", births: [] }));
+  assert.equal(calls[1]?.url, "http://127.0.0.1:8787/api/sine/sessions/session%2F1/analysis?fromPercent=40&toPercent=100");
+  assert.equal(calls[2]?.url, "http://127.0.0.1:8787/api/sine/sessions/session%2F1/cohort-analysis?fromPercent=40&toPercent=100&minTrades=50&minAgePercentile=75&bucketCount=100");
+  assert.equal(calls[3]?.url, "http://127.0.0.1:8787/api/sine/sessions/session%2F1/spawners/4?tick=12");
+  assert.equal(calls[4]?.url, "http://127.0.0.1:8787/api/sine/sessions/session%2F1");
+  assert.equal(calls[4]?.init?.method, "DELETE");
+  assert.equal(calls[5]?.url, "http://127.0.0.1:8787/api/sine/snapshots");
+  assert.equal(calls[5]?.init?.method, "POST");
+  assert.deepEqual(calls[5]?.init?.headers, { "Content-Type": "application/json" });
+  assert.equal(calls[5]?.init?.body, JSON.stringify({ persistentSessionId: "session/1", births: [] }));
   assert.equal(
-    calls[4]?.url,
+    calls[6]?.url,
     "http://127.0.0.1:8787/api/market/candles?source=btcusd_5m&start=2021-01-01T00%3A00&limit=123&rocLength=50",
   );
 }
@@ -69,6 +73,7 @@ async function withMockFetch(
       status,
       json: async () => ({
         sessions: [],
+        analysis: { session: {}, diagnostics: {} },
         payload: {},
         snappedStartTimestamp: 0,
         snappedStartDatetime: "2021-01-01T00:00:00.000Z",

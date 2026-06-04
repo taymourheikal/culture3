@@ -29,7 +29,7 @@ export function connectionDetailRows(connection: ConnectionGene, spawner: Spawne
 export function graphConnectionStyle(connection: ConnectionGene) {
   const positive = connection.weight >= 0;
   return {
-    color: connection.enabled ? (positive ? "#69d7d0" : "#ff8f70") : "#6f7f7b",
+    color: connection.enabled ? (positive ? "var(--sine-accent)" : "var(--sine-negative)") : "var(--sine-text-faint)",
     marker: connection.enabled ? (positive ? "url(#architecture-arrow-positive)" : "url(#architecture-arrow-negative)") : "url(#architecture-arrow-disabled)",
     width: Math.min(6, 1 + Math.abs(connection.weight) * 1.15),
     opacity: connection.enabled ? 0.6 : 0.28,

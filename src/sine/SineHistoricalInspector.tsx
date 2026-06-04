@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { SpawnerInspectionPayload } from "./marketWorkerProtocol";
 import { deleteSineSession, getSineSessionAnalysis, getSineSpawnerInspection, listSineSessions } from "./history/sineHistoryApi";
 import type { SineSessionAnalysis, SineSessionSummary } from "./history/sineHistoryTypes";
-import { HistoricalEntityTables } from "./history/HistoricalEntityTables";
 import { HistoricalRnnLookup } from "./history/HistoricalRnnLookup";
-import { HistoricalTelemetryChart } from "./history/HistoricalTelemetryChart";
-import { OutcomeSummary, RunSummaryGrid } from "./history/RunSummaryGrid";
+import { RunComparisonPanel, RunDiagnosticsDashboard } from "./history/RunDiagnosticsPanels";
 import { SavedRunList } from "./history/SavedRunList";
+
+const RANGE_PERCENT_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
 export function SineHistoricalInspector({
   activeSessionId,
@@ -22,18 +22,15 @@ export function SineHistoricalInspector({
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [checkedSessionIds, setCheckedSessionIds] = useState<Set<string>>(() => new Set());
   const [analysis, setAnalysis] = useState<SineSessionAnalysis | null>(null);
+  const [comparisonSessionId, setComparisonSessionId] = useState("");
+  const [comparisonAnalysis, setComparisonAnalysis] = useState<SineSessionAnalysis | null>(null);
+  const [fromPercent, setFromPercent] = useState(0);
+  const [toPercent, setToPercent] = useState(100);
   const [spawnerId, setSpawnerId] = useState("");
   const [tick, setTick] = useState("");
   const [status, setStatus] = useState("Saved runs not checked yet");
-
-  const selectedSession = useMemo(
-    () => sessions.find((session) => session.id === selectedSessionId) ?? null,
-    [selectedSessionId, sessions],
-  );
-  const selectedIsActive =
-    !!activeSessionId &&
-    selectedSessionId === activeSessionId &&
-    (activeRunState === "running" || activeRunState === "paused");
+  const primaryAnalysisRequestId = useRef(0);
+  const comparisonAnalysisRequestId = useRef(0);
 
   const refreshSessions = async () => {
     try {
@@ -58,39 +55,64 @@ export function SineHistoricalInspector({
     });
   }, [sessions]);
 
-  const loadAnalysis = async (sessionId = selectedSessionId) => {
+  const currentRange = () => ({ fromPercent, toPercent });
+
+  const loadAnalysis = async (sessionId = selectedSessionId, range = currentRange()) => {
     if (!sessionId) {
       setStatus("Choose a run first");
       return;
     }
+    const requestId = primaryAnalysisRequestId.current + 1;
+    primaryAnalysisRequestId.current = requestId;
     try {
       setStatus("Loading saved run");
-      const nextAnalysis = await getSineSessionAnalysis(sessionId);
+      const nextAnalysis = await getSineSessionAnalysis(sessionId, range);
+      if (requestId !== primaryAnalysisRequestId.current) return;
       setAnalysis(nextAnalysis);
       setSelectedSessionId(sessionId);
+      if (comparisonSessionId === sessionId) {
+        setComparisonSessionId("");
+        setComparisonAnalysis(null);
+      }
       setStatus(`Loaded ${sessionId.slice(0, 8)}`);
     } catch {
+      if (requestId !== primaryAnalysisRequestId.current) return;
       setStatus("Could not load saved run");
     }
   };
 
-  const deleteSession = async () => {
-    if (!selectedSessionId) return;
-    if (selectedIsActive) {
-      setStatus("Stop the active run before deleting it");
+  const loadComparisonAnalysis = async (sessionId: string, range = currentRange()) => {
+    setComparisonSessionId(sessionId);
+    const requestId = comparisonAnalysisRequestId.current + 1;
+    comparisonAnalysisRequestId.current = requestId;
+    if (!sessionId) {
+      setComparisonAnalysis(null);
       return;
     }
-    const confirmed = window.confirm(`Delete saved run ${selectedSessionId.slice(0, 8)}?`);
-    if (!confirmed) return;
-    try {
-      await deleteSineSession(selectedSessionId);
-      setAnalysis(null);
-      setSelectedSessionId("");
-      await refreshSessions();
-      setStatus("Deleted saved run");
-    } catch {
-      setStatus("Could not delete saved run");
+    if (sessionId === selectedSessionId) {
+      setStatus("Choose a different run for comparison");
+      setComparisonAnalysis(null);
+      return;
     }
+    try {
+      setStatus("Loading comparison run");
+      const nextAnalysis = await getSineSessionAnalysis(sessionId, range);
+      if (requestId !== comparisonAnalysisRequestId.current) return;
+      setComparisonAnalysis(nextAnalysis);
+      setStatus(`Comparing ${selectedSessionId.slice(0, 8)} with ${sessionId.slice(0, 8)}`);
+    } catch {
+      if (requestId !== comparisonAnalysisRequestId.current) return;
+      setComparisonAnalysis(null);
+      setStatus("Could not load comparison run");
+    }
+  };
+
+  const updateRange = (nextFromPercent = fromPercent, nextToPercent = toPercent) => {
+    const nextRange = normalizePercentRange(nextFromPercent, nextToPercent);
+    setFromPercent(nextRange.fromPercent);
+    setToPercent(nextRange.toPercent);
+    if (selectedSessionId) void loadAnalysis(selectedSessionId, nextRange);
+    if (comparisonSessionId) void loadComparisonAnalysis(comparisonSessionId, nextRange);
   };
 
   const deleteCheckedSessions = async () => {
@@ -110,6 +132,10 @@ export function SineHistoricalInspector({
       if (sessionIds.includes(selectedSessionId)) {
         setAnalysis(null);
         setSelectedSessionId("");
+      }
+      if (sessionIds.includes(comparisonSessionId)) {
+        setComparisonAnalysis(null);
+        setComparisonSessionId("");
       }
       setCheckedSessionIds(new Set());
       await refreshSessions();
@@ -151,10 +177,6 @@ export function SineHistoricalInspector({
         <div className="sine-history-actions">
           <button type="button" onClick={refreshSessions}>Refresh</button>
           <button type="button" onClick={() => void loadAnalysis()} disabled={!selectedSessionId}>Load</button>
-          <button type="button" onClick={deleteSession} disabled={!selectedSessionId || selectedIsActive}>
-            <Trash2 size={15} />
-            Delete
-          </button>
           <button type="button" onClick={deleteCheckedSessions} disabled={checkedSessionIds.size === 0}>
             <Trash2 size={15} />
             Delete Selected ({checkedSessionIds.size})
@@ -169,7 +191,7 @@ export function SineHistoricalInspector({
           checkedSessionIds={checkedSessionIds}
           onSelect={(sessionId) => {
             setSelectedSessionId(sessionId);
-            void loadAnalysis(sessionId);
+            void loadAnalysis(sessionId, currentRange());
           }}
           onToggleChecked={(sessionId) => {
             setCheckedSessionIds((current) => {
@@ -188,27 +210,81 @@ export function SineHistoricalInspector({
 
         <div className="sine-run-analysis">
           <div className="sine-history-status">{status}</div>
-          <RunSummaryGrid selectedSession={selectedSession} />
 
           {analysis ? (
             <>
-              <HistoricalTelemetryChart telemetry={analysis.telemetry} />
-              <OutcomeSummary outcome={analysis.outcome} />
-              <HistoricalEntityTables analysis={analysis} onInspect={(id) => void loadInspection(id)} />
+              <div className="sine-history-compare-toolbar">
+                <label>
+                  From
+                  <select value={fromPercent} onChange={(event) => updateRange(Number(event.target.value), toPercent)}>
+                    {RANGE_PERCENT_OPTIONS.filter((percent) => percent < toPercent).map((percent) => (
+                      <option key={percent} value={percent}>{percent}%</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  To
+                  <select value={toPercent} onChange={(event) => updateRange(fromPercent, Number(event.target.value))}>
+                    {RANGE_PERCENT_OPTIONS.filter((percent) => percent > fromPercent).map((percent) => (
+                      <option key={percent} value={percent}>{percent}%</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Compare with
+                  <select value={comparisonSessionId} onChange={(event) => void loadComparisonAnalysis(event.target.value, currentRange())}>
+                    <option value="">None</option>
+                    {sessions
+                      .filter((session) => session.id !== selectedSessionId)
+                      .map((session) => (
+                        <option key={session.id} value={session.id}>
+                          {session.id.slice(0, 8)} · tick {session.latestTick ?? 0}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                {comparisonSessionId ? <button type="button" onClick={() => void loadComparisonAnalysis("")}>Clear comparison</button> : null}
+                <span className="sine-history-range-readout">
+                  Showing {analysis.diagnostics.range.fromPercent}%-{analysis.diagnostics.range.toPercent}% · ticks {analysis.diagnostics.range.fromTick.toLocaleString()}-{analysis.diagnostics.range.toTick.toLocaleString()}
+                </span>
+              </div>
+              {comparisonAnalysis ? <RunComparisonPanel primary={analysis} comparison={comparisonAnalysis} /> : null}
+              <RunDiagnosticsDashboard analysis={analysis} />
             </>
           ) : (
-            <div className="sine-history-empty">Load a saved run to inspect population, loss, lineages, outcomes, uniqueness, and RNNs.</div>
+            <div className="sine-history-empty">Load a saved run to inspect population resilience, payoff drawdowns, trade quality, risk, population structure, and RNNs.</div>
           )}
 
-          <HistoricalRnnLookup
-            spawnerId={spawnerId}
-            tick={tick}
-            setSpawnerId={setSpawnerId}
-            setTick={setTick}
-            onInspect={() => void loadInspection()}
-          />
+          <section className="sine-workbench-panel">
+            <div className="sine-workbench-panel-head">
+              <div>
+                <span className="sine-eyebrow">Secondary inspector</span>
+                <h2>Historical RNN Lookup</h2>
+              </div>
+            </div>
+            <HistoricalRnnLookup
+              spawnerId={spawnerId}
+              tick={tick}
+              setSpawnerId={setSpawnerId}
+              setTick={setTick}
+              onInspect={() => void loadInspection()}
+            />
+          </section>
         </div>
       </div>
     </section>
   );
+}
+
+function normalizePercentRange(fromPercent: number, toPercent: number) {
+  const safeFrom = clampPercent(fromPercent, 0);
+  const safeTo = clampPercent(toPercent, 100);
+  if (safeFrom < safeTo) return { fromPercent: safeFrom, toPercent: safeTo };
+  if (safeFrom >= 100) return { fromPercent: 90, toPercent: 100 };
+  return { fromPercent: safeFrom, toPercent: Math.min(100, safeFrom + 10) };
+}
+
+function clampPercent(value: number, fallback: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(value)));
 }

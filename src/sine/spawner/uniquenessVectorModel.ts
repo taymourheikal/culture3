@@ -1,21 +1,23 @@
 import { INPUT_COUNT, OUTPUT_LABELS } from "./config";
-import { activeLayerIndexes } from "./genome";
-import { groupConnections } from "./genomeIndex";
-import type { ConnectionGene, GateType, HiddenUnitGene, SpawnerGenome } from "./types";
+import type { GenomeConnectionGroups, GenomeIndex } from "./genomeIndex";
+import type { ConnectionGene, GateType, HiddenUnitGene } from "./types";
 import { absMean as sharedAbsMean, finiteZero, mean as sharedMean, populationStdDev } from "../stats";
 
 export const UNIQUENESS_GATES: GateType[] = ["update", "reset", "candidate"];
 export const UNIQUENESS_OUTPUT_LABELS = OUTPUT_LABELS;
 
-export type ConnectionGroups = ReturnType<typeof groupConnections>;
+export type ConnectionGroups = GenomeConnectionGroups;
 
-export function buildFeatureContext(genome: SpawnerGenome, units: HiddenUnitGene[], connections: ConnectionGene[], unitById: Map<number, HiddenUnitGene>) {
-  const layerIndexes = activeLayerIndexes(genome);
-  const layerCounts = layerIndexes.map((layer) => units.filter((unit) => unit.layerIndex === layer).length);
-  const connectionGroups = groupConnections(genome, connections, unitById);
-  const recurrence = recurrenceMetrics(units, connectionGroups.recurrent);
-  const reachability = reachabilityMetrics(units, connectionGroups);
-  return { layerIndexes, layerCounts, connectionGroups, recurrence, reachability };
+export function buildFeatureContextFromIndex(genomeIndex: GenomeIndex) {
+  const recurrence = recurrenceMetrics(genomeIndex.units, genomeIndex.connectionGroups.recurrent);
+  const reachability = reachabilityMetrics(genomeIndex.units, genomeIndex.connectionGroups);
+  return {
+    layerIndexes: genomeIndex.layerIndexes,
+    layerCounts: genomeIndex.layerCounts,
+    connectionGroups: genomeIndex.connectionGroups,
+    recurrence,
+    reachability,
+  };
 }
 
 export function normalizedEntropy(counts: number[]) {
@@ -62,11 +64,11 @@ export function finite(value: number) {
 }
 
 export function possibleRecurrentConnections(units: HiddenUnitGene[]) {
-  const layers = [...new Set(units.map((unit) => unit.layerIndex))];
-  return layers.reduce((sum, layer) => {
-    const width = units.filter((unit) => unit.layerIndex === layer).length;
-    return sum + width * width * UNIQUENESS_GATES.length;
-  }, 0);
+  const layerCounts = new Map<number, number>();
+  for (const unit of units) layerCounts.set(unit.layerIndex, (layerCounts.get(unit.layerIndex) ?? 0) + 1);
+  let possible = 0;
+  for (const width of layerCounts.values()) possible += width * width * UNIQUENESS_GATES.length;
+  return possible;
 }
 
 export function possibleSkipConnections(units: HiddenUnitGene[]) {
@@ -81,25 +83,29 @@ export function possibleSkipConnections(units: HiddenUnitGene[]) {
 
 function recurrenceMetrics(units: HiddenUnitGene[], recurrent: ConnectionGene[]) {
   const byTarget = new Map<number, ConnectionGene[]>();
+  const selfRecurrentUnits = new Set<number>();
   for (const connection of recurrent) {
     if (connection.target.kind !== "hidden") continue;
     byTarget.set(connection.target.unitId, [...(byTarget.get(connection.target.unitId) ?? []), connection]);
+    if (connection.source.kind === "hidden" && connection.source.unitId === connection.target.unitId) selfRecurrentUnits.add(connection.target.unitId);
   }
-  const recurrentInputCounts = units.map((unit) => byTarget.get(unit.unitId)?.length ?? 0);
-  const selfRecurrentUnits = new Set(
-    recurrent
-      .filter((connection) => connection.source.kind === "hidden" && connection.target.kind === "hidden" && connection.source.unitId === connection.target.unitId)
-      .map((connection) => (connection.target.kind === "hidden" ? connection.target.unitId : -1)),
-  );
+  let unitsWithRecurrentInput = 0;
+  let maxRecurrentInputsPerUnit = 0;
+  const recurrentInputCounts = units.map((unit) => {
+    const count = byTarget.get(unit.unitId)?.length ?? 0;
+    if (count > 0) unitsWithRecurrentInput += 1;
+    maxRecurrentInputsPerUnit = Math.max(maxRecurrentInputsPerUnit, count);
+    return count;
+  });
   return {
-    unitsWithRecurrentInputRatio: ratio(recurrentInputCounts.filter((count) => count > 0).length, units.length),
+    unitsWithRecurrentInputRatio: ratio(unitsWithRecurrentInput, units.length),
     unitsWithSelfRecurrenceRatio: ratio(selfRecurrentUnits.size, units.length),
     meanRecurrentInputsPerUnit: mean(recurrentInputCounts),
-    maxRecurrentInputsPerUnit: Math.max(0, ...recurrentInputCounts),
+    maxRecurrentInputsPerUnit,
   };
 }
 
-function reachabilityMetrics(units: HiddenUnitGene[], groups: ReturnType<typeof groupConnections>) {
+function reachabilityMetrics(units: HiddenUnitGene[], groups: GenomeConnectionGroups) {
   const unitIds = new Set(units.map((unit) => unit.unitId));
   const inputReachable = new Set<number>();
   const forwardEdges = new Map<number, number[]>();
@@ -124,18 +130,21 @@ function reachabilityMetrics(units: HiddenUnitGene[], groups: ReturnType<typeof 
   }
   expandReachable(outputReachable, reverseEdges);
 
-  const liveUnits = units.filter((unit) => inputReachable.has(unit.unitId) && outputReachable.has(unit.unitId));
+  let liveUnitCount = 0;
+  for (const unit of units) {
+    if (inputReachable.has(unit.unitId) && outputReachable.has(unit.unitId)) liveUnitCount += 1;
+  }
   const pathLengths = shortestInputToOutputPathLengths(groups);
   return {
     inputReachableUnitRatio: ratio(inputReachable.size, units.length),
     outputReachableUnitRatio: ratio(outputReachable.size, units.length),
-    deadUnitRatio: ratio(units.length - liveUnits.length, units.length),
+    deadUnitRatio: ratio(units.length - liveUnitCount, units.length),
     averageInputToOutputPathLength: mean(pathLengths),
     maxInputToOutputPathLength: Math.max(0, ...pathLengths),
   };
 }
 
-function shortestInputToOutputPathLengths(groups: ReturnType<typeof groupConnections>) {
+function shortestInputToOutputPathLengths(groups: GenomeConnectionGroups) {
   const outputNode = "output";
   const adjacency = new Map<string, string[]>();
   for (const connection of groups.inputToOutput) {

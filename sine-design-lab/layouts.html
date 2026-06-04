@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sine Workbench</title>
+    <link rel="stylesheet" href="./layout-lab.css" />
+  </head>
+  <body>
+    <main class="sine-workbench-shell">
+      <header class="sine-app-header">
+        <div>
+          <span class="eyebrow">Toy Market Simulator</span>
+          <h1>Sine Workbench</h1>
+        </div>
+        <div class="sine-header-actions">
+          <button type="button" data-open-modal="runtimeDiagnostics">Runtime</button>
+          <button type="button" data-open-modal="history">Saved Runs</button>
+        </div>
+      </header>
+
+      <section id="layout-root" class="layout-root workbench-root"></section>
+    </main>
+
+    <div id="modal-root" class="modal-root" aria-live="polite"></div>
+
+    <script src="./layout-lab.js"></script>
+  </body>
+</html>

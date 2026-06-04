@@ -1,6 +1,6 @@
 import type { SpawnerConfig } from "./types";
 
-export const INPUT_COUNT = 17;
+export const INPUT_COUNT = 22;
 export const OUTPUT_LABELS = ["Long", "Short", "Strength", "Horizon", "Cooldown", "Reproduce"] as const;
 export const OUTPUT_COUNT = OUTPUT_LABELS.length;
 export const OUTPUT_INDEX = {
@@ -37,6 +37,12 @@ export const DEFAULT_SPAWNER_CONFIG: SpawnerConfig = {
   defaultRollingWindowTicks: 53,
   defaultLocalScaleWindowTicks: 53,
   defaultLocalScaleSampleStepTicks: 3,
+  defaultVolumeScaleWindowTicks: 53,
+  defaultVolumeScaleSampleStepTicks: 3,
+  defaultVolumeDeltaLagTicks: 7,
+  defaultVolumeAccelerationLagTicks: 7,
+  defaultRsiWindowTicks: 14,
+  defaultVolumePriceAgreementLagTicks: 7,
   defaultPayoffScaleWindowTicks: 53,
   defaultPayoffScaleSampleStepTicks: 3,
   defaultTrendWindowTicks: 53,

@@ -6,6 +6,7 @@ export {
   evaluateSpawnerBrain,
   evaluateSpawnerBrainPure,
   forwardSpawner,
+  materializeBrainEvaluationActivations,
   type BrainEvaluation,
   type PureBrainEvaluationInput,
 } from "./spawner/brain";
@@ -63,6 +64,7 @@ export {
   decayLearnedState,
   driftPlasticityProfile,
   gateBiasDeltaKey,
+  learnedStateDecayCanChange,
   learnedStateNorm,
   outputBiasDeltaKey,
   plasticitySummary,
@@ -101,6 +103,7 @@ export {
   spawnerHitRate,
   tryReproduceSpawner,
   type SpawnerAdvanceOptions,
+  type SpawnerPhaseInstrumentation,
 } from "./spawner/world";
 export type {
   ConnectionGene,
@@ -113,6 +116,7 @@ export type {
   OutputName,
   SpawnerAgent,
   SpawnerConfig,
+  SpawnerDeathCause,
   SpawnerDirection,
   SpawnerEvent,
   SpawnerFood,

@@ -1,5 +1,6 @@
 import type { MarketChartPacket } from "../marketWorkerProtocol";
 import { centeredTickWindow, clamp, drawHorizontalGrid, prepareCanvas, tickToX } from "./canvas";
+import { chartTheme } from "./chartTheme";
 
 export function drawParameterChart(canvas: HTMLCanvasElement, packet: MarketChartPacket) {
   const prepared = prepareCanvas(canvas);
@@ -17,14 +18,14 @@ export function drawParameterChart(canvas: HTMLCanvasElement, packet: MarketChar
   const { start, end } = centeredTickWindow(packet.renderTick, packet.ticksVisible);
   const visibleSamples = packet.signalSamples.filter((sample) => sample.tick >= start && sample.tick <= end);
   const series = [
-    { key: "amplitude", color: "#69d7d0", min: 0, max: 8 },
-    { key: "frequency", color: "#ffd680", min: 0.01, max: 1.2 },
-    { key: "slope", color: "#86d87a", min: -1, max: 1 },
-    { key: "noiseAmplitude", color: "#b989ff", min: 0, max: 5 },
-    { key: "noiseFrequency", color: "#ff8f70", min: 0.05, max: 6 },
+    { key: "amplitude", color: chartTheme.accent, min: 0, max: 8 },
+    { key: "frequency", color: chartTheme.amber, min: 0.01, max: 1.2 },
+    { key: "slope", color: chartTheme.positive, min: -1, max: 1 },
+    { key: "noiseAmplitude", color: chartTheme.purple, min: 0, max: 5 },
+    { key: "noiseFrequency", color: chartTheme.negative, min: 0.05, max: 6 },
   ] as const;
 
-  context.fillStyle = "#0d1216";
+  context.fillStyle = chartTheme.background;
   context.fillRect(0, 0, cssWidth, cssHeight);
   drawHorizontalGrid(context, bounds);
 
@@ -43,14 +44,14 @@ export function drawParameterChart(canvas: HTMLCanvasElement, packet: MarketChar
     context.stroke();
   }
 
-  context.strokeStyle = "rgba(255, 214, 128, 0.95)";
+  context.strokeStyle = chartTheme.amberStrong;
   context.lineWidth = 2;
   context.beginPath();
   context.moveTo(centerX, bounds.top);
   context.lineTo(centerX, bounds.bottom);
   context.stroke();
 
-  context.fillStyle = "#8ea19e";
+  context.fillStyle = chartTheme.textMuted;
   context.font = "700 11px Inter, system-ui, sans-serif";
   context.textAlign = "right";
   context.textBaseline = "middle";

@@ -1,3 +1,5 @@
+import { chartTheme } from "./chartTheme";
+
 export type ChartBounds = {
   left: number;
   right: number;
@@ -39,19 +41,16 @@ export function drawGrid(
   valueMax: number,
   formatLabel: (value: number) => string,
 ) {
-  context.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  context.strokeStyle = chartTheme.grid;
   context.lineWidth = 1;
-  context.fillStyle = "#8ea19e";
+  context.fillStyle = chartTheme.textMuted;
   context.font = "600 11px Inter, system-ui, sans-serif";
   context.textAlign = "right";
   context.textBaseline = "middle";
 
   for (let index = 0; index <= 4; index += 1) {
     const y = bounds.top + ((bounds.bottom - bounds.top) * index) / 4;
-    context.beginPath();
-    context.moveTo(bounds.left, y);
-    context.lineTo(bounds.right, y);
-    context.stroke();
+    drawHorizontalGridRow(context, bounds, y);
 
     const value = valueMax - ((valueMax - valueMin) * index) / 4;
     context.fillText(formatLabel(value), bounds.left - 10, y);
@@ -74,14 +73,14 @@ export function drawMarketTimeAxis(
   context.textBaseline = "top";
 
   for (const label of labels) {
-    context.strokeStyle = "rgba(255, 255, 255, 0.055)";
+    context.strokeStyle = chartTheme.gridFaint;
     context.lineWidth = 1;
     context.beginPath();
     context.moveTo(label.x, bounds.top);
     context.lineTo(label.x, bounds.bottom);
     context.stroke();
 
-    context.fillStyle = "#9dafab";
+    context.fillStyle = chartTheme.textMuted;
     context.fillText(label.text, label.x, bounds.bottom + 9);
   }
 
@@ -89,15 +88,23 @@ export function drawMarketTimeAxis(
 }
 
 export function drawHorizontalGrid(context: CanvasRenderingContext2D, bounds: ChartBounds, rows = 4) {
-  context.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  context.strokeStyle = chartTheme.grid;
   context.lineWidth = 1;
+  drawHorizontalGridRows(context, bounds, rows);
+}
+
+export function drawHorizontalGridRows(context: CanvasRenderingContext2D, bounds: ChartBounds, rows = 4) {
   for (let index = 0; index <= rows; index += 1) {
     const y = bounds.top + ((bounds.bottom - bounds.top) * index) / rows;
-    context.beginPath();
-    context.moveTo(bounds.left, y);
-    context.lineTo(bounds.right, y);
-    context.stroke();
+    drawHorizontalGridRow(context, bounds, y);
   }
+}
+
+export function drawHorizontalGridRow(context: CanvasRenderingContext2D, bounds: ChartBounds, y: number) {
+  context.beginPath();
+  context.moveTo(bounds.left, y);
+  context.lineTo(bounds.right, y);
+  context.stroke();
 }
 
 export function valueToY(value: number, valueMin: number, valueMax: number, bounds: Pick<ChartBounds, "top" | "bottom">) {

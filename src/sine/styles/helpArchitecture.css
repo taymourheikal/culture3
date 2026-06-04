@@ -16,10 +16,10 @@
   position: relative;
   min-width: 0;
   padding: 13px;
-  border: 1px solid rgba(105, 215, 208, 0.22);
+  border: 1px solid rgb(var(--sine-accent-rgb) / 0.22);
   border-radius: 8px;
-  background: rgba(105, 215, 208, 0.08);
-  color: #f7fbfa;
+  background: rgb(var(--sine-accent-rgb) / 0.08);
+  color: var(--sine-text-strong);
   font-size: 0.86rem;
   font-weight: 900;
   text-align: center;
@@ -31,7 +31,7 @@
   bottom: -18px;
   width: 2px;
   height: 18px;
-  background: rgba(255, 214, 128, 0.45);
+  background: rgb(var(--sine-amber-rgb) / 0.45);
   content: "";
   transform: translateX(50%);
 }
@@ -41,46 +41,46 @@
 }
 
 .sine-layer.input {
-  border-color: rgba(134, 201, 255, 0.25);
-  background: rgba(134, 201, 255, 0.08);
+  border-color: rgb(var(--sine-accent-rgb) / 0.25);
+  background: rgb(var(--sine-accent-rgb) / 0.08);
 }
 
 .sine-layer.deep {
-  border-color: rgba(194, 153, 255, 0.24);
-  background: rgba(194, 153, 255, 0.08);
+  border-color: rgb(var(--sine-purple-rgb) / 0.24);
+  background: rgb(var(--sine-purple-rgb) / 0.08);
 }
 
 .sine-layer.output {
-  border-color: rgba(158, 230, 161, 0.28);
-  background: rgba(158, 230, 161, 0.08);
+  border-color: rgb(var(--sine-positive-rgb) / 0.28);
+  background: rgb(var(--sine-positive-rgb) / 0.08);
 }
 
 .sine-connection {
   min-width: 0;
   padding: 11px 12px;
   border-radius: 8px;
-  color: #e8f3f0;
+  color: var(--sine-text);
   font-size: 0.82rem;
   font-weight: 850;
 }
 
 .sine-connection.allowed {
-  border: 1px solid rgba(158, 230, 161, 0.26);
-  background: rgba(158, 230, 161, 0.08);
+  border: 1px solid rgb(var(--sine-positive-rgb) / 0.26);
+  background: rgb(var(--sine-positive-rgb) / 0.08);
 }
 
 .sine-connection.allowed::before {
-  color: #9ee6a1;
+  color: var(--sine-positive);
   content: "Allowed: ";
 }
 
 .sine-connection.blocked {
-  border: 1px solid rgba(255, 110, 110, 0.26);
-  background: rgba(255, 110, 110, 0.08);
+  border: 1px solid rgb(var(--sine-negative-rgb) / 0.26);
+  background: rgb(var(--sine-negative-rgb) / 0.08);
 }
 
 .sine-connection.blocked::before {
-  color: #ffaaaa;
+  color: var(--sine-negative);
   content: "Blocked: ";
 }
 
@@ -102,13 +102,13 @@
 }
 
 .sine-rule-card.allowed {
-  border-color: rgba(158, 230, 161, 0.26);
-  background: rgba(158, 230, 161, 0.07);
+  border-color: rgb(var(--sine-positive-rgb) / 0.26);
+  background: rgb(var(--sine-positive-rgb) / 0.07);
 }
 
 .sine-rule-card.blocked {
-  border-color: rgba(255, 110, 110, 0.26);
-  background: rgba(255, 110, 110, 0.07);
+  border-color: rgb(var(--sine-negative-rgb) / 0.26);
+  background: rgb(var(--sine-negative-rgb) / 0.07);
 }
 
 .sine-rnn-explainer-grid {
@@ -122,9 +122,9 @@
 .sine-architecture-svg-card {
   min-width: 0;
   padding: 14px;
-  border: 1px solid rgba(105, 215, 208, 0.14);
+  border: 1px solid rgb(var(--sine-accent-rgb) / 0.14);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.045);
+  background: color-mix(in srgb, var(--sine-surface-muted) 54%, transparent);
 }
 
 .sine-architecture-svg-card {
@@ -151,7 +151,7 @@
 }
 
 .sine-help-svg text {
-  fill: #f7fbfa;
+  fill: var(--sine-text-strong);
   font-size: 16px;
   font-weight: 850;
   text-anchor: middle;
@@ -167,40 +167,40 @@
 }
 
 .sine-svg-muted rect {
-  fill: rgba(134, 201, 255, 0.1);
-  stroke: rgba(134, 201, 255, 0.34);
+  fill: rgb(var(--sine-accent-rgb) / 0.1);
+  stroke: rgb(var(--sine-accent-rgb) / 0.34);
 }
 
 .sine-svg-gate rect,
 .sine-svg-unit rect {
-  fill: rgba(255, 214, 128, 0.1);
-  stroke: rgba(255, 214, 128, 0.34);
+  fill: rgb(var(--sine-amber-rgb) / 0.1);
+  stroke: rgb(var(--sine-amber-rgb) / 0.34);
 }
 
 .sine-svg-unit > rect {
-  fill: rgba(13, 18, 22, 0.7);
-  stroke: rgba(105, 215, 208, 0.2);
+  fill: color-mix(in srgb, var(--sine-bg-soft) 70%, transparent);
+  stroke: rgb(var(--sine-accent-rgb) / 0.2);
 }
 
 .sine-svg-output rect,
 .sine-svg-layer rect {
-  fill: rgba(158, 230, 161, 0.1);
-  stroke: rgba(158, 230, 161, 0.34);
+  fill: rgb(var(--sine-positive-rgb) / 0.1);
+  stroke: rgb(var(--sine-positive-rgb) / 0.34);
 }
 
 .sine-svg-layer rect:nth-of-type(1) {
-  fill: rgba(134, 201, 255, 0.1);
-  stroke: rgba(134, 201, 255, 0.34);
+  fill: rgb(var(--sine-accent-rgb) / 0.1);
+  stroke: rgb(var(--sine-accent-rgb) / 0.34);
 }
 
 .sine-svg-layer rect:nth-of-type(2),
 .sine-svg-layer rect:nth-of-type(3) {
-  fill: rgba(255, 214, 128, 0.08);
-  stroke: rgba(255, 214, 128, 0.3);
+  fill: rgb(var(--sine-amber-rgb) / 0.08);
+  stroke: rgb(var(--sine-amber-rgb) / 0.3);
 }
 
 .sine-svg-edge {
-  color: #9ee6a1;
+  color: var(--sine-positive);
 }
 
 .sine-svg-edge path {
@@ -211,15 +211,15 @@
 }
 
 .sine-svg-edge.allowed {
-  color: #9ee6a1;
+  color: var(--sine-positive);
 }
 
 .sine-svg-edge.reset {
-  color: #ffd680;
+  color: var(--sine-amber);
 }
 
 .sine-svg-edge.blocked {
-  color: #ffaaaa;
+  color: var(--sine-negative);
 }
 
 .sine-svg-edge.dashed path {
@@ -229,7 +229,7 @@
 .sine-svg-caption text,
 .sine-svg-legend text,
 .sine-svg-labels text {
-  fill: #c7d6d3;
+  fill: var(--sine-text-muted);
   font-size: 13px;
   font-weight: 750;
 }
@@ -243,11 +243,11 @@
 }
 
 .sine-svg-legend .allowed-dot {
-  fill: #9ee6a1;
+  fill: var(--sine-positive);
 }
 
 .sine-svg-legend .blocked-dot {
-  fill: #ffaaaa;
+  fill: var(--sine-negative);
 }
 
 .sine-lifecycle {
@@ -259,5 +259,5 @@
 
 .sine-life-step {
   padding: 14px;
-  border-color: rgba(255, 214, 128, 0.18);
+  border-color: rgb(var(--sine-amber-rgb) / 0.18);
 }

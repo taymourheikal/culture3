@@ -25,7 +25,7 @@ import {
 } from "../../src/sine/spawnerSimulation";
 import { createSpawnerSnapshot } from "../../src/sine/spawner/snapshots";
 import { hiddenArrayToCurrentRecord, hiddenRecordToArray, mergeHiddenStateRecord } from "../../src/sine/spawner/brainState";
-import { createEffectiveBrainValues } from "../../src/sine/spawner/effectiveGenome";
+import { createEffectiveBrainValues, createPlanAlignedEffectiveBrainValues } from "../../src/sine/spawner/effectiveGenome";
 import { gateBiasDeltaKey, outputBiasDeltaKey } from "../../src/sine/spawner/plasticity";
 import { chooseSpawnerAction, decodeSpawnerOutputs } from "../../src/sine/spawner/worldActions";
 import { round, runTo, type SineTest } from "./helpers";
@@ -513,6 +513,90 @@ function testFastEffectiveValuesMatchSafeViewAndCurrentGenomeWeights() {
   assert.notEqual(fastAfterWeightChange.getConnectionWeight(cachedPlanConnection), fast.getConnectionWeight(cachedPlanConnection));
 }
 
+function testPlanAlignedEffectiveValuesMatchObjectPathAndClamp() {
+  const world = createSpawnerWorld(505, { initialSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  const connection = activeConnections(spawner.genome)[0];
+  const unit = activeUnits(spawner.genome)[0];
+  assert(connection);
+  assert(unit);
+  spawner.genome.plasticityProfile.maxLearnedDelta = 0.5;
+  spawner.learnedState.connectionDeltas[connectionDeltaKey(connection.innovationId)] = 2;
+  spawner.learnedState.outputBiasDeltas[outputBiasDeltaKey(0)] = -2;
+  spawner.learnedState.gateBiasDeltas[gateBiasDeltaKey(unit.unitId, "candidate")] = 2;
+  const plan = ensureCompiledBrainPlan(spawner.genome);
+  const objectValues = createEffectiveBrainValues(spawner.genome, spawner.learnedState);
+  const planValues = createPlanAlignedEffectiveBrainValues(spawner.genome, spawner.learnedState, plan);
+  const connectionIndex = plan.connectionIndexByInnovationId.get(connection.innovationId);
+  const unitIndex = plan.unitIndexById.get(unit.unitId);
+  assert.notEqual(connectionIndex, undefined);
+  assert.notEqual(unitIndex, undefined);
+
+  assert.equal(planValues.getConnectionWeight(connection), objectValues.getConnectionWeight(connection));
+  assert.equal(planValues.connectionWeightsByPlanIndex[connectionIndex!], objectValues.getConnectionWeight(connection));
+  assert.equal(planValues.getOutputBias(0), objectValues.getOutputBias(0));
+  assert.equal(planValues.outputBiases[0], objectValues.getOutputBias(0));
+  assert.equal(planValues.getGateBias(unit, "candidate"), objectValues.getGateBias(unit, "candidate"));
+  assert.equal(planValues.candidateGateBiasesByUnitIndex[unitIndex!], objectValues.getGateBias(unit, "candidate"));
+
+  const clampedConnectionWeight = planValues.getConnectionWeight(connection);
+  const clampedOutputBias = planValues.getOutputBias(0);
+  const clampedGateBias = planValues.getGateBias(unit, "candidate");
+  spawner.genome.plasticityProfile.maxLearnedDelta = 1.5;
+  const lessClamped = createPlanAlignedEffectiveBrainValues(spawner.genome, spawner.learnedState, plan);
+  assert.notEqual(lessClamped.getConnectionWeight(connection), clampedConnectionWeight);
+  assert.notEqual(lessClamped.getOutputBias(0), clampedOutputBias);
+  assert.notEqual(lessClamped.getGateBias(unit, "candidate"), clampedGateBias);
+}
+
+function testPlanAlignedEffectiveValuesTrackBaseGenomeChangesWithCachedPlan() {
+  const world = createSpawnerWorld(505, { initialSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  const connection = activeConnections(spawner.genome)[0];
+  const unit = activeUnits(spawner.genome)[0];
+  assert(connection);
+  assert(unit);
+  const plan = ensureCompiledBrainPlan(spawner.genome);
+  const before = createPlanAlignedEffectiveBrainValues(spawner.genome, spawner.learnedState, plan);
+  const connectionIndex = plan.connectionIndexByInnovationId.get(connection.innovationId);
+  const unitIndex = plan.unitIndexById.get(unit.unitId);
+  assert.notEqual(connectionIndex, undefined);
+  assert.notEqual(unitIndex, undefined);
+  const clonedPlanConnection = structuredClone(connection);
+
+  connection.weight += 1.25;
+  spawner.genome.outputBias[0] = (spawner.genome.outputBias[0] ?? 0) - 0.75;
+  unit.resetBias += 0.5;
+  const safeAfterChange = createEffectiveGenomeView(spawner.genome, spawner.learnedState);
+  const after = createPlanAlignedEffectiveBrainValues(spawner.genome, spawner.learnedState, plan);
+
+  assert.equal(after.planSignature, before.planSignature);
+  assert.equal(after.connectionWeightsByPlanIndex[connectionIndex!], safeAfterChange.getConnectionWeight(connection));
+  assert.equal(after.getConnectionWeight(clonedPlanConnection), safeAfterChange.getConnectionWeight(connection));
+  assert.equal(after.outputBiases[0], safeAfterChange.getOutputBias(0));
+  assert.equal(after.resetGateBiasesByUnitIndex[unitIndex!], safeAfterChange.getGateBias(unit, "reset"));
+  assert.notEqual(after.connectionWeightsByPlanIndex[connectionIndex!], before.connectionWeightsByPlanIndex[connectionIndex!]);
+  assert.notEqual(after.outputBiases[0], before.outputBiases[0]);
+  assert.notEqual(after.resetGateBiasesByUnitIndex[unitIndex!], before.resetGateBiasesByUnitIndex[unitIndex!]);
+}
+
+function testPlanAlignedEffectiveValuesRejectStaleTopology() {
+  const world = createSpawnerWorld(505, { initialSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  const plan = ensureCompiledBrainPlan(spawner.genome);
+  const connection = activeConnections(spawner.genome)[0];
+  assert(connection);
+  connection.enabled = false;
+
+  assert.throws(
+    () => createPlanAlignedEffectiveBrainValues(spawner.genome, spawner.learnedState, plan, { verifyTopology: true }),
+    /Compiled brain plan .* topology/,
+  );
+}
+
 function testCompiledBrainPlanDoesNotLeakIntoSnapshots() {
   const world = createSpawnerWorld(505, { initialSpawners: 1 });
   const spawner = world.spawners[0];
@@ -546,5 +630,8 @@ export const tests: SineTest[] = [
   { name: "Brain Plan Rebuilds After Structural Mutation But Not Weight Mutation", run: testBrainPlanRebuildsAfterStructuralMutationButNotWeightMutation },
   { name: "Learned Deltas Use Same Brain Plan", run: testLearnedDeltasUseSameBrainPlan },
   { name: "Fast Effective Values Match Safe View And Current Genome Weights", run: testFastEffectiveValuesMatchSafeViewAndCurrentGenomeWeights },
+  { name: "Plan Aligned Effective Values Match Object Path And Clamp", run: testPlanAlignedEffectiveValuesMatchObjectPathAndClamp },
+  { name: "Plan Aligned Effective Values Track Base Genome Changes With Cached Plan", run: testPlanAlignedEffectiveValuesTrackBaseGenomeChangesWithCachedPlan },
+  { name: "Plan Aligned Effective Values Reject Stale Topology", run: testPlanAlignedEffectiveValuesRejectStaleTopology },
   { name: "Compiled Brain Plan Does Not Leak Into Snapshots", run: testCompiledBrainPlanDoesNotLeakIntoSnapshots },
 ];

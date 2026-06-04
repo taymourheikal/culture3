@@ -11,6 +11,8 @@ export type MarketStatsPacket = {
   runState: MarketRunState;
   persistentSessionId: string | null;
   tick: number;
+  marketTick: number;
+  worldTick: number;
   renderTick: number;
   currentSignal: number;
   currentNoise: number;

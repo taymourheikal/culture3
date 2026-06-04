@@ -29,24 +29,24 @@ const EXPECTED_DIGEST = {
   population: 20,
   births: 20,
   deaths: 0,
-  spawnedFoods: 165,
-  resolvedFoods: 155,
-  wins: 77,
-  losses: 78,
-  cumulativePayoff: -4.907596,
+  spawnedFoods: 96,
+  resolvedFoods: 89,
+  wins: 46,
+  losses: 43,
+  cumulativePayoff: 5.422121,
   firstEvents: [
-    { kind: "spawn", tick: 2, spawnerId: 9, lineageId: 9, foodId: 1 },
-    { kind: "spawn", tick: 2, spawnerId: 18, lineageId: 18, foodId: 2 },
-    { kind: "spawn", tick: 3, spawnerId: 7, lineageId: 7, foodId: 3 },
-    { kind: "spawn", tick: 3, spawnerId: 17, lineageId: 17, foodId: 4 },
-    { kind: "spawn", tick: 5, spawnerId: 13, lineageId: 13, foodId: 5 },
+    { kind: "spawn", tick: 1, spawnerId: 20, lineageId: 20, foodId: 1 },
+    { kind: "spawn", tick: 2, spawnerId: 17, lineageId: 17, foodId: 2 },
+    { kind: "spawn", tick: 7, spawnerId: 10, lineageId: 10, foodId: 3 },
+    { kind: "spawn", tick: 8, spawnerId: 3, lineageId: 3, foodId: 4 },
+    { kind: "spawn", tick: 8, spawnerId: 5, lineageId: 5, foodId: 5 },
   ],
   lastEvents: [
-    { kind: "spawn", tick: 176, spawnerId: 2, lineageId: 2, foodId: 163 },
-    { kind: "resolve", tick: 177, spawnerId: 9, lineageId: 9, foodId: 154, status: "loss", payoff: -0.400689 },
-    { kind: "resolve", tick: 179, spawnerId: 11, lineageId: 11, foodId: 157, status: "loss", payoff: -0.099711 },
-    { kind: "spawn", tick: 179, spawnerId: 17, lineageId: 17, foodId: 164 },
-    { kind: "spawn", tick: 180, spawnerId: 19, lineageId: 19, foodId: 165 },
+    { kind: "resolve", tick: 176, spawnerId: 12, lineageId: 12, foodId: 86, status: "win", payoff: 0.790306 },
+    { kind: "spawn", tick: 176, spawnerId: 17, lineageId: 17, foodId: 96 },
+    { kind: "resolve", tick: 178, spawnerId: 10, lineageId: 10, foodId: 87, status: "loss", payoff: -0.279043 },
+    { kind: "resolve", tick: 178, spawnerId: 16, lineageId: 16, foodId: 88, status: "loss", payoff: -0.161358 },
+    { kind: "resolve", tick: 180, spawnerId: 20, lineageId: 20, foodId: 89, status: "loss", payoff: -0.384808 },
   ],
 };
 
@@ -154,14 +154,20 @@ function testPacketFixtureShapes() {
     "marketSource",
     "priceSamples",
     "renderTick",
+    "selectedSpawnerTimeline",
     "selectedSpawnerUniquenessSamples",
     "sessionId",
     "signalSamples",
     "sourceDatetime",
     "sourceTimestamp",
+    "strategyMap",
+    "telemetryCumulativePayoffMax",
+    "telemetryCumulativePayoffMin",
     "telemetryEndTick",
     "telemetryLossMax",
+    "telemetryPayoffAbsMax",
     "telemetryPopulationMax",
+    "telemetryResolvedVolumeMax",
     "telemetrySamples",
     "telemetryStartTick",
     "ticksVisible",
@@ -174,7 +180,7 @@ function testPacketFixtureShapes() {
     "visibleFoods",
   ]);
   assert.equal(chart.signalSamples.length, 179);
-  assert.equal(chart.visibleFoods.length, 39);
+  assert.equal(chart.visibleFoods.length, 28);
   assert.deepEqual(Object.keys(chart.signalSamples[0] ?? {}).sort(), [
     "noise",
     "parameters",
@@ -242,6 +248,7 @@ function testPacketFixtureShapes() {
     "currentReproductionEnergyRequirement",
     "currentSignal",
     "marketConfig",
+    "marketTick",
     "packetSizesKb",
     "pendingFoods",
     "pendingMarketConfig",
@@ -261,6 +268,7 @@ function testPacketFixtureShapes() {
     "totalLosses",
     "totalWins",
     "version",
+    "worldTick",
   ]);
 
   assert.equal(inspection.ok, true);
@@ -269,8 +277,8 @@ function testPacketFixtureShapes() {
   assert.deepEqual(Object.keys(uniqueness).sort(), ["score", "sessionId", "skippedReason", "spawnerId"]);
 
   assert.equal(persistence.births.length, 20);
-  assert.equal(persistence.foodEvents.length, 320);
-  assert.equal(persistence.events.length, 320);
+  assert.equal(persistence.foodEvents.length, 185);
+  assert.equal(persistence.events.length, 185);
   assert.equal(persistence.genomeSnapshots.length, 20);
   assert.equal(persistence.stateSnapshots.length, 20);
   assert.equal(persistence.uniquenessSnapshots.length, 20);

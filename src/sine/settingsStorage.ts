@@ -6,7 +6,7 @@ import {
   type MarketPlaybackSettings,
   type MarketRuntimeConfig,
 } from "./marketRuntimeConfig";
-import { saveJsonSetting, getBrowserStorage } from "./jsonStorage";
+import { patchSettingsGroup, saveJsonSetting, getBrowserStorage } from "./jsonStorage";
 
 const STORAGE_KEY = "roc-signal-lab.settings.v1";
 const RUNTIME_STORAGE_KEY = "roc-signal-lab.runtime-settings.v1";
@@ -36,25 +36,27 @@ export function loadSavedMarketRuntimeConfig(): MarketRuntimeConfig {
 }
 
 export function saveMarketSettingsGroup(settings: WaveSettings, keys: Array<keyof WaveSettings>) {
-  const current = loadSavedMarketRuntimeConfig();
-  const next = { ...current.generated };
-  for (const key of keys) {
-    next[key] = settings[key];
-  }
-  const sanitized = sanitizeMarketRuntimeConfig({ ...current, generated: next });
-  saveRuntimeConfig(sanitized);
-  return sanitized.generated;
+  return patchSettingsGroup({
+    load: loadSavedMarketRuntimeConfig,
+    save: saveRuntimeConfig,
+    sanitize: sanitizeMarketRuntimeConfig,
+    getBranch: (config) => config.generated,
+    setBranch: (config, generated) => ({ ...config, generated }),
+    values: settings,
+    keys,
+  }).branch;
 }
 
 export function savePlaybackSettingsGroup(playback: MarketPlaybackSettings, keys: Array<keyof MarketPlaybackSettings>) {
-  const current = loadSavedMarketRuntimeConfig();
-  const next: Record<keyof MarketPlaybackSettings, string | number> = { ...current.playback };
-  for (const key of keys) {
-    next[key] = playback[key];
-  }
-  const sanitized = sanitizeMarketRuntimeConfig({ ...current, playback: next });
-  saveRuntimeConfig(sanitized);
-  return sanitized;
+  return patchSettingsGroup({
+    load: loadSavedMarketRuntimeConfig,
+    save: saveRuntimeConfig,
+    sanitize: sanitizeMarketRuntimeConfig,
+    getBranch: (config) => config.playback,
+    setBranch: (config, playback) => ({ ...config, playback }),
+    values: playback,
+    keys,
+  }).root;
 }
 
 export function saveMarketSourceDefault(config: MarketRuntimeConfig) {

@@ -1,4 +1,5 @@
 import { clamp, firstTickAtOrAfter, niceTickStep, tickToX, type ChartBounds } from "./canvas";
+import { chartTheme } from "./chartTheme";
 
 export function drawTickAxis(
   context: CanvasRenderingContext2D,
@@ -11,12 +12,12 @@ export function drawTickAxis(
   const tickStep = niceTickStep(endTick - startTick);
   for (let tick = firstTickAtOrAfter(startTick, tickStep); tick <= endTick; tick += tickStep) {
     const x = tickToX(tick, startTick, endTick, bounds);
-    context.strokeStyle = "rgba(255, 255, 255, 0.055)";
+    context.strokeStyle = chartTheme.gridFaint;
     context.beginPath();
     context.moveTo(x, bounds.top);
     context.lineTo(x, bounds.bottom);
     context.stroke();
-    context.fillStyle = "#8ea19e";
+    context.fillStyle = chartTheme.textMuted;
     context.fillText(String(tick), x, bounds.bottom + 10);
   }
 }

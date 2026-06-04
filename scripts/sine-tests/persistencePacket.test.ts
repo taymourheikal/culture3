@@ -12,6 +12,8 @@ function testPersistencePacketBuilderMapsAllRowFamilies() {
   const second = simulation.world.spawners[1];
   assert.ok(parent);
   assert.ok(second);
+  second.energy = DEFAULT_SPAWNER_CONFIG.deathEnergy - 1;
+  second.health = DEFAULT_SPAWNER_CONFIG.deathHealth + 10;
   parent.learnedState.connectionDeltas["123"] = 0.5;
   parent.learnedState.recentLearningSignal = 0.25;
   parent.learnedState.learningUpdateCount = 2;
@@ -115,6 +117,9 @@ function testPersistencePacketBuilderMapsAllRowFamilies() {
   assert.deepEqual(packet.births.find((birth) => birth.spawner.id === parent.id)?.spawner.traceStore.traces, {});
   assert.deepEqual(packet.genomeSnapshots.find((snapshot) => snapshot.spawner.id === parent.id)?.spawner.traceStore.traces, {});
   assert.deepEqual(packet.deaths[0]?.spawner.traceStore.traces, {});
+  assert.equal(packet.deaths[0]?.deathCause, "low_energy");
+  assert.equal(packet.deaths[0]?.deathEnergyThreshold, DEFAULT_SPAWNER_CONFIG.deathEnergy);
+  assert.equal(packet.deaths[0]?.deathHealthThreshold, DEFAULT_SPAWNER_CONFIG.deathHealth);
   const parentState = packet.stateSnapshots.find((snapshot) => snapshot.spawnerId === parent.id);
   assert.ok(parentState);
   assert.equal(parentState.learnedState.connectionDeltas["123"], 0.5);

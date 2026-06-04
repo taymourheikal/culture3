@@ -2,6 +2,7 @@ import type { SpawnerAgent } from "./agentTypes";
 
 export type SpawnerDirection = "long" | "short";
 export type FoodStatus = "pending" | "win" | "loss";
+export type SpawnerDeathCause = "low_energy" | "low_health" | "both" | "unknown";
 
 export type SpawnerFood = {
   id: number;
@@ -36,6 +37,9 @@ export type SpawnerEvent = {
   childSpawnerId?: number;
   status?: FoodStatus;
   payoff?: number;
+  deathCause?: SpawnerDeathCause;
+  deathEnergyThreshold?: number;
+  deathHealthThreshold?: number;
   spawnerSnapshot?: SpawnerAgent;
   childSpawnerSnapshot?: SpawnerAgent;
   foodEvent?: SpawnerFoodEventSnapshot;

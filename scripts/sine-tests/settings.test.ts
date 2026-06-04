@@ -5,7 +5,13 @@ import { INITIAL_MARKET_RUNTIME_CONFIG, sameMarketRuntimeConfig, sanitizeMarketR
 import { DEFAULT_SPAWNER_CONFIG, type SpawnerConfig } from "../../src/sine/spawnerSimulation";
 import { SPAWNER_CONFIG_BOUNDS } from "../../src/sine/spawnerConfigBounds";
 import { sanitizeSpawnerConfig } from "../../src/sine/spawnerSettingsStorage";
-import { loadSavedMarketRuntimeConfig, sanitizeSettings } from "../../src/sine/settingsStorage";
+import { loadSavedMarketRuntimeConfig, sanitizeSettings, saveMarketSettingsGroup, savePlaybackSettingsGroup } from "../../src/sine/settingsStorage";
+import {
+  loadSavedRunsDefaults,
+  saveRunsMarketSettingsGroup,
+  saveRunsPlaybackSettingsGroup,
+  saveRunsSpawnerConfigGroup,
+} from "../../src/sine/runsSettingsStorage";
 import { createSimulationState } from "../../src/sine/simulationRuntime";
 import { CONTROL_GROUPS, SPAWNER_CONTROL_GROUPS } from "../../src/sine/sineControlGroups";
 import type { SineTest } from "./helpers";
@@ -398,6 +404,12 @@ function testControlMetadataGoldenOrder() {
           "defaultRollingWindowTicks",
           "defaultLocalScaleWindowTicks",
           "defaultLocalScaleSampleStepTicks",
+          "defaultVolumeScaleWindowTicks",
+          "defaultVolumeScaleSampleStepTicks",
+          "defaultVolumeDeltaLagTicks",
+          "defaultVolumeAccelerationLagTicks",
+          "defaultRsiWindowTicks",
+          "defaultVolumePriceAgreementLagTicks",
           "defaultTrendWindowTicks",
           "defaultCycleWindowTicks",
           "defaultRoughnessSensitivity",
@@ -531,6 +543,106 @@ function testControlMetadataGoldenOrder() {
   );
 }
 
+function testLabGroupedSettingsSavesPatchOnlyRequestedKeys() {
+  withMockLocalStorage(() => {
+    const savedMarket = saveMarketSettingsGroup(
+      {
+        ...INITIAL_SETTINGS,
+        amplitude: 6.5,
+        frequency: 0.123,
+      },
+      ["amplitude"],
+    );
+    const runtimeAfterMarket = loadSavedMarketRuntimeConfig();
+    assert.equal(savedMarket.amplitude, 6.5);
+    assert.equal(savedMarket.frequency, INITIAL_SETTINGS.frequency);
+    assert.equal(runtimeAfterMarket.generated.amplitude, 6.5);
+    assert.equal(runtimeAfterMarket.generated.frequency, INITIAL_SETTINGS.frequency);
+
+    const savedPlayback = savePlaybackSettingsGroup(
+      {
+        ...runtimeAfterMarket.playback,
+        generatedTicksPerSecond: 22,
+        barsPerSecond: 33,
+      },
+      ["generatedTicksPerSecond"],
+    );
+    const runtimeAfterPlayback = loadSavedMarketRuntimeConfig();
+    assert.equal(savedPlayback.playback.generatedTicksPerSecond, 22);
+    assert.equal(savedPlayback.playback.barsPerSecond, runtimeAfterMarket.playback.barsPerSecond);
+    assert.equal(runtimeAfterPlayback.generated.amplitude, 6.5);
+    assert.equal(runtimeAfterPlayback.playback.generatedTicksPerSecond, 22);
+    assert.equal(runtimeAfterPlayback.playback.barsPerSecond, runtimeAfterMarket.playback.barsPerSecond);
+  });
+}
+
+function testRunsGroupedSettingsSavesPatchOnlyRequestedKeys() {
+  withMockLocalStorage(() => {
+    const initialRuns = loadSavedRunsDefaults();
+
+    const savedMarket = saveRunsMarketSettingsGroup(
+      {
+        ...INITIAL_SETTINGS,
+        amplitude: 13,
+        frequency: 0.2,
+      },
+      ["frequency"],
+    );
+    const afterMarket = loadSavedRunsDefaults();
+    assert.equal(savedMarket.frequency, 0.2);
+    assert.equal(savedMarket.amplitude, initialRuns.marketConfig.generated.amplitude);
+    assert.equal(afterMarket.marketConfig.generated.frequency, 0.2);
+    assert.equal(afterMarket.marketConfig.generated.amplitude, initialRuns.marketConfig.generated.amplitude);
+    assert.equal(afterMarket.ticks, initialRuns.ticks);
+
+    const savedPlayback = saveRunsPlaybackSettingsGroup(
+      {
+        ...afterMarket.marketConfig.playback,
+        generatedTicksPerSecond: 17,
+        barsPerSecond: 29,
+      },
+      ["barsPerSecond"],
+    );
+    const afterPlayback = loadSavedRunsDefaults();
+    assert.equal(savedPlayback.playback.barsPerSecond, 29);
+    assert.equal(savedPlayback.playback.generatedTicksPerSecond, afterMarket.marketConfig.playback.generatedTicksPerSecond);
+    assert.equal(afterPlayback.marketConfig.generated.frequency, 0.2);
+
+    const savedSpawner = saveRunsSpawnerConfigGroup(
+      {
+        ...afterPlayback.spawnerConfig,
+        initialSpawners: 77,
+        maxSpawners: 88,
+        reproductionEnergy: 99,
+      },
+      ["reproductionEnergy"],
+    );
+    const afterSpawner = loadSavedRunsDefaults();
+    assert.equal(savedSpawner.reproductionEnergy, 99);
+    assert.equal(savedSpawner.initialSpawners, afterPlayback.spawnerConfig.initialSpawners);
+    assert.equal(savedSpawner.maxSpawners, afterPlayback.spawnerConfig.maxSpawners);
+    assert.equal(afterSpawner.spawnerConfig.reproductionEnergy, 99);
+    assert.equal(afterSpawner.marketConfig.playback.barsPerSecond, 29);
+  });
+}
+
+function withMockLocalStorage(callback: () => void) {
+  const previousStorage = (globalThis as { localStorage?: unknown }).localStorage;
+  const values = new Map<string, string>();
+  (globalThis as { localStorage?: unknown }).localStorage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+  };
+  try {
+    callback();
+  } finally {
+    if (previousStorage === undefined) delete (globalThis as { localStorage?: unknown }).localStorage;
+    else (globalThis as { localStorage?: unknown }).localStorage = previousStorage;
+  }
+}
+
 export const tests: SineTest[] = [
   { name: "Market Settings Sanitizer Clamps Saved Values", run: testMarketSettingsSanitizerClampsSavedValues },
   { name: "Spawner Config Sanitizer Clamps And Normalizes Pairs", run: testSpawnerConfigSanitizerClampsAndNormalizesPairs },
@@ -541,6 +653,8 @@ export const tests: SineTest[] = [
   { name: "Market Runtime Comparator Covers Runtime Fields", run: testMarketRuntimeComparatorCoversRuntimeFields },
   { name: "Market Runtime Comparator Covers Every Generated Field", run: testMarketRuntimeComparatorCoversEveryGeneratedField },
   { name: "Legacy Saved Market Settings Migrate From Seconds", run: testLegacySavedMarketSettingsMigrateFromSeconds },
+  { name: "Lab Grouped Settings Saves Patch Only Requested Keys", run: testLabGroupedSettingsSavesPatchOnlyRequestedKeys },
+  { name: "Runs Grouped Settings Saves Patch Only Requested Keys", run: testRunsGroupedSettingsSavesPatchOnlyRequestedKeys },
   { name: "Legacy Spawner Metabolism Alias Migrates To Energy Drain", run: testLegacySpawnerMetabolismAliasMigratesToEnergyDrain },
   { name: "Legacy Spawner Trading Policy Aliases Migrate To Founder Defaults", run: testLegacySpawnerTradingPolicyAliasesMigrateToFounderDefaults },
   { name: "New Trading Policy Defaults Win Over Legacy Aliases", run: testNewTradingPolicyDefaultsWinOverLegacyAliases },

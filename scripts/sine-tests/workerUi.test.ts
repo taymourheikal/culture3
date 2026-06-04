@@ -6,9 +6,19 @@ import { MARKET_WORKER_COMMAND_TYPES, type MarketWorkerMessage } from "../../src
 import { connectionDetailRows, connectionRowClass, connectionRowParts, graphConnectionStyle } from "../../src/sine/architectureConnectionPresentation";
 import { createInspectionRequestStore } from "../../src/sine/hooks/inspectionRequestStore";
 import { DEFAULT_SPAWNER_CONFIG, type ConnectionGene } from "../../src/sine/spawnerSimulation";
+import { createSimulationState } from "../../src/sine/simulationRuntime";
+import { createPersistenceOutbox } from "../../src/sine/persistence/persistenceOutbox";
+import { createPacketScheduler } from "../../src/sine/worker/packetScheduler";
+import { createSelectedSpawnerTimelineService } from "../../src/sine/worker/selectedSpawnerTimelineService";
+import { createStrategyMapService } from "../../src/sine/worker/strategyMapService";
+import { createUniquenessRuntimeService } from "../../src/sine/worker/uniquenessRuntimeService";
 import { workerCommands } from "../../src/sine/worker/workerCommands";
 import { dispatchMarketWorkerCommand } from "../../src/sine/worker/marketWorkerCommandHandler";
+import { createWorkerPacketPoster } from "../../src/sine/worker/workerPacketPoster";
 import { routeMarketWorkerMessage } from "../../src/sine/worker/workerMessageRouter";
+import { reproductionRequirementMeterPercent } from "../../src/sine/SineWorkbenchMetrics";
+import { createVisiblePopulationComposition, viewRosterSpawners } from "../../src/sine/rosterView";
+import type { RosterSpawnerSummary } from "../../src/sine/marketWorkerProtocol";
 import type { SineTest } from "./helpers";
 
 function testWorkerCommandsBuildExactPayloads() {
@@ -194,7 +204,7 @@ function testArchitectureConnectionPresentationMatchesCurrentFormatting() {
 
   assert.deepEqual(connectionRowParts(positive), { source: "I1: Relative ROC", weight: "1.250", target: "O1: Long" });
   assert.equal(connectionRowClass(disabled, true), "connection-row selected disabled");
-  assert.equal(graphConnectionStyle(positive).color, "#69d7d0");
+  assert.equal(graphConnectionStyle(positive).color, "var(--sine-accent)");
   assert.equal(graphConnectionStyle(negative).marker, "url(#architecture-arrow-negative)");
   assert.equal(graphConnectionStyle(disabled).opacity, 0.28);
   assert.equal(graphConnectionStyle(disabled).dash, "3 5");
@@ -211,6 +221,182 @@ function testArchitectureConnectionPresentationMatchesCurrentFormatting() {
   ]);
 }
 
+function testReproductionRequirementMeterUsesConfiguredMaximumPressure() {
+  const activeSpawnerConfig = {
+    ...DEFAULT_SPAWNER_CONFIG,
+    reproductionEnergy: 20,
+    reproductionCost: 10,
+    reproductionCostMinMultiplier: 1,
+    reproductionCostMaxMultiplier: 5,
+  };
+
+  assert.equal(
+    reproductionRequirementMeterPercent({
+      activeSpawnerConfig,
+      currentReproductionEnergyRequirement: 50,
+    }),
+    100,
+  );
+  assert.equal(
+    reproductionRequirementMeterPercent({
+      activeSpawnerConfig,
+      currentReproductionEnergyRequirement: 25,
+    }),
+    50,
+  );
+  assert.equal(
+    reproductionRequirementMeterPercent({
+      activeSpawnerConfig: { ...activeSpawnerConfig, reproductionEnergy: 0, reproductionCost: 0, reproductionCostMaxMultiplier: 0 },
+      currentReproductionEnergyRequirement: 0,
+    }),
+    0,
+  );
+}
+
+function testRosterViewSortsAndFiltersVisiblePacketWithoutMutation() {
+  const roster = [
+    rosterFixture({ id: 3, lineageId: 2, generation: 0, energy: 10, pendingFoodCount: 0, lastAction: "wait", uniqueness: null, birthTick: 190, resolvedCount: 25 }),
+    rosterFixture({ id: 1, lineageId: 1, generation: 2, energy: 24, pendingFoodCount: 2, lastAction: "long", uniqueness: 0.7, birthTick: 120, resolvedCount: 30 }),
+    rosterFixture({ id: 2, lineageId: 1, generation: 1, energy: 18, pendingFoodCount: 1, lastAction: "short", uniqueness: 0.2, birthTick: 180, resolvedCount: 10 }),
+  ];
+  const originalOrder = roster.map((spawner) => spawner.id);
+  const noMinimumFilters = { minResolvedTrades: "", minAgeTicks: "" };
+
+  assert.deepEqual(
+    viewRosterSpawners(roster, {
+      sortKey: "energy",
+      sortDirection: "desc",
+      filters: { search: "l1", action: "all", ...noMinimumFilters },
+      tick: 200,
+    }).map((spawner) => spawner.id),
+    [1, 2],
+  );
+  assert.deepEqual(roster.map((spawner) => spawner.id), originalOrder);
+  assert.deepEqual(
+    viewRosterSpawners(roster, {
+      sortKey: "id",
+      sortDirection: "asc",
+      filters: { search: "", action: "short", ...noMinimumFilters },
+      tick: 200,
+    }).map((spawner) => spawner.id),
+    [2],
+  );
+  assert.deepEqual(
+    viewRosterSpawners(roster, {
+      sortKey: "uniqueness",
+      sortDirection: "desc",
+      filters: { search: "", action: "all", ...noMinimumFilters },
+      tick: 200,
+    }).map((spawner) => spawner.id),
+    [1, 2, 3],
+  );
+  assert.deepEqual(
+    viewRosterSpawners(roster, {
+      sortKey: "id",
+      sortDirection: "asc",
+      filters: { search: "", action: "all", minResolvedTrades: "20", minAgeTicks: "" },
+      tick: 200,
+    }).map((spawner) => spawner.id),
+    [1, 3],
+  );
+  assert.deepEqual(
+    viewRosterSpawners(roster, {
+      sortKey: "id",
+      sortDirection: "asc",
+      filters: { search: "", action: "all", minResolvedTrades: "", minAgeTicks: "50" },
+      tick: 200,
+    }).map((spawner) => spawner.id),
+    [1],
+  );
+  assert.deepEqual(
+    viewRosterSpawners(roster, {
+      sortKey: "id",
+      sortDirection: "asc",
+      filters: { search: "", action: "all", minResolvedTrades: "20", minAgeTicks: "15" },
+      tick: 200,
+    }).map((spawner) => spawner.id),
+    [1],
+  );
+}
+
+function testVisiblePopulationCompositionUsesVisibleRosterOnly() {
+  const composition = createVisiblePopulationComposition(
+    [
+      rosterFixture({ id: 1, lineageId: 1, generation: 0, birthTick: 94, pendingFoodCount: 1, lastAction: "long", uniqueness: 0.4 }),
+      rosterFixture({ id: 2, lineageId: 1, generation: 3, birthTick: 40, pendingFoodCount: 0, lastAction: "wait", uniqueness: null }),
+      rosterFixture({ id: 3, lineageId: 2, generation: 7, birthTick: 99, pendingFoodCount: 2, lastAction: "short", uniqueness: 0.8 }),
+    ],
+    100,
+  );
+
+  assert.equal(composition.totalVisible, 3);
+  assert.deepEqual(composition.actionCounts, { long: 1, short: 1, wait: 1 });
+  assert.equal(composition.lineageCount, 2);
+  assert.equal(composition.pendingFoodAgents, 2);
+  assert.equal(composition.newbornAgents, 2);
+  assert.equal(composition.uniquenessSampled, 2);
+  assert.equal(composition.uniquenessMissing, 1);
+  assert.deepEqual(composition.generationBuckets.map((bucket) => `${bucket.label}:${bucket.count}`), [
+    "gen 0:1",
+    "gen 1:0",
+    "gen 2:0",
+    "gen 3-5:1",
+    "gen 6+:1",
+  ]);
+}
+
+function testPacketBatchPreparesUniquenessBeforeChartWindow() {
+  const simulation = createSimulationState(INITIAL_MARKET_RUNTIME_CONFIG, { ...DEFAULT_SPAWNER_CONFIG, initialSpawners: 1, maxSpawners: 10 });
+  const parent = simulation.world.spawners[0];
+  assert.ok(parent);
+  const child = structuredClone(parent);
+  child.id = 999;
+  child.generation = parent.generation + 1;
+  child.birthTick = 100;
+  simulation.world.tick = 100;
+  simulation.world.spawners.push(child);
+
+  const messages: MarketWorkerMessage[] = [];
+  let packetSizes = {};
+  const packetPoster = createWorkerPacketPoster({
+    postMessage: (message) => messages.push(message),
+    getState: () => ({
+      sessionId: 4,
+      simulation,
+      version: 2,
+      targetTick: 100,
+      settings: INITIAL_SETTINGS,
+      activeMarketConfig: INITIAL_MARKET_RUNTIME_CONFIG,
+      pendingMarketConfig: INITIAL_MARKET_RUNTIME_CONFIG,
+      activeSpawnerConfig: simulation.world.config,
+      pendingSpawnerConfig: simulation.world.config,
+      runState: "running",
+      persistentSessionId: null,
+      backlogTicks: 0,
+      selectedSpawnerId: null,
+      brainEvalMode: "sync",
+    }),
+    getPacketSizes: () => packetSizes,
+    setPacketSizes: (nextPacketSizes) => {
+      packetSizes = nextPacketSizes;
+    },
+    packetScheduler: createPacketScheduler(),
+    persistenceOutbox: createPersistenceOutbox(),
+    uniquenessRuntime: createUniquenessRuntimeService({ onDetailedScore: () => undefined }),
+    strategyMap: createStrategyMapService(),
+    selectedSpawnerTimeline: createSelectedSpawnerTimelineService(),
+  });
+
+  packetPoster.postAllPackets(true);
+
+  const chart = messages.find((message): message is Extract<MarketWorkerMessage, { type: "chart" }> => message.type === "chart")?.packet;
+  const roster = messages.find((message): message is Extract<MarketWorkerMessage, { type: "roster" }> => message.type === "roster")?.packet;
+  assert.ok(chart);
+  assert.ok(roster);
+  assert.equal(chart.uniquenessSamples.at(-1)?.tick, 100);
+  assert.equal(roster.spawners.find((spawner) => spawner.id === child.id)?.uniquenessComparisonTick, 100);
+}
+
 function connectionFixture(patch: Partial<ConnectionGene>): ConnectionGene {
   return {
     innovationId: 1,
@@ -222,6 +408,52 @@ function connectionFixture(patch: Partial<ConnectionGene>): ConnectionGene {
   } as ConnectionGene;
 }
 
+function rosterFixture(patch: Partial<RosterSpawnerSummary>): RosterSpawnerSummary {
+  return {
+    id: 1,
+    lineageId: 1,
+    generation: 0,
+    birthTick: 0,
+    cooldownTicks: 0,
+    energy: 10,
+    health: 100,
+    pendingFoodCount: 0,
+    hitRate: 0,
+    recentAveragePayoff: 0,
+    lastAction: "wait",
+    spawnedCount: 0,
+    resolvedCount: 0,
+    children: 0,
+    averagePayoff: 0,
+    activeUnits: 1,
+    activeLayers: 1,
+    activeConnections: 1,
+    disabledUnits: 0,
+    disabledConnections: 0,
+    recurrentConnections: 0,
+    skipConnections: 0,
+    averagePerceptionLag: 0,
+    longestPerceptionWindow: 0,
+    pendingDensityScale: 0,
+    topologyMutationRate: 0,
+    weightMutationActivity: 0,
+    biasMutationActivity: 0,
+    perceptionMutationRate: 0,
+    mutationProfileDrift: 0,
+    learnedDeltaNorm: 0,
+    recentLearningSignal: 0,
+    learningUpdateCount: 0,
+    reproductionLearningCount: 0,
+    plasticityLearningRateMean: 0,
+    plasticityDecayRate: 0,
+    plasticityMaxLearnedDelta: 0,
+    plasticityMutationStdDev: 0,
+    uniqueness: null,
+    uniquenessComparisonTick: null,
+    ...patch,
+  };
+}
+
 export const tests: SineTest[] = [
   { name: "Worker Commands Build Exact Payloads", run: testWorkerCommandsBuildExactPayloads },
   { name: "Worker Command Builders Cover Protocol Commands", run: testWorkerCommandBuildersCoverProtocolCommands },
@@ -231,4 +463,8 @@ export const tests: SineTest[] = [
   { name: "Worker Session Pause Stop Invalidate In Flight Advance", run: testWorkerSessionPauseStopInvalidateInFlightAdvance },
   { name: "Inspection Request Store Rejects Pending Requests", run: testInspectionRequestStoreRejectsPendingRequests },
   { name: "Architecture Connection Presentation Matches Current Formatting", run: testArchitectureConnectionPresentationMatchesCurrentFormatting },
+  { name: "Reproduction Requirement Meter Uses Configured Maximum Pressure", run: testReproductionRequirementMeterUsesConfiguredMaximumPressure },
+  { name: "Roster View Sorts And Filters Visible Packet Without Mutation", run: testRosterViewSortsAndFiltersVisiblePacketWithoutMutation },
+  { name: "Visible Population Composition Uses Visible Roster Only", run: testVisiblePopulationCompositionUsesVisibleRosterOnly },
+  { name: "Packet Batch Prepares Uniqueness Before Chart Window", run: testPacketBatchPreparesUniquenessBeforeChartWindow },
 ];

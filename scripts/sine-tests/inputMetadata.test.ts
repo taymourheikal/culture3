@@ -4,9 +4,9 @@ import { INPUT_LABELS, SPAWNER_INPUT_METADATA, SPAWNER_INPUT_VERSION } from "../
 import type { SineTest } from "./helpers";
 
 function testInputMetadataMatchesInputContract() {
-  assert.equal(SPAWNER_INPUT_VERSION, "population-room-v2");
+  assert.equal(SPAWNER_INPUT_VERSION, "volume-rsi-v1");
   assert.equal(SPAWNER_INPUT_METADATA.length, INPUT_COUNT);
-  assert.equal(INPUT_COUNT, 17);
+  assert.equal(INPUT_COUNT, 22);
   assert.equal(INPUT_LABELS.length, INPUT_COUNT);
   assert.deepEqual(
     SPAWNER_INPUT_METADATA.map((input) => input.index),
@@ -30,11 +30,16 @@ function testInputMetadataDescribesMutablePerception() {
   assert.equal(INPUT_LABELS[5], "Relative ROC delta pair 5");
   assert.equal(INPUT_LABELS[8], "Position in local range");
   assert.equal(INPUT_LABELS[12], "Relative cycle rate");
-  assert.equal(INPUT_LABELS[15], "Health ratio");
-  assert.equal(INPUT_LABELS[16], "Population room ratio");
-  assert(SPAWNER_INPUT_METADATA.slice(1, 14).some((input) => input.description.toLowerCase().includes("mutable")));
-  assert.equal(SPAWNER_INPUT_METADATA[16]?.category, "context-derived");
-  assert(SPAWNER_INPUT_METADATA[16]?.description.includes("1 is empty/open and 0 is full"));
+  assert.equal(INPUT_LABELS[13], "Relative volume");
+  assert.equal(INPUT_LABELS[14], "Volume delta");
+  assert.equal(INPUT_LABELS[15], "Volume acceleration");
+  assert.equal(INPUT_LABELS[16], "RSI signal");
+  assert.equal(INPUT_LABELS[17], "Volume-price agreement");
+  assert.equal(INPUT_LABELS[20], "Health ratio");
+  assert.equal(INPUT_LABELS[21], "Population room ratio");
+  assert(SPAWNER_INPUT_METADATA.slice(1, 19).some((input) => input.description.toLowerCase().includes("mutable")));
+  assert.equal(SPAWNER_INPUT_METADATA[21]?.category, "context-derived");
+  assert(SPAWNER_INPUT_METADATA[21]?.description.includes("1 is empty/open and 0 is full"));
 }
 
 export const tests: SineTest[] = [

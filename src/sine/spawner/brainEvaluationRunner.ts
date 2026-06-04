@@ -1,5 +1,10 @@
 import { evaluateSpawnerBrainPure } from "./brain";
 import { brainPlanSignature, compileBrainPlan, type CompiledBrainPlan } from "./brainPlan";
+import {
+  compactJobFromBrainEvaluationJob,
+  evaluateCompactBrainJob,
+  materializeCompactBrainEvaluationResults,
+} from "./compactBrainEvaluation";
 import type { BrainEvaluationJob, BrainEvaluationResult, BrainEvaluationRunner } from "../protocol/brainEvalProtocol";
 
 export type BrainPlanCache = {
@@ -12,18 +17,15 @@ export function evaluateBrainJob(job: BrainEvaluationJob, planCache?: BrainPlanC
   try {
     if (!job.genome) throw new Error(`Missing genome for brain evaluation job ${job.spawnerId}`);
     const plan = planCache ? cachedPlan(job, planCache) : undefined;
-    const evaluation = compactEvaluation(
-      evaluateSpawnerBrainPure({
-        genome: job.genome,
-        learnedState: job.learnedState,
-        hiddenState: job.hiddenState,
-        inputs: job.inputs,
-        plan,
-        includeActivations: job.includeActivations,
-        includePreviousState: job.includePreviousState,
-      }),
-      job,
-    );
+    const evaluation = evaluateSpawnerBrainPure({
+      genome: job.genome,
+      learnedState: job.learnedState,
+      hiddenState: job.hiddenState,
+      inputs: job.inputs,
+      plan,
+      includeActivations: job.includeActivations,
+      includePreviousState: job.includePreviousState,
+    });
     return {
       sessionId: job.sessionId,
       runGeneration: job.runGeneration,
@@ -48,16 +50,6 @@ export function evaluateBrainJob(job: BrainEvaluationJob, planCache?: BrainPlanC
   }
 }
 
-function compactEvaluation(evaluation: ReturnType<typeof evaluateSpawnerBrainPure>, job: BrainEvaluationJob) {
-  if (job.includeActivations !== false && job.includePreviousState !== false) return evaluation;
-  return {
-    ...evaluation,
-    previousState: job.includePreviousState === false ? {} : evaluation.previousState,
-    activeConnectionIds: job.includeActivations === false ? [] : evaluation.activeConnectionIds,
-    connectionActivations: job.includeActivations === false ? {} : evaluation.connectionActivations,
-  };
-}
-
 function cachedPlan(job: BrainEvaluationJob, planCache: BrainPlanCache) {
   if (!job.genome) throw new Error(`Missing genome for brain evaluation job ${job.spawnerId}`);
   const signature = brainPlanSignature(job.genome);
@@ -75,6 +67,25 @@ export function createSyncBrainEvaluationRunner(): BrainEvaluationRunner {
     stats: () => ({ parallelBatches: 0, syncFallbackBatches: 0, disabledBatches: 0 }),
     evaluateBatch(jobs: BrainEvaluationJob[]) {
       return jobs.map((job) => evaluateBrainJob(job));
+    },
+  };
+}
+
+export function createCompactSyncBrainEvaluationRunner(): BrainEvaluationRunner {
+  return {
+    mode: "sync",
+    currentMode: () => "sync",
+    stats: () => ({ parallelBatches: 0, syncFallbackBatches: 0, disabledBatches: 0 }),
+    evaluateBatch(jobs: BrainEvaluationJob[]) {
+      const planByJobIndex = new Map<number, CompiledBrainPlan>();
+      const compactJobs = jobs.map((job) => {
+        if (!job.genome) throw new Error(`Missing genome for compact brain evaluation job ${job.spawnerId}`);
+        const plan = compileBrainPlan(job.genome);
+        planByJobIndex.set(job.index, plan);
+        return structuredClone(compactJobFromBrainEvaluationJob(job, { plan }));
+      });
+      const compactResults = compactJobs.map((job) => evaluateCompactBrainJob(job));
+      return materializeCompactBrainEvaluationResults(structuredClone(compactResults), jobs, planByJobIndex);
     },
   };
 }

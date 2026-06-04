@@ -1,5 +1,6 @@
 import type { LeanTelemetrySample } from "../marketWorkerProtocol";
 import { type ChartBounds } from "./canvas";
+import { chartTheme } from "./chartTheme";
 import { drawFrameGrid, prepareChartFrame } from "./chartFrame";
 import { formatSignedPercent } from "./format";
 import { drawNormalizedLine, drawTickAxis } from "./series";
@@ -30,10 +31,10 @@ export function drawTelemetryChart(
 
   drawTickAxis(context, bounds, visibleStartTick, visibleEndTick);
 
-  drawTelemetrySeries(context, telemetry, bounds, visibleStartTick, visibleEndTick, "#69d7d0", (sample) =>
+  drawTelemetrySeries(context, telemetry, bounds, visibleStartTick, visibleEndTick, chartTheme.accent, (sample) =>
     stablePopulationMax <= 0 ? 0 : sample.population / stablePopulationMax,
   );
-  drawTelemetrySeries(context, telemetry, bounds, visibleStartTick, visibleEndTick, "#ff8f70", (sample) =>
+  drawTelemetrySeries(context, telemetry, bounds, visibleStartTick, visibleEndTick, chartTheme.negative, (sample) =>
     stableLossMax <= 0 ? 0 : sample.rollingLoss / stableLossMax,
   );
   context.restore();

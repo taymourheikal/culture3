@@ -105,16 +105,37 @@ export function learnedStateNorm(state: Partial<SpawnerLearnedState> | undefined
 export function decayLearnedState(
   state: Partial<SpawnerLearnedState> | undefined,
   profile: Partial<SpawnerPlasticityProfile> | undefined,
+  options: { assumeNormalizedRuntimeState?: boolean } = {},
 ): SpawnerLearnedState {
+  if (options.assumeNormalizedRuntimeState && state && hasNormalizedDecayProfile(profile)) {
+    const current = state as SpawnerLearnedState;
+    if (!learnedStateDecayCanChange(current, profile)) return current;
+    const factor = clamp(1 - profile.experienceDecayRate, 0, 1);
+    return {
+      ...current,
+      connectionDeltas: scaleDeltaMap(current.connectionDeltas, factor, profile.maxLearnedDelta),
+      outputBiasDeltas: scaleDeltaMap(current.outputBiasDeltas, factor, profile.maxLearnedDelta),
+      gateBiasDeltas: scaleDeltaMap(current.gateBiasDeltas, factor, profile.maxLearnedDelta),
+    };
+  }
   const plasticity = sanitizePlasticityProfile(profile);
   const factor = clamp(1 - plasticity.experienceDecayRate, 0, 1);
   const decayed = sanitizeLearnedState(state, plasticity.maxLearnedDelta);
+  if (factor === 1 || !hasActiveLearnedDeltas(decayed)) return decayed;
   return {
     ...decayed,
     connectionDeltas: scaleDeltaMap(decayed.connectionDeltas, factor, plasticity.maxLearnedDelta),
     outputBiasDeltas: scaleDeltaMap(decayed.outputBiasDeltas, factor, plasticity.maxLearnedDelta),
     gateBiasDeltas: scaleDeltaMap(decayed.gateBiasDeltas, factor, plasticity.maxLearnedDelta),
   };
+}
+
+export function learnedStateDecayCanChange(
+  state: Partial<SpawnerLearnedState> | undefined,
+  profile: Partial<SpawnerPlasticityProfile> | undefined,
+) {
+  const decayRate = profile?.experienceDecayRate;
+  return typeof decayRate === "number" && Number.isFinite(decayRate) && decayRate > 0 && hasActiveLearnedDeltas(state);
 }
 
 export function clampLearnedState(
@@ -265,6 +286,25 @@ function scaleDeltaMap(value: Record<string, number>, factor: number, cap: numbe
     if (scaled !== 0) next[key] = scaled;
   }
   return next;
+}
+
+function hasActiveLearnedDeltas(state: Partial<SpawnerLearnedState> | undefined) {
+  return hasEntries(state?.connectionDeltas) || hasEntries(state?.outputBiasDeltas) || hasEntries(state?.gateBiasDeltas);
+}
+
+function hasNormalizedDecayProfile(profile: Partial<SpawnerPlasticityProfile> | undefined): profile is SpawnerPlasticityProfile {
+  return (
+    typeof profile?.experienceDecayRate === "number" &&
+    Number.isFinite(profile.experienceDecayRate) &&
+    typeof profile.maxLearnedDelta === "number" &&
+    Number.isFinite(profile.maxLearnedDelta)
+  );
+}
+
+function hasEntries(value: Record<string, number> | undefined) {
+  if (!value || typeof value !== "object") return false;
+  for (const _key in value) return true;
+  return false;
 }
 
 function finiteOr(value: number | undefined, fallback: number) {

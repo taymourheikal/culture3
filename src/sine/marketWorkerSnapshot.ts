@@ -13,6 +13,7 @@ export {
   createEmptyUniquenessTelemetryWindow,
   createUniquenessTelemetryWindow,
 } from "./packets/uniquenessTelemetryWindow";
+export { createEmptyStrategyMapWindow } from "./packets/strategyMapWindow";
 
 export function estimatePacketKb(packet: unknown) {
   return Math.round((JSON.stringify(packet).length / 1024) * 10) / 10;

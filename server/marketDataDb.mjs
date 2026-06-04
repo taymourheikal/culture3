@@ -50,14 +50,14 @@ export const marketDataStatements = {
     LIMIT 1
   `),
   candlesWindow: marketDataDb.prepare(`
-    SELECT timestamp, datetime, open, high, low, close
+    SELECT timestamp, datetime, open, high, low, close, volume
     FROM market_candles
     WHERE source = ? AND timestamp >= ?
     ORDER BY timestamp ASC
     LIMIT ?
   `),
   candlesBefore: marketDataDb.prepare(`
-    SELECT timestamp, datetime, open, high, low, close
+    SELECT timestamp, datetime, open, high, low, close, volume
     FROM market_candles
     WHERE source = ? AND timestamp < ?
     ORDER BY timestamp DESC

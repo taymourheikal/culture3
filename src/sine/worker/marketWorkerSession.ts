@@ -3,8 +3,9 @@ import { sanitizeSettings } from "../settingsStorage";
 import { sanitizeSpawnerConfig } from "../spawnerSettingsStorage";
 import { createPersistenceOutbox } from "../persistence/persistenceOutbox";
 import { createPacketScheduler } from "./packetScheduler";
-import { createUniquenessInspectionService } from "./uniquenessInspectionService";
-import { createUniquenessTelemetryService } from "./uniquenessTelemetryService";
+import { createSelectedSpawnerTimelineService } from "./selectedSpawnerTimelineService";
+import { createStrategyMapService } from "./strategyMapService";
+import { createUniquenessRuntimeService } from "./uniquenessRuntimeService";
 import { createMarketDataCoordinator } from "./marketDataCoordinator";
 import { dispatchMarketWorkerCommand } from "./marketWorkerCommandHandler";
 import { createWorkerPacketPoster } from "./workerPacketPoster";
@@ -46,10 +47,11 @@ const packetScheduler = createPacketScheduler();
 const persistenceOutbox = createPersistenceOutbox();
 const brainEvaluation = createBrainEvaluationCoordinator();
 const marketData = createMarketDataCoordinator();
-const uniquenessInspection = createUniquenessInspectionService({
+const uniquenessRuntime = createUniquenessRuntimeService({
   onDetailedScore: (spawnerId, score) => persistenceOutbox.enqueueUniqueness(spawnerId, score),
 });
-const uniquenessTelemetry = createUniquenessTelemetryService();
+const strategyMap = createStrategyMapService();
+const selectedSpawnerTimeline = createSelectedSpawnerTimelineService();
 let packetSizesKb: MarketStatsPacket["packetSizesKb"] = {};
 let runGeneration = 1;
 let advanceEpoch = 1;
@@ -84,8 +86,9 @@ const packetPoster = createWorkerPacketPoster({
   },
   packetScheduler,
   persistenceOutbox,
-  uniquenessInspection,
-  uniquenessTelemetry,
+  uniquenessRuntime,
+  strategyMap,
+  selectedSpawnerTimeline,
 });
 
 ctx.addEventListener("message", (event: MessageEvent<MarketWorkerCommand>) => {
@@ -184,6 +187,8 @@ function handleCommand(command: MarketWorkerCommand) {
           : pendingMarketConfig;
         simulation = createSimulationState(activeMarketConfig, activeSpawnerConfig);
         attachPersistenceEventSink();
+        strategyMap.reset();
+        selectedSpawnerTimeline.clearSamples();
         computeUniqueness(true);
       }
       version += 1;
@@ -197,10 +202,9 @@ function handleCommand(command: MarketWorkerCommand) {
     requestUniquenessDetail: ({ spawnerId }) => packetPoster.postUniquenessDetail(spawnerId),
     setSelectedSpawnerForCharts: ({ spawnerId }) => {
       selectedSpawnerId = spawnerId !== null && Number.isFinite(spawnerId) ? Math.floor(spawnerId) : null;
-      uniquenessTelemetry.setSelectedSpawner(selectedSpawnerId);
-      const result = uniquenessInspection.ensureSelectedTelemetryScores(simulation, selectedSpawnerId);
-      if (result.status === "computed") uniquenessTelemetry.record(result.scores, simulation.world.tick);
-      else if (result.status === "skipped") uniquenessTelemetry.markSkipped(result.reason);
+      selectedSpawnerTimeline.setSelectedSpawner(selectedSpawnerId);
+      uniquenessRuntime.setSelectedSpawner(selectedSpawnerId);
+      uniquenessRuntime.ensureSelectedTelemetryScores(simulation, selectedSpawnerId);
       version += 1;
       packetPoster.postChart(true);
       packetPoster.postRoster(true);
@@ -222,6 +226,7 @@ function resetFromCommand(command: Extract<MarketWorkerCommand, { type: "reset" 
   simulation = createSimulationState(activeMarketConfig, activeSpawnerConfig);
   persistentSessionId = null;
   selectedSpawnerId = null;
+  selectedSpawnerTimeline.reset();
   setRunState("idle");
   startAttemptId += 1;
   targetTick = 0;
@@ -241,8 +246,9 @@ function updatePendingSpawnerConfig(nextConfig: SpawnerConfig) {
     activeSpawnerConfig = pendingSpawnerConfig;
     simulation = createSimulationState(activeMarketConfig, activeSpawnerConfig);
     attachPersistenceEventSink();
-    uniquenessInspection.reset();
-    uniquenessTelemetry.reset();
+    uniquenessRuntime.reset();
+    strategyMap.reset();
+    selectedSpawnerTimeline.clearSamples();
     computeUniqueness(true);
   }
   version += 1;
@@ -322,9 +328,7 @@ function attachPersistenceEventSink() {
 }
 
 function computeUniqueness(force: boolean) {
-  const result = uniquenessInspection.computeIfNeeded(simulation, force);
-  if (result.status === "computed") uniquenessTelemetry.record(result.scores, simulation.world.tick);
-  else if (result.status === "skipped") uniquenessTelemetry.markSkipped(result.reason);
+  uniquenessRuntime.computeIfNeeded(simulation, force);
 }
 
 async function advanceSimulationWithinBudget() {
@@ -394,8 +398,9 @@ function resetRunArtifactsForSession() {
   packetScheduler.reset();
   attachPersistenceEventSink();
   persistenceOutbox.captureInitialSpawners(simulation);
-  uniquenessInspection.reset();
-  uniquenessTelemetry.reset();
+  uniquenessRuntime.reset();
+  strategyMap.reset();
+  selectedSpawnerTimeline.clearSamples();
   computeUniqueness(true);
 }
 

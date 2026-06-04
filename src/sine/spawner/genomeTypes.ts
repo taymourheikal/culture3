@@ -39,6 +39,12 @@ export type SpawnerPerception = {
   rollingWindowTicks: number;
   localScaleWindowTicks: number;
   localScaleSampleStepTicks: number;
+  volumeScaleWindowTicks: number;
+  volumeScaleSampleStepTicks: number;
+  volumeDeltaLagTicks: number;
+  volumeAccelerationLagTicks: number;
+  rsiWindowTicks: number;
+  volumePriceAgreementLagTicks: number;
   trendWindowTicks: number;
   cycleWindowTicks: number;
   roughnessSensitivity: number;

@@ -1,5 +1,6 @@
-// Browser perf currently shows the object-payload worker pool slower through
-// 500 agents, so automatic selection stays on sync until the protocol is retuned.
+// Browser perf currently shows object and compact worker pools slower through
+// 1000 fixed-pop agents; automatic selection stays on sync until worker
+// transport/materialization costs are clearly beaten.
 export const MIN_PARALLEL_BRAIN_EVAL_JOBS = Number.POSITIVE_INFINITY;
 export const MAX_BRAIN_EVAL_WORKERS = 4;
 export const BRAIN_EVAL_TIMEOUT_MS = 2_000;

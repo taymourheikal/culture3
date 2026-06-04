@@ -41,7 +41,7 @@ export function computeLocalSignalStats(
   sampleAtTick: TimelineSignalSampleResolver = (sampleTick) => getTimelineSampleByTick(timeline, sampleTick),
 ): LocalSignalScaleStats {
   const history = collectSignalHistory(timeline, tick, windowTicks, sampleStepTicks, sampleAtTick);
-  return summarizeLocalSignalScale(history.map((sample) => sample.value));
+  return summarizeLocalNumericScale(history.map((sample) => sample.value));
 }
 
 export function collectSignalHistory(
@@ -68,11 +68,35 @@ export function collectSignalHistory(
   }));
 }
 
+export function collectNumericHistory(
+  tick: number,
+  ticks: number,
+  stepTicks: number,
+  sampleAtTick: TimelineSignalSampleResolver,
+  readValue: (sample: ReturnType<TimelineSignalSampleResolver>) => number,
+) {
+  const sampleCount = Math.max(2, Math.round(ticks / Math.max(1, stepTicks)) + 1);
+  const history = [];
+  for (let index = sampleCount - 1; index >= 0; index -= 1) {
+    const sampleTick = Math.max(0, tick - Math.round(index * Math.max(1, stepTicks)));
+    const sample = sampleAtTick(sampleTick);
+    history.push({
+      tick: sample.tick,
+      value: readValue(sample),
+    });
+  }
+  const startTick = history[0]?.tick ?? 0;
+  return history.map((sample) => ({
+    tick: sample.tick - startTick,
+    value: sample.value,
+  }));
+}
+
 export function normalizeByLocalScale(value: number, localScale: number) {
   return clamp(value / Math.max(LOCAL_SCALE_FLOOR, localScale), -2, 2);
 }
 
-function summarizeLocalSignalScale(values: number[]): LocalSignalScaleStats {
+export function summarizeLocalNumericScale(values: number[]): LocalSignalScaleStats {
   if (values.length === 0) {
     return {
       scale: LOCAL_SCALE_FLOOR,

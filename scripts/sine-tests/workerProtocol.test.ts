@@ -17,8 +17,11 @@ import {
   ROSTER_AGENT_LIMIT,
   selectRosterSpawners,
 } from "../../src/sine/marketWorkerSnapshot";
-import { DEFAULT_SPAWNER_CONFIG, computeSpawnerUniqueness } from "../../src/sine/spawnerSimulation";
+import { DEFAULT_SPAWNER_CONFIG, computeSpawnerUniqueness, type SpawnerAgent, type SpawnerFood } from "../../src/sine/spawnerSimulation";
+import type { LeanTelemetrySample, StrategyMapWindow } from "../../src/sine/marketWorkerProtocol";
 import { downsampleByTick } from "../../src/sine/packets/seriesWindow";
+import { createSelectedSpawnerTimelineService } from "../../src/sine/worker/selectedSpawnerTimelineService";
+import { CHART_INTERVAL_MS, PACKET_SIZE_INTERVAL_MS, ROSTER_INTERVAL_MS, STATS_INTERVAL_MS, createPacketScheduler } from "../../src/sine/worker/packetScheduler";
 import { advanceSimulationToTarget, createCandleSimulationState, createSimulationState } from "../../src/sine/simulationRuntime";
 import type { SineTest } from "./helpers";
 
@@ -44,8 +47,23 @@ function testLeanPacketsContainRenderStateWithoutFullSimulation() {
   assert.ok(chart.signalSamples.length < 360);
   assert.ok(chart.visibleFoods.length > 0);
   assert.ok(chart.telemetrySamples.length > 0);
+  const firstTelemetry = chart.telemetrySamples[0];
+  assert.ok(firstTelemetry);
+  assert.equal(Number.isFinite(firstTelemetry.rollingHitRate), true);
+  assert.equal(Number.isFinite(firstTelemetry.rollingAveragePayoff), true);
+  assert.equal(Number.isFinite(firstTelemetry.resolvedVolume), true);
+  assert.equal(Number.isFinite(firstTelemetry.totalResolved), true);
+  assert.equal(Number.isFinite(firstTelemetry.cumulativeNetPayoff), true);
+  assert.equal(Number.isFinite(chart.telemetryPayoffAbsMax), true);
+  assert.equal(Number.isFinite(chart.telemetryResolvedVolumeMax), true);
+  assert.equal(Number.isFinite(chart.telemetryCumulativePayoffMin), true);
+  assert.equal(Number.isFinite(chart.telemetryCumulativePayoffMax), true);
   assert.ok(Array.isArray(chart.uniquenessSamples));
   assert.ok(Array.isArray(chart.selectedSpawnerUniquenessSamples));
+  assert.equal(chart.strategyMap.status, "waiting");
+  assert.equal(chart.strategyMap.points.length, 0);
+  assert.equal(chart.strategyMap.clusters.length, 0);
+  assert.equal(chart.selectedSpawnerTimeline, null);
   assert.equal("simulation" in chart, false);
   assert.equal("timeline" in chart, false);
   assert.equal("world" in chart, false);
@@ -70,6 +88,78 @@ function testLeanPacketsContainRenderStateWithoutFullSimulation() {
   assert.equal(Number.isFinite(stats.reproductionCostMultiplier), true);
   assert.equal(Number.isFinite(stats.currentReproductionCost), true);
   assert.equal(Number.isFinite(stats.currentReproductionEnergyRequirement), true);
+}
+
+function testChartPacketCarriesLeanStrategyMapWindow() {
+  const simulation = createSimulationState(INITIAL_SETTINGS, DEFAULT_SPAWNER_CONFIG);
+  const strategyMap: StrategyMapWindow = {
+    tick: 250,
+    status: "ready",
+    populationSize: 2,
+    sampleIntervalTicks: 250,
+    points: [
+      {
+        spawnerId: 1,
+        x: -0.5,
+        y: 0.25,
+        clusterId: 1,
+        clusterDistance: 0.1,
+        clusterPercentile: 0.5,
+        energy: 42,
+        generation: 0,
+        lineageId: 1,
+        hitRate: 0.75,
+        averagePayoff: 0.8,
+        resolvedCount: 4,
+      },
+    ],
+    clusters: [
+      {
+        clusterId: 1,
+        size: 2,
+        centroidX: -0.25,
+        centroidY: 0.1,
+        radius: 0.2,
+        avgPayoff: 0.4,
+        hitRate: 0.55,
+        avgGeneration: 1.5,
+        dominantLineageId: 1,
+      },
+    ],
+  };
+  const packet = createMarketChartPacket({ sessionId: 1, simulation, version: 1, strategyMap });
+  const clone = structuredClone(packet);
+  const point = clone.strategyMap.points[0];
+  const cluster = clone.strategyMap.clusters[0];
+
+  assert.equal(clone.strategyMap.status, "ready");
+  assert.deepEqual(Object.keys(point ?? {}).sort(), [
+    "averagePayoff",
+    "clusterDistance",
+    "clusterId",
+    "clusterPercentile",
+    "energy",
+    "generation",
+    "hitRate",
+    "lineageId",
+    "resolvedCount",
+    "spawnerId",
+    "x",
+    "y",
+  ]);
+  assert.deepEqual(Object.keys(cluster ?? {}).sort(), [
+    "avgGeneration",
+    "avgPayoff",
+    "centroidX",
+    "centroidY",
+    "clusterId",
+    "dominantLineageId",
+    "hitRate",
+    "radius",
+    "size",
+  ]);
+  assert.equal("features" in (point ?? {}), false);
+  assert.equal("genome" in (point ?? {}), false);
 }
 
 function testStatsPacketSeparatesActiveAndPendingSpawnerConfig() {
@@ -131,6 +221,33 @@ function testSessionIdsAllowStalePacketRejection() {
   assert.equal(newPacket.sessionId === expectedSessionId, true);
 }
 
+function testPacketSchedulerCadenceIsStable() {
+  const scheduler = createPacketScheduler();
+  assert.equal(scheduler.shouldPost("chart", false, 0), true);
+  assert.equal(scheduler.shouldPost("stats", false, 0), true);
+  assert.equal(scheduler.shouldPost("roster", false, 0), true);
+  assert.equal(scheduler.shouldPost("persistence", false, 0), true);
+
+  assert.equal(scheduler.shouldPost("chart", false, CHART_INTERVAL_MS - 0.01), false);
+  assert.equal(scheduler.shouldPost("chart", false, CHART_INTERVAL_MS), true);
+  assert.equal(scheduler.shouldPost("stats", false, STATS_INTERVAL_MS - 0.01), false);
+  assert.equal(scheduler.shouldPost("stats", false, STATS_INTERVAL_MS), true);
+  assert.equal(scheduler.shouldPost("roster", false, ROSTER_INTERVAL_MS - 0.01), false);
+  assert.equal(scheduler.shouldPost("roster", false, ROSTER_INTERVAL_MS), true);
+  assert.equal(scheduler.shouldPost("persistence", false, 999.99), false);
+  assert.equal(scheduler.shouldPost("persistence", false, 1000), true);
+
+  assert.equal(scheduler.shouldPost("chart", true, 1000.01), true);
+  assert.equal(scheduler.shouldPost("chart", false, 1000.02), false);
+  scheduler.retryNow("chart");
+  assert.equal(scheduler.shouldPost("chart", false, 1000.03), true);
+
+  assert.equal(scheduler.shouldMeasureSize("chart", false, 0), true);
+  assert.equal(scheduler.shouldMeasureSize("chart", false, PACKET_SIZE_INTERVAL_MS - 0.01), false);
+  assert.equal(scheduler.shouldMeasureSize("chart", false, PACKET_SIZE_INTERVAL_MS), true);
+  assert.equal(scheduler.shouldMeasureSize("chart", true, PACKET_SIZE_INTERVAL_MS + 0.01), true);
+}
+
 function testChartPacketSizeDoesNotGrowWithTotalRuntime() {
   const early = createSimulationState(INITIAL_SETTINGS, DEFAULT_SPAWNER_CONFIG);
   advanceSimulationToTarget(early, 10, 100000);
@@ -166,6 +283,75 @@ function testChartPacketCarriesBoundedUniquenessWindow() {
   assert.equal(packet.uniquenessSamples[0]?.tick, 1);
   assert.equal(packet.uniquenessSamples.at(-1)?.tick, 500);
   assert.equal(cloned.selectedSpawnerUniquenessSamples.at(-1)?.rawDistance, packet.selectedSpawnerUniquenessSamples.at(-1)?.rawDistance);
+}
+
+function testChartPacketCarriesSelectedSpawnerTimelineWhenProvided() {
+  const simulation = createSimulationState(INITIAL_SETTINGS, DEFAULT_SPAWNER_CONFIG);
+  const packet = createMarketChartPacket({
+    sessionId: 1,
+    simulation,
+    version: 1,
+    selectedSpawnerTimeline: {
+      spawnerId: 3,
+      status: "alive",
+      samples: [
+        {
+          tick: simulation.world.tick,
+          rollingHitRate: 0.5,
+          rollingAveragePayoff: 0.25,
+          rollingLoss: 0.1,
+          energy: 12,
+          health: 8,
+          openTrades: 2,
+          longRate: 0.25,
+          shortRate: 0.25,
+          waitRate: 0.5,
+          learnedDeltaNorm: 0.3,
+        },
+      ],
+    },
+  });
+  const cloned = structuredClone(packet);
+
+  assert.equal(packet.selectedSpawnerTimeline?.spawnerId, 3);
+  assert.equal(packet.selectedSpawnerTimeline?.samples.length, 1);
+  assert.equal(cloned.selectedSpawnerTimeline?.samples[0]?.learnedDeltaNorm, 0.3);
+}
+
+function testChartPacketWithSelectedTimelineStaysBoundedAfterLongRuntime() {
+  const simulation = createSimulationState(INITIAL_SETTINGS, DEFAULT_SPAWNER_CONFIG);
+  const spawner = simulation.world.spawners[0];
+  assert.ok(spawner);
+  const service = createSelectedSpawnerTimelineService();
+  service.setSelectedSpawner(spawner.id);
+  for (let tick = 1; tick <= 220; tick += 1) {
+    simulation.world.tick = tick;
+    spawner.lastAction = tick % 3 === 0 ? "long" : tick % 3 === 1 ? "short" : "wait";
+    service.sample(simulation);
+  }
+  const firstPacket = createMarketChartPacket({
+    sessionId: 1,
+    simulation,
+    version: 1,
+    selectedSpawnerTimeline: service.sample(simulation),
+  });
+  const firstSize = estimatePacketKb(firstPacket);
+  for (let tick = 221; tick <= 420; tick += 1) {
+    simulation.world.tick = tick;
+    spawner.lastAction = tick % 3 === 0 ? "long" : tick % 3 === 1 ? "short" : "wait";
+    service.sample(simulation);
+  }
+  const secondPacket = createMarketChartPacket({
+    sessionId: 1,
+    simulation,
+    version: 2,
+    selectedSpawnerTimeline: service.sample(simulation),
+  });
+  const secondSize = estimatePacketKb(secondPacket);
+
+  assert.ok((firstPacket.selectedSpawnerTimeline?.samples.length ?? 0) <= 181);
+  assert.ok((secondPacket.selectedSpawnerTimeline?.samples.length ?? 0) <= 181);
+  assert.ok(secondSize < firstSize * 1.15, `selected timeline packet grew after cap: ${firstSize} KB to ${secondSize} KB`);
 }
 
 function testSignalSamplesUseStableChartAnchors() {
@@ -233,11 +419,7 @@ function testTelemetryBoundsUseIntegerTicks() {
 }
 
 function testTelemetryWindowDownsamplingInvariants() {
-  const dense = Array.from({ length: TELEMETRY_SAMPLE_LIMIT + 40 }, (_, index) => ({
-    tick: index + 1,
-    population: 10 + index,
-    rollingLoss: index / 100,
-  }));
+  const dense = Array.from({ length: TELEMETRY_SAMPLE_LIMIT + 40 }, (_, index) => telemetryFixtureSample(index + 1, index));
   const sparse = dense.filter((sample) => sample.tick === 1 || sample.tick === dense.at(-1)?.tick || sample.tick % 3 !== 0);
 
   for (const samples of [dense, sparse]) {
@@ -251,6 +433,44 @@ function testTelemetryWindowDownsamplingInvariants() {
     assert.equal(window.telemetryStartTick, samples[0]?.tick);
     assert.equal(window.telemetryEndTick, 260);
   }
+}
+
+function testTelemetryWindowPreservesTradingPerformanceFields() {
+  const dense = Array.from({ length: TELEMETRY_SAMPLE_LIMIT + 40 }, (_, index) => telemetryFixtureSample(index + 1, index));
+  const window = createTelemetryWindow(dense, 260);
+  const first = window.telemetrySamples[0];
+  const last = window.telemetrySamples.at(-1);
+
+  assert(first);
+  assert(last);
+  assert.equal(first.rollingHitRate, 0);
+  assert.equal(first.rollingAveragePayoff, -1);
+  assert.equal(first.resolvedVolume, 0);
+  assert.equal(first.totalResolved, 0);
+  assert.equal(first.cumulativeNetPayoff, 0);
+  assert.equal(last.tick, dense.at(-1)?.tick);
+  assert.equal(Number.isFinite(last.rollingHitRate), true);
+  assert.equal(Number.isFinite(last.rollingAveragePayoff), true);
+  assert.equal(Number.isFinite(last.resolvedVolume), true);
+  assert.equal(Number.isFinite(last.totalResolved), true);
+  assert.equal(Number.isFinite(last.cumulativeNetPayoff), true);
+  assert.ok(window.telemetryPayoffAbsMax >= Math.abs(last.rollingAveragePayoff));
+  assert.ok(window.telemetryResolvedVolumeMax >= last.resolvedVolume);
+  assert.ok(window.telemetryCumulativePayoffMin <= first.cumulativeNetPayoff);
+  assert.ok(window.telemetryCumulativePayoffMax >= last.cumulativeNetPayoff);
+}
+
+function telemetryFixtureSample(tick: number, index: number): LeanTelemetrySample {
+  return {
+    tick,
+    population: 10 + index,
+    rollingLoss: index / 100,
+    rollingHitRate: (index % 101) / 100,
+    rollingAveragePayoff: (index - 100) / 100,
+    resolvedVolume: index % 7,
+    totalResolved: index * 2,
+    cumulativeNetPayoff: index / 5,
+  };
 }
 
 function testDownsampleByTickHandlesInvalidBounds() {
@@ -390,6 +610,47 @@ function testRosterSelectionShowsLaterGenerationsAndSelectedSpawner() {
   assert.equal(roster.spawners.find((spawner) => spawner.id === selectedSpawnerId)?.pendingFoodCount, 2);
 }
 
+function testRosterSelectionMatchesLegacyBucketOrdering() {
+  const simulation = createSimulationState(INITIAL_SETTINGS, { ...DEFAULT_SPAWNER_CONFIG, initialSpawners: 220, maxSpawners: 320 });
+  for (let index = 0; index < 90; index += 1) {
+    const parent = simulation.world.spawners[index];
+    assert.ok(parent);
+    const child = structuredClone(parent);
+    child.id = 221 + index;
+    child.parentSpawnerId = parent.id;
+    child.generation = 1 + (index % 4);
+    child.birthTick = 20 + (index % 13);
+    child.lastAction = index % 5 === 0 ? "long" : index % 7 === 0 ? "short" : "wait";
+    simulation.world.spawners.push(child);
+  }
+  const foods: SpawnerFood[] = [
+    pendingFood(222, 1),
+    pendingFood(222, 2),
+    pendingFood(245, 3),
+    pendingFood(301, 4),
+    { ...pendingFood(301, 5), status: "win" },
+  ];
+  const selectedSpawnerId = 301;
+  const actual = selectRosterSpawners({
+    spawners: simulation.world.spawners,
+    foods,
+    selectedSpawnerId,
+    limit: 80,
+  }).map((spawner) => spawner.id);
+  const expected = legacySelectRosterSpawners({
+    spawners: simulation.world.spawners,
+    foods,
+    selectedSpawnerId,
+    limit: 80,
+  }).map((spawner) => spawner.id);
+
+  assert.equal(actual.length, 80);
+  assert.deepEqual(actual, expected);
+  assert.equal(actual.includes(selectedSpawnerId), true);
+  assert.equal(new Set(actual).size, actual.length);
+  assert.deepEqual(actual, [...actual].sort((left, right) => left - right));
+}
+
 function testBtcChartPacketCarriesPriceSamplesOnlyForBtcMode() {
   const simulation = createCandleSimulationState({
     marketConfig: {
@@ -485,24 +746,100 @@ function testSpawnerInspectionPacketHandlesMissingSpawner() {
   assert.equal(packet.payload, null);
 }
 
+function pendingFood(creatorSpawnerId: number, id: number): SpawnerFood {
+  return {
+    id,
+    creatorSpawnerId,
+    creatorLineageId: creatorSpawnerId,
+    spawnTick: 1,
+    resolveTick: 10,
+    direction: "long",
+    strength: 1,
+    horizonTicks: 9,
+    entrySignal: 0,
+    status: "pending",
+  };
+}
+
+function legacySelectRosterSpawners({
+  spawners,
+  foods = [],
+  selectedSpawnerId = null,
+  limit = ROSTER_AGENT_LIMIT,
+}: {
+  spawners: SpawnerAgent[];
+  foods?: SpawnerFood[];
+  selectedSpawnerId?: number | null;
+  limit?: number;
+}) {
+  const boundedLimit = Math.max(0, Math.floor(limit));
+  if (boundedLimit === 0) return [];
+  if (spawners.length <= boundedLimit) return [...spawners];
+
+  const pendingCounts = new Map<number, number>();
+  for (const food of foods) {
+    if (food.status !== "pending") continue;
+    pendingCounts.set(food.creatorSpawnerId, (pendingCounts.get(food.creatorSpawnerId) ?? 0) + 1);
+  }
+  const selected = selectedSpawnerId === null ? undefined : spawners.find((spawner) => spawner.id === selectedSpawnerId);
+  const selectedReserve = selected ? 1 : 0;
+  const quotaBase = Math.max(1, boundedLimit - selectedReserve);
+  const founderQuota = Math.min(20, Math.max(1, Math.ceil(quotaBase * 0.15)));
+  const recentQuota = Math.min(40, Math.max(1, Math.ceil(quotaBase * 0.25)));
+  const generationQuota = Math.min(50, Math.max(1, Math.ceil(quotaBase * 0.3)));
+  const newestQuota = Math.max(1, quotaBase - founderQuota - recentQuota - generationQuota);
+  const selectedById = new Map<number, SpawnerAgent>();
+
+  const add = (spawner: SpawnerAgent | undefined) => {
+    if (!spawner || selectedById.size >= boundedLimit) return;
+    selectedById.set(spawner.id, spawner);
+  };
+  const addBucket = (bucket: SpawnerAgent[], quota: number) => {
+    for (const spawner of bucket.slice(0, Math.max(0, quota))) add(spawner);
+  };
+
+  add(selected);
+  addBucket([...spawners].sort((left, right) => left.id - right.id), founderQuota);
+  addBucket([...spawners].sort((left, right) => right.generation - left.generation || right.id - left.id), generationQuota);
+  addBucket(
+    spawners
+      .filter((spawner) => spawner.lastAction !== "wait" || (pendingCounts.get(spawner.id) ?? 0) > 0)
+      .sort((left, right) => (pendingCounts.get(right.id) ?? 0) - (pendingCounts.get(left.id) ?? 0) || right.birthTick - left.birthTick || right.id - left.id),
+    recentQuota,
+  );
+  addBucket([...spawners].sort((left, right) => right.birthTick - left.birthTick || right.id - left.id), newestQuota);
+
+  if (selectedById.size < boundedLimit) {
+    addBucket([...spawners].sort((left, right) => right.birthTick - left.birthTick || right.generation - left.generation || right.id - left.id), boundedLimit);
+  }
+
+  return [...selectedById.values()].sort((left, right) => left.id - right.id);
+}
+
 export const tests: SineTest[] = [
   { name: "Lean Packets Contain Render State Without Full Simulation", run: testLeanPacketsContainRenderStateWithoutFullSimulation },
   { name: "Stats Packet Separates Active And Pending Spawner Config", run: testStatsPacketSeparatesActiveAndPendingSpawnerConfig },
   { name: "Lean Packets Are Structured Clone Safe", run: testLeanPacketsAreStructuredCloneSafe },
   { name: "Session Ids Allow Stale Packet Rejection", run: testSessionIdsAllowStalePacketRejection },
+  { name: "Packet Scheduler Cadence Is Stable", run: testPacketSchedulerCadenceIsStable },
   { name: "Chart Packet Size Does Not Grow With Total Runtime", run: testChartPacketSizeDoesNotGrowWithTotalRuntime },
+  { name: "Chart Packet Carries Lean Strategy Map Window", run: testChartPacketCarriesLeanStrategyMapWindow },
   { name: "Chart Packet Carries Bounded Uniqueness Window", run: testChartPacketCarriesBoundedUniquenessWindow },
+  { name: "Chart Packet Carries Selected Spawner Timeline When Provided", run: testChartPacketCarriesSelectedSpawnerTimelineWhenProvided },
+  { name: "Chart Packet With Selected Timeline Stays Bounded After Long Runtime", run: testChartPacketWithSelectedTimelineStaysBoundedAfterLongRuntime },
   { name: "Signal Samples Use Stable Chart Anchors", run: testSignalSamplesUseStableChartAnchors },
   { name: "Chart Packet Does Not Render Ahead Of Simulated Time", run: testChartPacketDoesNotRenderAheadOfSimulatedTime },
   { name: "Generated Chart Packet Keeps Prospective Samples", run: testGeneratedChartPacketKeepsProspectiveSamples },
   { name: "Telemetry Downsampling Uses Stable Tick Anchors", run: testTelemetryDownsamplingUsesStableTickAnchors },
   { name: "Telemetry Bounds Use Integer Ticks", run: testTelemetryBoundsUseIntegerTicks },
   { name: "Telemetry Window Downsampling Invariants", run: testTelemetryWindowDownsamplingInvariants },
+  { name: "Telemetry Window Preserves Trading Performance Fields", run: testTelemetryWindowPreservesTradingPerformanceFields },
   { name: "Downsample By Tick Handles Invalid Bounds", run: testDownsampleByTickHandlesInvalidBounds },
   { name: "Roster Includes Generation One Uniqueness When Available", run: testRosterIncludesGenerationOneUniquenessWhenAvailable },
   { name: "Roster Uniqueness Matches Provided Full Population Scores", run: testRosterUniquenessMatchesProvidedFullPopulationScores },
   { name: "Roster Packet Is Capped For Large Populations", run: testRosterPacketIsCappedForLargePopulations },
   { name: "Roster Selection Shows Later Generations And Selected Spawner", run: testRosterSelectionShowsLaterGenerationsAndSelectedSpawner },
+  { name: "Roster Selection Matches Legacy Bucket Ordering", run: testRosterSelectionMatchesLegacyBucketOrdering },
   { name: "BTC Chart Packet Carries Price Samples Only For BTC Mode", run: testBtcChartPacketCarriesPriceSamplesOnlyForBtcMode },
   { name: "BTC Chart Packet Uses Price Samples Across Visible Window", run: testBtcChartPacketUsesPriceSamplesAcrossVisibleWindow },
   { name: "Spawner Inspection Packet Returns Live Payload", run: testSpawnerInspectionPacketReturnsLivePayload },

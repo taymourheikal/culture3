@@ -30,6 +30,68 @@ function testFunctionalVectorKeysAreStableAndFinite() {
   }
 }
 
+function testFunctionalVectorGoldenAnchors() {
+  const world = createSpawnerWorld(101, { initialSpawners: 3 });
+  const spawner = world.spawners[0];
+  assert.ok(spawner);
+  const vector = buildFunctionalGenomeVector(spawner);
+  const firstFeatures = vector.slice(0, 30).map((feature) => [feature.key, round(feature.value)] as const);
+  const anchoredFeatures = Object.fromEntries(
+    vector
+      .filter((feature) =>
+        [
+          "output.long.bias",
+          "tradingPolicy.spawnThreshold",
+          "perception.localScaleWindowTicks",
+          "mutationProfile.weightMutationStdDev",
+          "plasticity.weightLearningRate",
+        ].includes(feature.key),
+      )
+      .map((feature) => [feature.key, round(feature.value)]),
+  );
+
+  assert.equal(vector.length, 162);
+  assert.deepEqual(firstFeatures, [
+    ["units.layer1", 6],
+    ["units.layer2", 0],
+    ["units.layer3Plus", 0],
+    ["layers.active", 1],
+    ["layers.maxIndex", 1],
+    ["layers.widthStd", 0],
+    ["connections.inputToHidden", 30],
+    ["connections.recurrent", 12],
+    ["connections.hiddenCurrentToHidden", 0],
+    ["connections.hiddenToOutput", 24],
+    ["connections.inputToOutput", 0],
+    ["connections.skip", 0],
+    ["density.inputToHidden", 0.075758],
+    ["density.recurrent", 0.111111],
+    ["density.hiddenToOutput", 0.666667],
+    ["density.skip", 0],
+    ["recurrence.unitsWithInputRatio", 1],
+    ["recurrence.unitsWithSelfRatio", 0.333333],
+    ["recurrence.meanInputsPerUnit", 2],
+    ["recurrence.maxInputsPerUnit", 2],
+    ["gate.balanceEntropy", 0.960432],
+    ["bias.update.mean", -0.014903],
+    ["bias.update.std", 0.052715],
+    ["bias.reset.mean", -0.061946],
+    ["bias.reset.std", 0.057855],
+    ["bias.candidate.mean", -0.065566],
+    ["bias.candidate.std", 0.077981],
+    ["input.0.outgoingCount", 0],
+    ["input.0.absWeightMean", 0],
+    ["input.1.outgoingCount", 3],
+  ]);
+  assert.deepEqual(anchoredFeatures, {
+    "output.long.bias": -0.17715,
+    "tradingPolicy.spawnThreshold": 0.56,
+    "perception.localScaleWindowTicks": 48,
+    "mutationProfile.weightMutationStdDev": 0.045,
+    "plasticity.weightLearningRate": 0.012,
+  });
+}
+
 function testSingleSpawnerPopulationReturnsZeroScore() {
   const world = createSpawnerWorld(101, { initialSpawners: 1 });
   const scores = computeSpawnerUniqueness(world.spawners, world.tick, { detailSpawnerId: world.spawners[0]?.id });
@@ -121,6 +183,48 @@ function testFeatureExplanationsAreFinite() {
     assert.equal(Number.isFinite(feature.populationMad), true);
     assert.equal(Number.isFinite(feature.zScore), true);
   }
+}
+
+function testUniquenessScoreGoldenDetail() {
+  const world = createSpawnerWorld(515, { initialSpawners: 6 });
+  const spawner = world.spawners[2];
+  assert(spawner);
+  const score = computeSpawnerUniqueness(world.spawners, world.tick, { detailSpawnerId: spawner.id }).get(spawner.id);
+
+  assert(score);
+  assert.equal(round(score.score), 0.2);
+  assert.equal(round(score.rawDistance), 2.421892);
+  assert.equal(score.activeFeatureCount, 105);
+  assert.equal(score.droppedFeatureCount, 57);
+  assert.deepEqual(score.nearestNeighborIds, [4, 2, 6, 1, 5]);
+  assert.deepEqual(
+    score.mostSimilarFeatures.slice(0, 3).map((feature) => [
+      feature.key,
+      round(feature.value),
+      round(feature.populationMedian),
+      round(feature.populationMad),
+      round(feature.zScore),
+    ]),
+    [
+      ["input.1.outgoingCount", 2, 2, 1, 0],
+      ["input.10.outgoingCount", 1, 1, 1, 0],
+      ["input.11.outgoingCount", 1, 1, 0.5, 0],
+    ],
+  );
+  assert.deepEqual(
+    score.mostDissimilarFeatures.slice(0, 3).map((feature) => [
+      feature.key,
+      round(feature.value),
+      round(feature.populationMedian),
+      round(feature.populationMad),
+      round(feature.zScore),
+    ]),
+    [
+      ["input.14.absWeightMean", 0, 0.466053, 0.062406, -7.468046],
+      ["perception.cycleWindowTicks", 57, 50, 1, 7],
+      ["perception.volumeScaleSampleStepTicks", 7, 2, 1, 5],
+    ],
+  );
 }
 
 function testTypicalFeatureExplanationsPreferActiveDimensions() {
@@ -265,6 +369,10 @@ function testSharedStatsPreserveSineSemantics() {
   assert.equal(percentileRank(2, [1, 2, 2, 4]), 0.5);
 }
 
+function round(value: number) {
+  return Number(value.toFixed(6));
+}
+
 function cloneSpawner(spawner: SpawnerAgent, id: number): SpawnerAgent {
   return {
     ...spawner,
@@ -303,11 +411,13 @@ function cloneSpawner(spawner: SpawnerAgent, id: number): SpawnerAgent {
 
 export const tests: SineTest[] = [
   { name: "Functional Vector Keys Are Stable And Finite", run: testFunctionalVectorKeysAreStableAndFinite },
+  { name: "Functional Vector Golden Anchors", run: testFunctionalVectorGoldenAnchors },
   { name: "Single Spawner Population Returns Zero Score", run: testSingleSpawnerPopulationReturnsZeroScore },
   { name: "Cloned Genomes Have Zero Uniqueness", run: testClonedGenomesHaveZeroUniqueness },
   { name: "Unusual Functional Genome Ranks Highest", run: testUnusualFunctionalGenomeRanksHighest },
   { name: "Nearest Neighbors Exclude Selected Spawner", run: testNearestNeighborsExcludeSelectedSpawner },
   { name: "Feature Explanations Are Finite", run: testFeatureExplanationsAreFinite },
+  { name: "Uniqueness Score Golden Detail", run: testUniquenessScoreGoldenDetail },
   { name: "Typical Feature Explanations Prefer Active Dimensions", run: testTypicalFeatureExplanationsPreferActiveDimensions },
   { name: "Perception Feature Can Explain Uniqueness", run: testPerceptionFeatureCanExplainUniqueness },
   { name: "Mutation Profile Feature Can Explain Uniqueness", run: testMutationProfileFeatureCanExplainUniqueness },

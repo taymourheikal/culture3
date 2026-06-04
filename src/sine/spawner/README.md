@@ -21,7 +21,7 @@ This directory contains the neural food-spawner agents used by the Toy Market Si
 
 ## Architecture Rules
 
-Inputs and outputs are fixed by the contract in `config.ts`. The current input contract has 16 slots. Perception can mutate the tick windows used to compute several inputs, but it must not change the slot order or meaning. Architecture mutation can add, disable, or re-enable hidden units and legal connections. Hidden units are GRU-like recurrent memory units with update, reset, and candidate gates.
+Inputs and outputs are fixed by the contract in `config.ts`. The current input contract has 22 slots. Perception can mutate the tick windows used to compute several inputs, but it must not change the slot order or meaning. Architecture mutation can add, disable, or re-enable hidden units and legal connections. Hidden units are GRU-like recurrent memory units with update, reset, and candidate gates.
 
 Do not add React, DOM, storage, fetch, or canvas code here. This layer should be usable from tests, Workers, and persistence reconstruction without browser UI dependencies.
 

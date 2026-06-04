@@ -19,6 +19,7 @@ import {
   applyLearningSignal,
   applyReproductionLearning,
   learningSignalFromPayoff,
+  learnedStateDecayCanChange,
   learnedStateNorm,
   outputBiasDeltaKey,
   pruneDecisionTraces,
@@ -77,6 +78,41 @@ function testPlasticitySanitizeCloneNormAndDecay() {
 
   const decayed = decayLearnedState(learnedState, { experienceDecayRate: 0.25, maxLearnedDelta: 2 });
   assert.equal(decayed.connectionDeltas["1"], 1.5);
+}
+
+function testLearnedStateDecayCanChangeDetectsExactNoops() {
+  assert.deepEqual(decayLearnedState(undefined, { experienceDecayRate: 0.25 }, { assumeNormalizedRuntimeState: true }), createEmptyLearnedState());
+
+  const empty = createEmptyLearnedState();
+  assert.equal(learnedStateDecayCanChange(empty, { experienceDecayRate: 0.5 }), false);
+  assert.deepEqual(empty, createEmptyLearnedState());
+  assert.equal(decayLearnedState(empty, { experienceDecayRate: 0.5, maxLearnedDelta: 5 }, { assumeNormalizedRuntimeState: true }), empty);
+
+  const active = createEmptyLearnedState();
+  active.connectionDeltas["1"] = 0.5;
+  assert.equal(learnedStateDecayCanChange(active, { experienceDecayRate: 0 }), false);
+  assert.equal(learnedStateDecayCanChange(active, { experienceDecayRate: 0.25 }), true);
+  assert.equal(learnedStateDecayCanChange(active, { experienceDecayRate: Number.NaN }), false);
+  assert.deepEqual(
+    decayLearnedState(active, { experienceDecayRate: 0.25, maxLearnedDelta: 5 }, { assumeNormalizedRuntimeState: true }),
+    decayLearnedState(active, { experienceDecayRate: 0.25, maxLearnedDelta: 5 }),
+  );
+
+  const zeroValued = createEmptyLearnedState();
+  zeroValued.outputBiasDeltas["0"] = 0;
+  assert.equal(learnedStateDecayCanChange(zeroValued, { experienceDecayRate: 0.25 }), true);
+  assert.deepEqual(decayLearnedState(zeroValued, { experienceDecayRate: 0.25 }).outputBiasDeltas, {});
+  assert.deepEqual(
+    decayLearnedState(zeroValued, { experienceDecayRate: 0.25, maxLearnedDelta: 5 }, { assumeNormalizedRuntimeState: true }),
+    decayLearnedState(zeroValued, { experienceDecayRate: 0.25, maxLearnedDelta: 5 }),
+  );
+
+  const clamped = createEmptyLearnedState();
+  clamped.gateBiasDeltas["2:update"] = 0.5;
+  assert.equal(learnedStateDecayCanChange(clamped, { experienceDecayRate: 0.25, maxLearnedDelta: 0.5 }), true);
+  const decayed = decayLearnedState(clamped, { experienceDecayRate: 0.25, maxLearnedDelta: 0.5 });
+  assert.equal(decayed.gateBiasDeltas["2:update"], 0.375);
+  assert.deepEqual(decayLearnedState(clamped, { experienceDecayRate: 0.25, maxLearnedDelta: 0.5 }, { assumeNormalizedRuntimeState: true }), decayed);
 }
 
 function testLegacyAgentAndGenomeNormalizeToZeroLearning() {
@@ -439,6 +475,7 @@ function testTracePruningRemovesExpiredTraces() {
 export const tests: SineTest[] = [
   { name: "Plasticity Models Create Without World", run: testPlasticityModelsCreateWithoutWorld },
   { name: "Plasticity Sanitize Clone Norm And Decay", run: testPlasticitySanitizeCloneNormAndDecay },
+  { name: "Learned State Decay Can Change Detects Exact Noops", run: testLearnedStateDecayCanChangeDetectsExactNoops },
   { name: "Legacy Agent And Genome Normalize To Zero Learning", run: testLegacyAgentAndGenomeNormalizeToZeroLearning },
   { name: "Effective Genome View Supports Noop And Targeted Deltas", run: testEffectiveGenomeViewSupportsNoopAndTargetedDeltas },
   { name: "Effective Genome Materializes For Inheritance Without Mutating Parent", run: testEffectiveGenomeMaterializesForInheritanceWithoutMutatingParent },

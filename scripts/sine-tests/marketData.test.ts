@@ -30,6 +30,8 @@ function testMarketDataQuerySnapsAndComputesRoc() {
   const start = result.candles.find((candle: any) => candle.isStart);
   assert.ok(start);
   assert.equal(typeof start.roc, "number");
+  assert.equal(typeof start.volume, "number");
+  assert(Number.isFinite(start.volume));
 }
 
 function testMarketDataParsesBareDatetimeAsUtc() {

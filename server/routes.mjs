@@ -17,6 +17,7 @@ import {
   saveBatchSummary,
 } from "./batchRepository.mjs";
 import { saveEvents, getLatestWorld, saveSnapshot } from "./worldRepository.mjs";
+import { routeSineHeadlessRequest } from "./sineHeadlessRoutes.mjs";
 import { routeSineRequest } from "./sineRoutes.mjs";
 import {
   readLimit,
@@ -25,17 +26,48 @@ import {
   validateBatchSummary,
 } from "./validation.mjs";
 import { getMarketCandles, listMarketSources } from "./marketDataRepository.mjs";
+import {
+  benchmarkInstrumentationSnapshot,
+  benchmarkNowMs,
+  isBenchmarkInstrumentationEnabled,
+  recordBenchmarkRequest,
+  resetBenchmarkInstrumentation,
+} from "./benchmarkInstrumentation.mjs";
+import { defaultSineHeadlessDbPath } from "./sineHeadlessRepository.mjs";
 
 export async function routeRequest(req, res) {
+  const requestStarted = benchmarkNowMs();
+  const requestUrl = new URL(req.url ?? "/", "http://localhost");
+  if (isBenchmarkInstrumentationEnabled()) {
+    res.on("finish", () => {
+      recordBenchmarkRequest(req.method ?? "UNKNOWN", requestUrl.pathname, res.statusCode, benchmarkNowMs() - requestStarted);
+    });
+  }
   try {
     if (req.method === "OPTIONS") {
       sendJson(res, 204, {});
       return;
     }
 
-    const url = new URL(req.url ?? "/", "http://localhost");
+    const url = requestUrl;
 
     if (req.method === "GET" && url.pathname === "/api/health") {
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    if (isBenchmarkInstrumentationEnabled() && req.method === "GET" && url.pathname === "/api/benchmark/timing") {
+      sendJson(res, 200, {
+        ok: true,
+        benchmark: benchmarkInstrumentationSnapshot({
+          headlessDbPath: defaultSineHeadlessDbPath,
+        }),
+      });
+      return;
+    }
+
+    if (isBenchmarkInstrumentationEnabled() && req.method === "POST" && url.pathname === "/api/benchmark/timing/reset") {
+      resetBenchmarkInstrumentation();
       sendJson(res, 200, { ok: true });
       return;
     }
@@ -90,6 +122,10 @@ export async function routeRequest(req, res) {
 
     if (req.method === "GET" && url.pathname === "/api/batch/experiments") {
       sendJson(res, 200, { experiments: listBatchExperiments(readLimit(url.searchParams.get("limit"))) });
+      return;
+    }
+
+    if (await routeSineHeadlessRequest({ req, res, url, readBody, sendJson, notFound })) {
       return;
     }
 

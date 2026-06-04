@@ -28,6 +28,12 @@ export type SpawnerConfig = {
   defaultRollingWindowTicks: number;
   defaultLocalScaleWindowTicks: number;
   defaultLocalScaleSampleStepTicks: number;
+  defaultVolumeScaleWindowTicks: number;
+  defaultVolumeScaleSampleStepTicks: number;
+  defaultVolumeDeltaLagTicks: number;
+  defaultVolumeAccelerationLagTicks: number;
+  defaultRsiWindowTicks: number;
+  defaultVolumePriceAgreementLagTicks: number;
   defaultPayoffScaleWindowTicks: number;
   defaultPayoffScaleSampleStepTicks: number;
   defaultTrendWindowTicks: number;
@@ -125,6 +131,10 @@ export type SpawnerTelemetrySample = {
   tick: number;
   population: number;
   rollingLoss: number;
+  rollingHitRate: number;
+  rollingAveragePayoff: number;
+  resolvedVolume: number;
+  totalResolved: number;
   lossRate: number;
   cumulativeLoss: number;
   cumulativeNetPayoff: number;

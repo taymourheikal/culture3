@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   deleteSineSession,
+  getSineSessionCohortAnalysis,
   getSineSessionAnalysis,
   getSineSpawnerInspection,
   listSineSessions,
@@ -37,7 +38,27 @@ export async function routeSineRequest({ req, res, url, readBody, sendJson, notF
 
   const analysisMatch = url.pathname.match(/^\/api\/sine\/sessions\/([^/]+)\/analysis$/);
   if (req.method === "GET" && analysisMatch) {
-    const analysis = getSineSessionAnalysis(readSessionId(analysisMatch));
+    const analysis = getSineSessionAnalysis(readSessionId(analysisMatch), {
+      fromPercent: url.searchParams.get("fromPercent"),
+      toPercent: url.searchParams.get("toPercent"),
+    });
+    if (!analysis) {
+      notFound(res);
+      return true;
+    }
+    sendJson(res, 200, { ok: true, analysis });
+    return true;
+  }
+
+  const cohortMatch = url.pathname.match(/^\/api\/sine\/sessions\/([^/]+)\/cohort-analysis$/);
+  if (req.method === "GET" && cohortMatch) {
+    const analysis = getSineSessionCohortAnalysis(readSessionId(cohortMatch), {
+      fromPercent: url.searchParams.get("fromPercent"),
+      toPercent: url.searchParams.get("toPercent"),
+      minTrades: url.searchParams.get("minTrades"),
+      minAgePercentile: url.searchParams.get("minAgePercentile"),
+      bucketCount: url.searchParams.get("bucketCount"),
+    });
     if (!analysis) {
       notFound(res);
       return true;

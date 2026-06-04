@@ -4,7 +4,20 @@ import type { SpawnerGenome } from "./types";
 export type HiddenStateArray = number[];
 
 export function hiddenRecordToArray(plan: Pick<CompiledBrainPlan, "unitIds">, hiddenState: Record<number, number>): HiddenStateArray {
-  return plan.unitIds.map((unitId) => finiteHiddenValue(hiddenState[unitId ?? -1]));
+  const values = new Array<number>(plan.unitIds.length);
+  return hiddenRecordToArrayInto(plan, hiddenState, values);
+}
+
+export function hiddenRecordToArrayInto(
+  plan: Pick<CompiledBrainPlan, "unitIds">,
+  hiddenState: Record<number, number>,
+  target: HiddenStateArray,
+): HiddenStateArray {
+  target.length = plan.unitIds.length;
+  for (let index = 0; index < plan.unitIds.length; index += 1) {
+    target[index] = finiteHiddenValue(hiddenState[plan.unitIds[index] ?? -1]);
+  }
+  return target;
 }
 
 export function hiddenArrayToCurrentRecord(plan: Pick<CompiledBrainPlan, "unitIds">, hiddenState: ArrayLike<number>) {

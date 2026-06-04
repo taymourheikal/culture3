@@ -47,10 +47,19 @@ async function requestSineJson<T>(
   },
 ) {
   const response = await fetch(sineApiUrl(path, params), options);
-  if (!response.ok) throw new Error(errorMessage(response.status));
+  if (!response.ok) throw new Error((await readErrorMessage(response)) ?? errorMessage(response.status));
   return (await response.json()) as T;
 }
 
 function stringifyParams(params: Record<string, string | number | boolean>) {
   return Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)]));
+}
+
+async function readErrorMessage(response: Response) {
+  try {
+    const body = (await response.json()) as { error?: unknown };
+    return typeof body.error === "string" && body.error.trim() ? body.error : null;
+  } catch {
+    return null;
+  }
 }

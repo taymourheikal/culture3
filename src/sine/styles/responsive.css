@@ -1,7 +1,27 @@
 @media (max-width: 900px) {
   .sine-shell {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "error"
+      "run"
+      "center"
+      "left"
+      "right"
+      "history"
+      "footer";
     padding: 12px;
+  }
+
+  .sine-workbench-left {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .sine-controls,
+  .sine-control-panel-scroll {
+    max-height: none;
+    overflow: visible;
   }
 
   .sine-header {
@@ -21,6 +41,10 @@
     text-align: left;
   }
 
+  .sine-run-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .sine-canvas,
   .price-chart-wrap {
     min-height: 360px;
@@ -35,17 +59,59 @@
   .parameter-chart-wrap,
   .parameter-canvas,
   .telemetry-chart-wrap,
+  .trading-performance-chart-wrap,
   .telemetry-canvas,
+  .trading-performance-canvas,
   .uniqueness-chart-wrap,
   .uniqueness-canvas {
     min-height: 210px;
     height: 210px;
   }
 
+  .strategy-map-chart-wrap,
+  .strategy-map-canvas {
+    min-height: 260px;
+    height: 260px;
+  }
+
+  .strategy-map-chart-wrap {
+    display: grid;
+    height: auto;
+    min-height: 360px;
+    grid-template-rows: auto auto minmax(260px, 1fr) auto;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .strategy-map-chart-title,
+  .strategy-map-controls,
+  .strategy-map-legend {
+    position: static;
+    max-width: none;
+  }
+
+  .strategy-map-chart-title {
+    justify-self: start;
+  }
+
+  .strategy-map-controls {
+    justify-content: flex-start;
+  }
+
+  .strategy-map-canvas {
+    min-height: 260px;
+  }
+
   .parameter-legend,
+  .trading-performance-legend,
   .telemetry-legend,
   .uniqueness-legend {
     left: 14px;
+  }
+
+  .strategy-map-legend {
+    right: auto;
+    left: auto;
   }
 
   .spawner-panel-header {
@@ -66,6 +132,19 @@
     grid-template-columns: 1fr;
   }
 
+  .sine-cohort-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sine-cohort-regime-table {
+    grid-template-columns: 48px repeat(4, minmax(0, 1fr));
+  }
+
+  .sine-cohort-regime-table > div {
+    min-height: 48px;
+    padding: 6px;
+  }
+
   .sine-help-shell {
     padding: 12px;
   }
@@ -76,6 +155,11 @@
 
   .sine-help-content {
     grid-template-columns: 1fr;
+  }
+
+  .sine-help-nav {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .sine-rnn-schematic {
@@ -99,7 +183,7 @@
     min-height: 16px;
     align-items: center;
     justify-content: center;
-    color: #ffd680;
+    color: var(--sine-amber);
     font-weight: 900;
   }
 
@@ -129,7 +213,7 @@
 
   .architecture-side-panel {
     max-height: 220px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--sine-border-subtle);
     border-left: 0;
   }
 
@@ -140,5 +224,73 @@
 
   .gate-view-head {
     display: grid;
+  }
+
+  .sine-modal-backdrop {
+    align-items: stretch;
+    padding: 10px;
+  }
+
+  .sine-modal {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+  }
+
+  .sine-modal-head {
+    padding: 13px;
+  }
+
+  .sine-modal-body {
+    padding: 13px;
+  }
+
+  .sine-modal-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .sine-modal-toolbar label {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1280px) {
+  .sine-shell {
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    grid-template-areas:
+      "header header"
+      "error error"
+      "run run"
+      "center right"
+      "left left"
+      "history history"
+      "footer footer";
+  }
+
+  .sine-workbench-left {
+    grid-template-columns: 1fr;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .sine-controls,
+  .sine-control-panel-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .sine-workbench-right {
+    grid-template-columns: 1fr;
+  }
+
+  .sine-workbench-right .telemetry-chart-wrap,
+  .sine-workbench-right .trading-performance-chart-wrap,
+  .sine-workbench-right .strategy-map-chart-wrap,
+  .sine-workbench-right .uniqueness-chart-wrap {
+    grid-column: auto;
+  }
+
+  .sine-cohort-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,32 +1,32 @@
 :root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --sine-bg: #090d10;
-  --sine-bg-soft: #0d1216;
-  --sine-surface: #10161a;
-  --sine-surface-raised: #151c20;
-  --sine-surface-muted: #1a2125;
-  --sine-border-subtle: rgba(205, 226, 221, 0.08);
-  --sine-border: rgba(205, 226, 221, 0.14);
-  --sine-border-strong: rgba(205, 226, 221, 0.22);
-  --sine-text: #edf4f2;
-  --sine-text-strong: #f7fbfa;
-  --sine-text-muted: #a9bab6;
-  --sine-text-faint: #82938f;
-  --sine-accent: #69d7d0;
-  --sine-accent-rgb: 105 215 208;
-  --sine-amber: #ffd680;
-  --sine-amber-rgb: 255 214 128;
-  --sine-positive: #86d87a;
-  --sine-positive-rgb: 134 216 122;
-  --sine-negative: #ff8f70;
-  --sine-negative-rgb: 255 143 112;
-  --sine-purple: #b989ff;
-  --sine-purple-rgb: 185 137 255;
-  --sine-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
-  --sine-shadow-modal: 0 28px 80px rgba(0, 0, 0, 0.5);
-  --sine-radius: 8px;
-  --sine-radius-panel: 10px;
+  --sine-bg: #101417;
+  --sine-bg-soft: #151c1f;
+  --sine-surface: #20282c;
+  --sine-surface-raised: #283337;
+  --sine-surface-muted: #323f43;
+  --sine-border-subtle: rgba(239, 230, 207, 0.1);
+  --sine-border: rgba(239, 230, 207, 0.16);
+  --sine-border-strong: rgba(239, 230, 207, 0.34);
+  --sine-text: #f3f0e8;
+  --sine-text-strong: #fffaf0;
+  --sine-text-muted: #b8b2a6;
+  --sine-text-faint: #7d766a;
+  --sine-accent: #9be7c1;
+  --sine-accent-rgb: 155 231 193;
+  --sine-amber: #f0b35b;
+  --sine-amber-rgb: 240 179 91;
+  --sine-positive: #b7dc74;
+  --sine-positive-rgb: 183 220 116;
+  --sine-negative: #e97864;
+  --sine-negative-rgb: 233 120 100;
+  --sine-purple: #c1a4ff;
+  --sine-purple-rgb: 193 164 255;
+  --sine-shadow: 0 24px 90px rgba(0, 0, 0, 0.36);
+  --sine-shadow-modal: 0 30px 110px rgba(0, 0, 0, 0.55);
+  --sine-radius: 9px;
+  --sine-radius-panel: 14px;
   background: var(--sine-bg);
   color: var(--sine-text);
 }
@@ -40,9 +40,9 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    linear-gradient(140deg, rgb(var(--sine-accent-rgb) / 0.035), transparent 34%),
-    linear-gradient(320deg, rgb(var(--sine-amber-rgb) / 0.03), transparent 32%),
-    var(--sine-bg);
+    radial-gradient(circle at 8% 0%, rgb(var(--sine-accent-rgb) / 0.16), transparent 28%),
+    radial-gradient(circle at 94% 4%, rgb(var(--sine-amber-rgb) / 0.11), transparent 26%),
+    linear-gradient(135deg, var(--sine-bg), var(--sine-bg-soft) 52%, #13151b);
 }
 
 button,

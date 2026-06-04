@@ -1,4 +1,5 @@
 import type { WaveSettings } from "../marketSignal";
+import { roundForInput } from "../charts/format";
 import type { MarketDataSource, MarketPlaybackSettings, MarketRuntimeConfig } from "../marketRuntimeConfig";
 import { isBtcSource, PLAYBACK_SETTING_BOUNDS, sourceLabel } from "../marketRuntimeConfig";
 import { saveMarketSettingsGroup, saveMarketSourceDefault, savePlaybackSettingsGroup } from "../settingsStorage";
@@ -16,6 +17,10 @@ export function MarketControlGroups({
   updatePlaybackSetting,
   updateMarketSource,
   replaceMarketConfig,
+  showSaveActions = true,
+  saveMarketSource = saveMarketSourceDefault,
+  savePlaybackSettings = savePlaybackSettingsGroup,
+  saveMarketSettings = saveMarketSettingsGroup,
 }: {
   settings: WaveSettings;
   marketConfig: MarketRuntimeConfig;
@@ -25,18 +30,22 @@ export function MarketControlGroups({
   updatePlaybackSetting: <K extends keyof MarketPlaybackSettings>(key: K, value: MarketPlaybackSettings[K]) => void;
   updateMarketSource: (source: MarketDataSource) => void;
   replaceMarketConfig: (config: MarketRuntimeConfig) => void;
+  showSaveActions?: boolean;
+  saveMarketSource?: (config: MarketRuntimeConfig) => MarketRuntimeConfig;
+  savePlaybackSettings?: (playback: MarketPlaybackSettings, keys: Array<keyof MarketPlaybackSettings>) => MarketRuntimeConfig;
+  saveMarketSettings?: (settings: WaveSettings, keys: Array<keyof WaveSettings>) => WaveSettings;
 }) {
   return (
     <div className="sine-parameters-stack">
       <ControlGroupSection
         title="Data Source"
         saveTitle="Save data source"
-        saved={savedGroup === "market:source"}
-        onSave={() => {
-          const saved = saveMarketSourceDefault(marketConfig);
+        saved={showSaveActions && savedGroup === "market:source"}
+        onSave={showSaveActions ? () => {
+          const saved = saveMarketSource(marketConfig);
           replaceMarketConfig(saved);
           setSavedGroup("market:source");
-        }}
+        } : undefined}
       >
         <label className="sine-select-field">
           <span>Source</span>
@@ -52,11 +61,11 @@ export function MarketControlGroups({
         <ControlGroupSection
           title="BTC Playback"
           saveTitle="Save BTC playback"
-          saved={savedGroup === "market:playback"}
-          onSave={() => {
-            savePlaybackSettingsGroup(marketConfig.playback, ["rocLengthBars", "startDateTime", "barsPerSecond"]);
+          saved={showSaveActions && savedGroup === "market:playback"}
+          onSave={showSaveActions ? () => {
+            replaceMarketConfig(savePlaybackSettings(marketConfig.playback, ["rocLengthBars", "startDateTime", "barsPerSecond"]));
             setSavedGroup("market:playback");
-          }}
+          } : undefined}
         >
           <ControlSlider
             label="ROC length"
@@ -91,11 +100,11 @@ export function MarketControlGroups({
         <ControlGroupSection
           title="Generated Playback"
           saveTitle="Save generated playback"
-          saved={savedGroup === "market:generated-playback"}
-          onSave={() => {
-            savePlaybackSettingsGroup(marketConfig.playback, ["generatedTicksPerSecond"]);
+          saved={showSaveActions && savedGroup === "market:generated-playback"}
+          onSave={showSaveActions ? () => {
+            replaceMarketConfig(savePlaybackSettings(marketConfig.playback, ["generatedTicksPerSecond"]));
             setSavedGroup("market:generated-playback");
-          }}
+          } : undefined}
         >
           <ControlSlider
             label="Ticks per second"
@@ -103,7 +112,7 @@ export function MarketControlGroups({
             min={PLAYBACK_SETTING_BOUNDS.generatedTicksPerSecond.min}
             max={PLAYBACK_SETTING_BOUNDS.generatedTicksPerSecond.max}
             step={PLAYBACK_SETTING_BOUNDS.generatedTicksPerSecond.step}
-            display={`${marketConfig.playback.generatedTicksPerSecond} ticks/s`}
+            display={`${roundForInput(marketConfig.playback.generatedTicksPerSecond, PLAYBACK_SETTING_BOUNDS.generatedTicksPerSecond.step)} ticks/s`}
             onChange={(value) => updatePlaybackSetting("generatedTicksPerSecond", value)}
           />
         </ControlGroupSection>
@@ -114,10 +123,11 @@ export function MarketControlGroups({
           groups={CONTROL_GROUPS}
           savedGroup={savedGroup}
           savedPrefix="market"
+          showSaveActions={showSaveActions}
           getValue={(key) => settings[key]}
           getDisplay={(control) => control.display(settings)}
           onSaveGroup={(group, savedKey) => {
-              saveMarketSettingsGroup(
+              saveMarketSettings(
                 settings,
                 group.controls.map((control) => control.key),
               );

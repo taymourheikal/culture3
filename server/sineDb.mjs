@@ -7,7 +7,8 @@ const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const dataDir = join(rootDir, "data");
 mkdirSync(dataDir, { recursive: true });
 
-export const sineDb = new DatabaseSync(join(dataDir, "toy-market.sqlite"));
+export const defaultSineDbPath = join(dataDir, "toy-market.sqlite");
+export const sineDb = new DatabaseSync(process.env.SINE_DB_PATH || defaultSineDbPath);
 
 sineDb.exec(`
   PRAGMA journal_mode = WAL;
@@ -148,8 +149,15 @@ ensureColumn("sine_spawner_state_snapshots", "plasticity_decay_rate", "REAL NOT 
 ensureColumn("sine_spawner_state_snapshots", "plasticity_max_learned_delta", "REAL NOT NULL DEFAULT 0");
 ensureColumn("sine_spawner_state_snapshots", "learned_state_json", "TEXT NOT NULL DEFAULT '{}'");
 ensureColumn("sine_spawner_state_snapshots", "plasticity_profile_json", "TEXT NOT NULL DEFAULT '{}'");
+ensureColumn("sine_spawner_deaths", "death_cause", "TEXT");
+ensureColumn("sine_spawner_deaths", "death_energy_threshold", "REAL");
+ensureColumn("sine_spawner_deaths", "death_health_threshold", "REAL");
 
 sineDb.exec(`
+  CREATE INDEX IF NOT EXISTS sine_sessions_updated_idx
+    ON sine_sessions (updated_at DESC);
+  CREATE INDEX IF NOT EXISTS sine_states_session_tick_time_idx
+    ON sine_spawner_state_snapshots (session_id, tick DESC, time DESC);
   CREATE INDEX IF NOT EXISTS sine_states_learning_idx
     ON sine_spawner_state_snapshots (session_id, tick, learned_delta_norm);
   CREATE INDEX IF NOT EXISTS sine_states_learning_counts_idx
@@ -175,9 +183,10 @@ export const sineStatements = {
 	  `),
   insertSineDeath: sineDb.prepare(`
     INSERT OR IGNORE INTO sine_spawner_deaths (
-      session_id, spawner_id, lineage_id, generation, death_tick, death_time, spawner_json
+      session_id, spawner_id, lineage_id, generation, death_tick, death_time, spawner_json,
+      death_cause, death_energy_threshold, death_health_threshold
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
 	  insertSineGenomeSnapshot: sineDb.prepare(`
 	    INSERT OR IGNORE INTO sine_spawner_genome_snapshots (
@@ -253,16 +262,21 @@ export const sineStatements = {
       END
   `),
   listSineSessions: sineDb.prepare(`
+    WITH recent_sessions AS (
+      SELECT id, created_at, updated_at, status, settings_json, spawner_config_json
+      FROM sine_sessions
+      ORDER BY updated_at DESC
+      LIMIT ?
+    )
     SELECT
       id, created_at, updated_at, status, settings_json, spawner_config_json,
-      (SELECT COUNT(*) FROM sine_spawner_births WHERE session_id = sine_sessions.id) AS births,
-      (SELECT COUNT(*) FROM sine_spawner_deaths WHERE session_id = sine_sessions.id) AS deaths,
-      (SELECT COUNT(*) FROM sine_spawner_state_snapshots WHERE session_id = sine_sessions.id) AS state_snapshots,
-      (SELECT MAX(tick) FROM sine_spawner_state_snapshots WHERE session_id = sine_sessions.id) AS latest_tick,
-      (SELECT MAX(time) FROM sine_spawner_state_snapshots WHERE session_id = sine_sessions.id) AS latest_time
-    FROM sine_sessions
+      (SELECT COUNT(*) FROM sine_spawner_births WHERE session_id = recent_sessions.id) AS births,
+      (SELECT COUNT(*) FROM sine_spawner_deaths WHERE session_id = recent_sessions.id) AS deaths,
+      (SELECT COUNT(*) FROM sine_spawner_state_snapshots WHERE session_id = recent_sessions.id) AS state_snapshots,
+      (SELECT MAX(tick) FROM sine_spawner_state_snapshots WHERE session_id = recent_sessions.id) AS latest_tick,
+      (SELECT MAX(time) FROM sine_spawner_state_snapshots WHERE session_id = recent_sessions.id) AS latest_time
+    FROM recent_sessions
     ORDER BY updated_at DESC
-    LIMIT ?
   `),
   updateSineSessionStatus: sineDb.prepare(`
     UPDATE sine_sessions
@@ -357,10 +371,29 @@ export const sineStatements = {
     WHERE session_id = ? AND event_kind = 'resolve'
     ORDER BY tick ASC, id ASC
   `),
+  listSineSpawnedFoods: sineDb.prepare(`
+    SELECT tick, time, food_json
+    FROM sine_food_events
+    WHERE session_id = ? AND event_kind = 'spawn'
+    ORDER BY tick ASC, id ASC
+  `),
+  listSineBirthsForSession: sineDb.prepare(`
+    SELECT spawner_id, parent_spawner_id, lineage_id, generation, birth_tick, birth_time
+    FROM sine_spawner_births
+    WHERE session_id = ?
+    ORDER BY birth_tick ASC, id ASC
+  `),
   countSineSpawnedFoods: sineDb.prepare(`
     SELECT COUNT(*) AS count
     FROM sine_food_events
     WHERE session_id = ? AND event_kind = 'spawn'
+  `),
+  getSineSessionTickExtents: sineDb.prepare(`
+    SELECT
+      COALESCE((SELECT MAX(tick) FROM sine_spawner_state_snapshots WHERE session_id = ?), 0) AS latest_state_tick,
+      COALESCE((SELECT MAX(birth_tick) FROM sine_spawner_births WHERE session_id = ?), 0) AS latest_birth_tick,
+      COALESCE((SELECT MAX(death_tick) FROM sine_spawner_deaths WHERE session_id = ?), 0) AS latest_death_tick,
+      COALESCE((SELECT MAX(tick) FROM sine_food_events WHERE session_id = ?), 0) AS latest_food_tick
   `),
   listSineLatestSpawnerStates: sineDb.prepare(`
     SELECT state.*
@@ -377,7 +410,7 @@ export const sineStatements = {
     ORDER BY state.tick DESC, state.spawner_id ASC
   `),
   listSineDeathsForSession: sineDb.prepare(`
-    SELECT spawner_id, lineage_id, generation, death_tick, death_time
+    SELECT spawner_id, lineage_id, generation, death_tick, death_time, death_cause, death_energy_threshold, death_health_threshold, spawner_json
     FROM sine_spawner_deaths
     WHERE session_id = ?
   `),

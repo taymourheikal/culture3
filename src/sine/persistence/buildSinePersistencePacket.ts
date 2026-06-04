@@ -52,9 +52,19 @@ export function buildSinePersistencePacket({
   const genomeSnapshots = buildGenomeSnapshots(simulation, events, includeInitial, initialSpawners);
   const deaths = events
     .filter((event) => event.kind === "death" && event.spawnerSnapshot)
-    .map((event) => ({
-      ...deathSnapshotFromSpawner(event.tick, event.spawnerSnapshot!),
-    }));
+    .map((event) => {
+      const thresholds = {
+        deathEnergy: event.deathEnergyThreshold ?? spawnerConfig.deathEnergy,
+        deathHealth: event.deathHealthThreshold ?? spawnerConfig.deathHealth,
+      };
+      const snapshot = deathSnapshotFromSpawner(event.tick, event.spawnerSnapshot!, thresholds);
+      return {
+        ...snapshot,
+        deathCause: event.deathCause ?? snapshot.deathCause,
+        deathEnergyThreshold: event.deathEnergyThreshold ?? snapshot.deathEnergyThreshold,
+        deathHealthThreshold: event.deathHealthThreshold ?? snapshot.deathHealthThreshold,
+      };
+    });
   const foodEvents = buildFoodEventSnapshots(events);
   const stateSnapshots = buildStateSnapshots(simulation, includeStateSnapshot);
   const eventRows = buildEventRows(events);

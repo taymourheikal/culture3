@@ -1,5 +1,6 @@
 import type { MarketChartPacket } from "../marketWorkerProtocol";
 import { centeredTickWindow, drawGrid, niceSymmetricBound, prepareCanvas, tickToX, valueToY } from "./canvas";
+import { chartTheme } from "./chartTheme";
 import { formatSignedPercent } from "./format";
 
 export function drawNoiseChart(canvas: HTMLCanvasElement, packet: MarketChartPacket) {
@@ -20,12 +21,12 @@ export function drawNoiseChart(canvas: HTMLCanvasElement, packet: MarketChartPac
   const noiseValues = visibleSamples.map((sample) => sample.noise);
   const noiseBound = niceSymmetricBound(Math.max(2, Math.max(...noiseValues.map(Math.abs), Math.abs(packet.currentNoise)) * 1.22));
 
-  context.fillStyle = "#0d1216";
+  context.fillStyle = chartTheme.background;
   context.fillRect(0, 0, cssWidth, cssHeight);
   drawGrid(context, bounds, -noiseBound, noiseBound, formatSignedPercent);
 
   const zeroY = valueToY(0, -noiseBound, noiseBound, bounds);
-  context.strokeStyle = "rgba(255, 255, 255, 0.18)";
+  context.strokeStyle = chartTheme.gridStrong;
   context.lineWidth = 1;
   context.beginPath();
   context.moveTo(bounds.left, zeroY);
@@ -39,27 +40,27 @@ export function drawNoiseChart(canvas: HTMLCanvasElement, packet: MarketChartPac
     if (index === 0) context.moveTo(x, y);
     else context.lineTo(x, y);
   });
-  context.strokeStyle = "#b989ff";
+  context.strokeStyle = chartTheme.purple;
   context.lineWidth = 2.5;
   context.shadowBlur = 14;
-  context.shadowColor = "rgba(185, 137, 255, 0.38)";
+  context.shadowColor = chartTheme.purpleShadow;
   context.stroke();
   context.shadowBlur = 0;
 
   const currentY = valueToY(packet.currentNoise, -noiseBound, noiseBound, bounds);
-  context.strokeStyle = "rgba(255, 214, 128, 0.95)";
+  context.strokeStyle = chartTheme.amberStrong;
   context.lineWidth = 2;
   context.beginPath();
   context.moveTo(centerX, bounds.top);
   context.lineTo(centerX, bounds.bottom);
   context.stroke();
 
-  context.fillStyle = "#ffd680";
+  context.fillStyle = chartTheme.amber;
   context.beginPath();
   context.arc(centerX, currentY, 4.5, 0, Math.PI * 2);
   context.fill();
 
-  context.fillStyle = "#dce8e5";
+  context.fillStyle = chartTheme.text;
   context.font = "700 12px Inter, system-ui, sans-serif";
   context.textAlign = "left";
   context.fillText(formatSignedPercent(packet.currentNoise), centerX + 10, currentY - 10);

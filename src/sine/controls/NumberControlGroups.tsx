@@ -12,6 +12,9 @@ export function NumberControlGroups<TKey extends string, TControl extends Number
   groups,
   savedGroup,
   savedPrefix,
+  collapsible = false,
+  defaultOpen = true,
+  showSaveActions = true,
   getValue,
   getDisplay,
   onSaveGroup,
@@ -20,9 +23,12 @@ export function NumberControlGroups<TKey extends string, TControl extends Number
   groups: Array<NumberControlGroup<TKey, TControl>>;
   savedGroup: string | null;
   savedPrefix: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  showSaveActions?: boolean;
   getValue: (key: TKey) => number;
   getDisplay: (control: TControl) => string;
-  onSaveGroup: (group: NumberControlGroup<TKey, TControl>, savedKey: string) => void;
+  onSaveGroup?: (group: NumberControlGroup<TKey, TControl>, savedKey: string) => void;
   onChange: (group: NumberControlGroup<TKey, TControl>, key: TKey, value: number, savedKey: string) => void;
 }) {
   return (
@@ -30,7 +36,15 @@ export function NumberControlGroups<TKey extends string, TControl extends Number
       {groups.map((group) => {
         const savedKey = `${savedPrefix}:${group.key}`;
         return (
-          <ControlGroupSection key={group.key} title={group.title} saved={savedGroup === savedKey} onSave={() => onSaveGroup(group, savedKey)}>
+          <ControlGroupSection
+            key={group.key}
+            title={group.title}
+            saved={showSaveActions && savedGroup === savedKey}
+            onSave={showSaveActions && onSaveGroup ? () => onSaveGroup(group, savedKey) : undefined}
+            collapsible={collapsible}
+            defaultOpen={defaultOpen}
+            sectionId={savedKey}
+          >
             <div className="sine-parameter-fields">
               {group.controls.map((control) => (
                 <ConfiguredNumberControl

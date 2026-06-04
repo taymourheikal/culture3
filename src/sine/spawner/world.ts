@@ -1,5 +1,5 @@
 import type { MarketTimeline } from "../marketTimeline";
-import { evaluateSpawnerBrainPure, type BrainEvaluation } from "./brain";
+import { evaluateSpawnerBrainPure, materializeBrainEvaluationTraceActivations, type BrainEvaluation, type BrainTraceActivations } from "./brain";
 import { ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
 import { createSyncBrainEvaluationRunner } from "./brainEvaluationRunner";
 import { DEFAULT_SPAWNER_CONFIG } from "./config";
@@ -24,7 +24,7 @@ import { applySpawnerUpkeep, createInitialSpawners, removeDeadSpawners } from ".
 import type { BrainEvaluationJob, BrainEvaluationResult } from "../protocol/brainEvalProtocol";
 
 export { chooseSpawnerAction, decodeSpawnerOutputs, tryReproduceSpawner, trySpawnFood, type SpawnerActionChoice, type SpawnerDecodedOutputs } from "./worldActions";
-export { buildSpawnerInputs, energyRatioInput, type SpawnerAdvanceOptions } from "./worldBrainEvaluation";
+export { buildSpawnerInputs, energyRatioInput, type SpawnerAdvanceOptions, type SpawnerPhaseInstrumentation } from "./worldBrainEvaluation";
 export { applySpawnerUpkeep, pruneDeadSpawners, removeDeadSpawners } from "./worldLifecycle";
 
 const syncBrainEvaluationRunner = createSyncBrainEvaluationRunner();
@@ -107,33 +107,61 @@ export function spawnerAveragePayoff(spawner: SpawnerAgent) {
 }
 
 function stepSpawnerWorld(world: SpawnerWorld, timeline: MarketTimeline, options: SpawnerAdvanceOptions = {}) {
-  resolveFoods(world, timeline, createSpawnerRuntimeIndex(world.spawners, world.config));
-  removeDeadSpawners(world, "payoff");
-  for (const spawner of world.spawners) {
-    spawner.learnedState = decayLearnedState(spawner.learnedState, spawner.genome.plasticityProfile);
-    pruneDecisionTraces(spawner, world.tick, Math.max(world.config.maxHorizonTicksClampMax, world.config.foodHistoryTicks) + 5);
-  }
-  const plansBySpawnerId = new Map<number, CompiledBrainPlan>();
-  for (const spawner of world.spawners) {
-    const plan = ensureCompiledBrainPlan(spawner.genome);
-    plansBySpawnerId.set(spawner.id, plan);
-    applySpawnerUpkeep(world, spawner, plan);
-  }
-  removeDeadSpawners(world, "upkeep");
+  recordFoodMetrics(options, world);
+  timePhase(options, "foodResolution", () => resolveFoods(world, timeline, createSpawnerRuntimeIndex(world.spawners, world.config)));
+  timePhase(options, "payoffDeathPruning", () => removeDeadSpawners(world, "payoff"));
+  timePhase(options, "learnedStateDecay", () => {
+    for (const spawner of world.spawners) {
+      spawner.learnedState = decayLearnedState(spawner.learnedState, spawner.genome.plasticityProfile, { assumeNormalizedRuntimeState: true });
+    }
+  }, world.spawners.length);
+  timePhase(options, "tracePruning", () => {
+    for (const spawner of world.spawners) {
+      pruneDecisionTraces(spawner, world.tick, Math.max(world.config.maxHorizonTicksClampMax, world.config.foodHistoryTicks) + 5);
+    }
+  }, world.spawners.length);
+  const plansBySpawnerId = timePhase(options, "planLookup", () => {
+    const plans = new Map<number, CompiledBrainPlan>();
+    for (const spawner of world.spawners) {
+      const plan = ensureCompiledBrainPlan(spawner.genome);
+      plans.set(spawner.id, plan);
+    }
+    return plans;
+  }, world.spawners.length);
+  timePhase(options, "upkeep", () => {
+    for (const spawner of world.spawners) {
+      const plan = plansBySpawnerId.get(spawner.id) ?? ensureCompiledBrainPlan(spawner.genome);
+      applySpawnerUpkeep(world, spawner, plan);
+    }
+  }, world.spawners.length);
+  timePhase(options, "upkeepDeathPruning", () => removeDeadSpawners(world, "upkeep"));
 
   const pendingFoodCount = createFoodRuntimeIndex(world.foods).pendingCount;
-  const marketInputResolver = createMarketInputResolver(timeline, world.tick, pendingFoodCount);
+  const marketInputResolver = timePhase(options, "marketInputResolverCreation", () =>
+    createMarketInputResolver(timeline, world.tick, pendingFoodCount, options.marketFeatureInstrumentation),
+  );
   const newborns: SpawnerAgent[] = [];
-  const contexts = buildSpawnerTickContexts(world, marketInputResolver, plansBySpawnerId);
-  const decisions = buildBrainEvaluationJobs(world, contexts, options);
+  const contexts = timePhase(
+    options,
+    "spawnerContextInputConstruction",
+    () => buildSpawnerTickContexts(world, marketInputResolver, plansBySpawnerId, options),
+    world.spawners.length,
+  );
+  recordMarketResolverMetrics(options, marketInputResolver);
+  const decisions = timePhase(options, "brainJobConstruction", () => buildBrainEvaluationJobs(world, contexts, options), contexts.length);
   const runner = options.brainEvaluationRunner ?? syncBrainEvaluationRunner;
+  const evaluationStarted = nowMs();
   const results = runner.evaluateBatch(decisions.jobs);
   if (isPromise(results)) {
-    return results.then((resolvedResults) =>
-      finishSpawnerWorldStep(world, timeline, newborns, decisions.spawners, decisions.jobs, resolvedResults, plansBySpawnerId),
-    );
+    return results.then((resolvedResults) => {
+      recordFirstPassTiming(options, decisions.jobs.length, nowMs() - evaluationStarted);
+      recordPhase(options, "brainEvaluation", nowMs() - evaluationStarted, decisions.jobs.length);
+      return finishSpawnerWorldStep(world, timeline, newborns, decisions.spawners, decisions.jobs, resolvedResults, plansBySpawnerId, options);
+    });
   }
-  finishSpawnerWorldStep(world, timeline, newborns, decisions.spawners, decisions.jobs, results, plansBySpawnerId);
+  recordFirstPassTiming(options, decisions.jobs.length, nowMs() - evaluationStarted);
+  recordPhase(options, "brainEvaluation", nowMs() - evaluationStarted, decisions.jobs.length);
+  finishSpawnerWorldStep(world, timeline, newborns, decisions.spawners, decisions.jobs, results, plansBySpawnerId, options);
 }
 
 function finishSpawnerWorldStep(
@@ -144,53 +172,191 @@ function finishSpawnerWorldStep(
   jobs: BrainEvaluationJob[],
   results: BrainEvaluationResult[],
   plansBySpawnerId: Map<number, CompiledBrainPlan>,
+  options: SpawnerAdvanceOptions,
 ) {
-  const orderedResults = orderedEvaluationResults(spawners, jobs, results);
+  const orderedResults = timePhase(options, "resultOrdering", () => orderedEvaluationResults(spawners, jobs, results), results.length);
   for (let index = 0; index < spawners.length; index += 1) {
     const spawner = spawners[index];
     const result = orderedResults[index];
     if (!spawner || !result?.evaluation) continue;
     const evaluation = result.evaluation;
-    applyEvaluationResult(spawner, evaluation, jobs[index]);
-    const decoded = decodeSpawnerOutputs(world, spawner, evaluation.outputs);
-    const action = chooseSpawnerAction(world, spawner, decoded);
-    let traceEvaluation: BrainEvaluation | undefined;
-    const getTraceEvaluation = () => {
-      traceEvaluation =
-        traceEvaluation ??
-        evaluationWithActivations(evaluation, jobs[index], plansBySpawnerId.get(spawner.id));
-      return traceEvaluation;
+    timePhase(options, "resultApplication", () => applyEvaluationResult(spawner, evaluation, jobs[index]));
+    const decoded = timePhase(options, "outputDecoding", () => decodeSpawnerOutputs(world, spawner, evaluation.outputs));
+    const action = timePhase(options, "actionSelection", () => chooseSpawnerAction(world, spawner, decoded));
+    recordAction(options, action);
+    let traceActivations: BrainTraceActivations | undefined;
+    const getTraceActivations = () => {
+      traceActivations =
+        traceActivations ??
+        traceActivationsForEvaluation(evaluation, jobs[index], plansBySpawnerId.get(spawner.id), options);
+      return traceActivations;
     };
-    const traceId = action === "wait" ? undefined : captureDecisionTrace({ spawner, tick: world.tick, evaluation: getTraceEvaluation(), decoded, action });
-    trySpawnFood(world, spawner, decoded, timeline, action, traceId);
+    const traceId =
+      action === "wait"
+        ? undefined
+        : timePhase(options, "decisionTraceCapture", () =>
+            captureDecisionTrace({ spawner, tick: world.tick, evaluation, traceActivations: getTraceActivations(), decoded, action }),
+          );
+    const spawned = timePhase(options, "foodSpawning", () => trySpawnFood(world, spawner, decoded, timeline, action, traceId));
+    if (spawned) recordMetric(options, "spawnedFoodCount", 1);
     if (!isSpawnerAlive(spawner, world.config)) continue;
-    tryReproduceSpawner(world, spawner, decoded, newborns, () =>
-      captureDecisionTrace({ spawner, tick: world.tick, evaluation: getTraceEvaluation(), decoded, action: "reproduce" }),
+    const beforeBirths = newborns.length;
+    timePhase(options, "reproductionAttempt", () =>
+      tryReproduceSpawner(world, spawner, decoded, newborns, () =>
+        captureReproductionTrace(world, spawner, evaluation, decoded, getTraceActivations, options),
+      ),
     );
+    if (newborns.length > beforeBirths) recordMetric(options, "reproductionCount", newborns.length - beforeBirths);
   }
 
-  world.spawners = world.spawners.concat(newborns);
-  removeDeadSpawners(world, "action");
+  timePhase(options, "birthAppend", () => {
+    world.spawners = world.spawners.concat(newborns);
+  }, newborns.length);
+  timePhase(options, "actionDeathPruning", () => removeDeadSpawners(world, "action"));
 
-  const minTick = world.tick - world.config.foodHistoryTicks;
-  world.foods = world.foods.filter((food) => food.status === "pending" || food.resolveTick >= minTick);
-  recordTelemetry(world, plansBySpawnerId);
+  timePhase(options, "foodTrimming", () => {
+    const minTick = world.tick - world.config.foodHistoryTicks;
+    world.foods = world.foods.filter((food) => food.status === "pending" || food.resolveTick >= minTick);
+  }, world.foods.length);
+  recordMetric(options, "retainedFoodCountAfterTrim", world.foods.length);
+  timePhase(options, "telemetry", () => recordTelemetry(world, plansBySpawnerId), world.spawners.length);
 }
 
 function isPromise<T>(value: T | Promise<T>): value is Promise<T> {
   return !!value && typeof (value as Promise<T>).then === "function";
 }
 
-function evaluationWithActivations(evaluation: BrainEvaluation, job: BrainEvaluationJob | undefined, plan: CompiledBrainPlan | undefined) {
-  if (evaluation.activeConnectionIds.length > 0) return evaluation;
-  if (!job?.genome) return evaluation;
-  return evaluateSpawnerBrainPure({
-    genome: job.genome,
-    learnedState: job.learnedState,
-    hiddenState: job.hiddenState,
-    inputs: job.inputs,
-    plan,
-    includeActivations: true,
-    includePreviousState: false,
-  });
+function traceActivationsForEvaluation(
+  evaluation: BrainEvaluation,
+  job: BrainEvaluationJob | undefined,
+  plan: CompiledBrainPlan | undefined,
+  options: SpawnerAdvanceOptions,
+) {
+  if (evaluation.activeConnectionIds.length > 0) {
+    return {
+      activeConnectionIds: evaluation.activeConnectionIds,
+      connectionActivations: evaluation.connectionActivations,
+      owned: false,
+    };
+  }
+  const materializeStarted = nowMs();
+  const materialized = timePhase(options, "traceActivationMaterialization", () => materializeBrainEvaluationTraceActivations(evaluation));
+  if (materialized) {
+    if (options.traceInstrumentation) {
+      options.traceInstrumentation.optimizedTraceMaterializations += 1;
+      options.traceInstrumentation.optimizedTraceMaterializationMs += nowMs() - materializeStarted;
+    }
+    return materialized;
+  }
+  if (!job?.genome) {
+    return {
+      activeConnectionIds: evaluation.activeConnectionIds,
+      connectionActivations: evaluation.connectionActivations,
+      owned: false,
+    };
+  }
+  const genome = job.genome;
+  const started = nowMs();
+  try {
+    const fallback = timePhase(options, "traceFallbackEvaluation", () => evaluateSpawnerBrainPure({
+      genome,
+      learnedState: job.learnedState,
+      hiddenState: job.hiddenState,
+      inputs: job.inputs,
+      plan,
+      includeActivations: true,
+      includePreviousState: false,
+    }));
+    return {
+      activeConnectionIds: fallback.activeConnectionIds,
+      connectionActivations: fallback.connectionActivations,
+      owned: false,
+    };
+  } finally {
+    if (options.traceInstrumentation) {
+      options.traceInstrumentation.fallbackTraceEvaluations += 1;
+      options.traceInstrumentation.fallbackTraceMs += nowMs() - started;
+    }
+  }
+}
+
+function captureReproductionTrace(
+  world: SpawnerWorld,
+  spawner: SpawnerAgent,
+  evaluation: BrainEvaluation,
+  decoded: ReturnType<typeof decodeSpawnerOutputs>,
+  getTraceActivations: () => BrainTraceActivations,
+  options: SpawnerAdvanceOptions,
+) {
+  if (options.traceInstrumentation) options.traceInstrumentation.reproductionTraces += 1;
+  return captureDecisionTrace({ spawner, tick: world.tick, evaluation, traceActivations: getTraceActivations(), decoded, action: "reproduce" });
+}
+
+function recordFirstPassTiming(options: SpawnerAdvanceOptions, evaluatedAgents: number, elapsedMs: number) {
+  const instrumentation = options.traceInstrumentation;
+  if (!instrumentation) return;
+  instrumentation.evaluatedAgents += evaluatedAgents;
+  instrumentation.firstPassBatches += 1;
+  instrumentation.firstPassMs += elapsedMs;
+}
+
+function recordAction(options: SpawnerAdvanceOptions, action: ReturnType<typeof chooseSpawnerAction>) {
+  const instrumentation = options.traceInstrumentation;
+  if (!instrumentation) return;
+  if (action === "wait") instrumentation.waitActions += 1;
+  else if (action === "long") instrumentation.longActions += 1;
+  else instrumentation.shortActions += 1;
+}
+
+function recordFoodMetrics(options: SpawnerAdvanceOptions, world: SpawnerWorld) {
+  if (!options.phaseInstrumentation?.recordMetric) return;
+  let pending = 0;
+  let due = 0;
+  let horizonTotal = 0;
+  let horizonCount = 0;
+  for (const food of world.foods) {
+    if (food.status !== "pending") continue;
+    pending += 1;
+    horizonTotal += Math.max(0, food.resolveTick - food.spawnTick);
+    horizonCount += 1;
+    if (food.resolveTick <= world.tick) due += 1;
+  }
+  recordMetric(options, "retainedFoodCount", world.foods.length);
+  recordMetric(options, "pendingFoodCount", pending);
+  recordMetric(options, "dueFoodCount", due);
+  if (horizonCount > 0) recordMetric(options, "pendingFoodAverageHorizonTicks", horizonTotal / horizonCount);
+}
+
+function recordMarketResolverMetrics(options: SpawnerAdvanceOptions, resolver: ReturnType<typeof createMarketInputResolver>) {
+  recordMetric(options, "marketInputResolveCount", resolver.getResolveCount());
+  recordMetric(options, "marketInputCacheHitCount", resolver.getCacheHitCount());
+  recordMetric(options, "marketInputComputeCount", resolver.getComputeCount());
+  recordMetric(options, "marketInputCacheSize", resolver.getCacheSize());
+  recordMetric(options, "marketFeatureResolveCount", resolver.getFeatureResolveCount());
+  recordMetric(options, "marketFeatureCacheHitCount", resolver.getFeatureCacheHitCount());
+  recordMetric(options, "marketFeatureComputeCount", resolver.getFeatureComputeCount());
+  recordMetric(options, "marketFeatureCacheSize", resolver.getFeatureCacheSize());
+  recordMetric(options, "marketFeatureSampleCacheSize", resolver.getSampleCacheSize());
+}
+
+function recordMetric(options: SpawnerAdvanceOptions, metric: string, value: number) {
+  options.phaseInstrumentation?.recordMetric?.(metric, value);
+}
+
+function timePhase<T>(options: SpawnerAdvanceOptions, phase: string, read: () => T, count?: number): T {
+  if (!options.phaseInstrumentation) return read();
+  const started = nowMs();
+  try {
+    return read();
+  } finally {
+    recordPhase(options, phase, nowMs() - started, count);
+  }
+}
+
+function recordPhase(options: SpawnerAdvanceOptions, phase: string, ms: number, count?: number) {
+  options.phaseInstrumentation?.recordPhase(phase, ms, count);
+}
+
+function nowMs() {
+  return performance.now();
 }

@@ -41,13 +41,13 @@ export function ArchitectureGraph({
         <svg className="architecture-graph" viewBox={`0 0 ${graph.width} ${graph.height}`} style={{ minWidth: graph.width, minHeight: graph.height }}>
           <defs>
             <marker id="architecture-arrow-positive" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-              <path d="M0,0 L8,4 L0,8 Z" fill="#69d7d0" />
+              <path d="M0,0 L8,4 L0,8 Z" fill="var(--sine-accent)" />
             </marker>
             <marker id="architecture-arrow-negative" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-              <path d="M0,0 L8,4 L0,8 Z" fill="#ff8f70" />
+              <path d="M0,0 L8,4 L0,8 Z" fill="var(--sine-negative)" />
             </marker>
             <marker id="architecture-arrow-disabled" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-              <path d="M0,0 L8,4 L0,8 Z" fill="#6f7f7b" />
+              <path d="M0,0 L8,4 L0,8 Z" fill="var(--sine-text-faint)" />
             </marker>
           </defs>
           {graph.connections.map((edge) => (

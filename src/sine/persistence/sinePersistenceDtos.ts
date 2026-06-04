@@ -1,5 +1,6 @@
 import type { MarketSimulationState } from "../simulationRuntime";
-import type { SpawnerAgent, SpawnerEvent, SpawnerFood, SpawnerPlasticityProfile } from "../spawnerSimulation";
+import { classifySpawnerDeath } from "../spawner/runtimeIndex";
+import type { SpawnerAgent, SpawnerConfig, SpawnerEvent, SpawnerFood, SpawnerPlasticityProfile } from "../spawnerSimulation";
 import { cloneLearnedState, learnedStateNorm, plasticitySummary } from "../spawner/plasticity";
 import { createSpawnerSnapshot } from "../spawner/snapshots";
 import { finiteOr, nonNegative, nonNegativeInteger, positive, probability } from "../numeric";
@@ -13,10 +14,21 @@ export function birthSnapshotFromSpawner(tick: number, spawner: SpawnerAgent, pa
   };
 }
 
-export function deathSnapshotFromSpawner(tick: number, spawner: SpawnerAgent): SinePersistencePacket["deaths"][number] {
+export function deathSnapshotFromSpawner(
+  tick: number,
+  spawner: SpawnerAgent,
+  config?: Pick<SpawnerConfig, "deathEnergy" | "deathHealth">,
+): SinePersistencePacket["deaths"][number] {
   return {
     tick,
     spawner: createSpawnerSnapshot(spawner),
+    ...(config
+      ? {
+          deathCause: classifySpawnerDeath(spawner, config),
+          deathEnergyThreshold: config.deathEnergy,
+          deathHealthThreshold: config.deathHealth,
+        }
+      : {}),
   };
 }
 

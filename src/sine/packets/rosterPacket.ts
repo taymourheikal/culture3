@@ -10,7 +10,7 @@ import {
   type SpawnerUniquenessScore,
 } from "../spawnerSimulation";
 import type { MarketSimulationState } from "../simulationRuntime";
-import { createFoodRuntimeIndex } from "../spawner/runtimeIndex";
+import { createFoodRuntimeIndex, type FoodRuntimeIndex } from "../spawner/runtimeIndex";
 
 export { ROSTER_AGENT_LIMIT, selectRosterSpawners };
 
@@ -20,15 +20,17 @@ export function createMarketRosterPacket({
   version,
   uniquenessScores,
   selectedSpawnerId = null,
+  foodIndex,
 }: {
   sessionId: MarketWorkerSessionId;
   simulation: MarketSimulationState;
   version: number;
   uniquenessScores: Map<number, SpawnerUniquenessScore>;
   selectedSpawnerId?: number | null;
+  foodIndex?: FoodRuntimeIndex;
 }): MarketRosterPacket {
-  const foodIndex = createFoodRuntimeIndex(simulation.world.foods);
-  const pendingFoodCounts = foodIndex.pendingByCreatorId;
+  const runtimeFoodIndex = foodIndex ?? createFoodRuntimeIndex(simulation.world.foods);
+  const pendingFoodCounts = runtimeFoodIndex.pendingByCreatorId;
   const rosterSpawners = selectRosterSpawners({
     spawners: simulation.world.spawners,
     pendingFoodCounts,

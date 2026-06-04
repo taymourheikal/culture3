@@ -1,5 +1,6 @@
 import { alignedHiddenState, applyBrainEvaluation } from "./brain";
 import { ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
+import type { MarketFeatureInstrumentation } from "./marketFeatureContext";
 import { clamp } from "./math";
 import type { createMarketInputResolver } from "./marketInputs";
 import { populationRoomRatio } from "./reproductionPressure";
@@ -12,6 +13,28 @@ export type SpawnerAdvanceOptions = {
   runGeneration?: number;
   advanceEpoch?: number;
   batchId?: number;
+  traceInstrumentation?: BrainTraceInstrumentation;
+  phaseInstrumentation?: SpawnerPhaseInstrumentation;
+  marketFeatureInstrumentation?: MarketFeatureInstrumentation;
+};
+
+export type SpawnerPhaseInstrumentation = {
+  recordPhase(phase: string, ms: number, count?: number): void;
+  recordMetric?: (metric: string, value: number) => void;
+};
+
+export type BrainTraceInstrumentation = {
+  evaluatedAgents: number;
+  firstPassBatches: number;
+  firstPassMs: number;
+  waitActions: number;
+  longActions: number;
+  shortActions: number;
+  reproductionTraces: number;
+  optimizedTraceMaterializations: number;
+  optimizedTraceMaterializationMs: number;
+  fallbackTraceEvaluations: number;
+  fallbackTraceMs: number;
 };
 
 export type SpawnerTickContext = {
@@ -25,6 +48,7 @@ export function buildSpawnerTickContexts(
   world: SpawnerWorld,
   marketInputResolver: ReturnType<typeof createMarketInputResolver>,
   plansBySpawnerId: Map<number, CompiledBrainPlan> = new Map(),
+  options: SpawnerAdvanceOptions = {},
 ) {
   return world.spawners.map((spawner, index): SpawnerTickContext => {
     const plan = plansBySpawnerId.get(spawner.id) ?? ensureCompiledBrainPlan(spawner.genome);
@@ -32,7 +56,7 @@ export function buildSpawnerTickContexts(
       index,
       spawner,
       plan,
-      inputs: buildSpawnerInputs(world, spawner, marketInputResolver),
+      inputs: buildSpawnerInputs(world, spawner, marketInputResolver, options),
     };
   });
 }
@@ -42,7 +66,7 @@ export function buildBrainEvaluationJobs(
   contexts: SpawnerTickContext[],
   options: SpawnerAdvanceOptions,
 ) {
-  const jobs: BrainEvaluationJob[] = contexts.map((context) => ({
+  const jobs: BrainEvaluationJob[] = timePhase(options, "brainJobArrayAllocation", () => contexts.map((context) => ({
     sessionId: options.sessionId ?? 0,
     runGeneration: options.runGeneration ?? 0,
     advanceEpoch: options.advanceEpoch ?? 0,
@@ -56,7 +80,7 @@ export function buildBrainEvaluationJobs(
     inputs: context.inputs,
     includeActivations: false,
     includePreviousState: false,
-  }));
+  })));
   return { spawners: contexts.map((context) => context.spawner), jobs };
 }
 
@@ -98,14 +122,15 @@ export function buildSpawnerInputs(
   world: SpawnerWorld,
   spawner: SpawnerAgent,
   marketInputResolver: ReturnType<typeof createMarketInputResolver>,
+  options: SpawnerAdvanceOptions = {},
 ) {
-  const marketInputs = marketInputResolver.resolve(spawner.genome.perception);
-  return [
+  const marketInputs = timePhase(options, "marketInputResolve", () => marketInputResolver.resolve(spawner.genome.perception));
+  return timePhase(options, "spawnerInputArrayConstruction", () => [
     ...marketInputs,
     energyRatioInput(spawner.energy, world.config.reproductionEnergy),
     clamp(spawner.health / 100, 0, 1),
     populationRoomRatio(world.spawners.length, world.config.maxSpawners),
-  ];
+  ]);
 }
 
 export function energyRatioInput(energy: number, reproductionEnergy: number) {
@@ -113,4 +138,15 @@ export function energyRatioInput(energy: number, reproductionEnergy: number) {
   if (energy > 0) return 2;
   if (energy < 0) return -1;
   return 0;
+}
+
+function timePhase<T>(options: SpawnerAdvanceOptions, phase: string, read: () => T): T {
+  const instrumentation = options.phaseInstrumentation;
+  if (!instrumentation) return read();
+  const started = performance.now();
+  try {
+    return read();
+  } finally {
+    instrumentation.recordPhase(phase, performance.now() - started);
+  }
 }

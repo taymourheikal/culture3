@@ -1,5 +1,3 @@
-import { activeUnits } from "./genomeCommon";
-import { activeConnections } from "./genomeConnections";
 import { OUTPUT_COUNT } from "./config";
 import type { ConnectionGene, GateType, HiddenUnitGene, SpawnerGenome } from "./types";
 
@@ -15,13 +13,30 @@ export type GenomeConnectionGroups = {
 export type GenomeIndex = ReturnType<typeof createGenomeIndex>;
 
 export function createGenomeIndex(genome: SpawnerGenome) {
-  const units = activeUnits(genome);
-  const disabledUnits = genome.units.filter((unit) => !unit.enabled);
-  const activeUnitIds = new Set(units.map((unit) => unit.unitId));
-  const unitById = new Map(genome.units.map((unit) => [unit.unitId, unit]));
-  const activeUnitById = new Map(units.map((unit) => [unit.unitId, unit]));
-  const connections = activeConnections(genome);
-  const disabledConnections = genome.connections.filter((connection) => !connection.enabled || !connectionIsActive(connection, activeUnitIds));
+  const units: HiddenUnitGene[] = [];
+  const disabledUnits: HiddenUnitGene[] = [];
+  const activeUnitIds = new Set<number>();
+  const unitById = new Map<number, HiddenUnitGene>();
+  const activeUnitById = new Map<number, HiddenUnitGene>();
+  for (const unit of genome.units) {
+    unitById.set(unit.unitId, unit);
+    if (unit.enabled) {
+      units.push(unit);
+      activeUnitIds.add(unit.unitId);
+      activeUnitById.set(unit.unitId, unit);
+    } else {
+      disabledUnits.push(unit);
+    }
+  }
+  const connections: ConnectionGene[] = [];
+  const disabledConnections: ConnectionGene[] = [];
+  for (const connection of genome.connections) {
+    if (connection.enabled && connectionIsActive(connection, activeUnitIds)) {
+      connections.push(connection);
+    } else {
+      disabledConnections.push(connection);
+    }
+  }
   const layerIndexes: number[] = [];
   const unitsByLayer = new Map<number, HiddenUnitGene[]>();
   for (const unit of units) {
@@ -33,7 +48,7 @@ export function createGenomeIndex(genome: SpawnerGenome) {
   }
   layerIndexes.sort((left, right) => left - right);
   const layerCounts = layerIndexes.map((layer) => unitsByLayer.get(layer)?.length ?? 0);
-  const connectionGroups = groupConnections(genome, connections, unitById);
+  const connectionGroups = groupConnections(connections, unitById);
   const incomingByUnit = new Map<number, ConnectionGene[]>();
   const outgoingByUnit = new Map<number, ConnectionGene[]>();
   const hiddenGateInputs = new Map<string, ConnectionGene[]>();
@@ -84,22 +99,33 @@ export function connectionIsActive(connection: ConnectionGene, activeUnitIds: Se
   return true;
 }
 
-export function groupConnections(genome: SpawnerGenome, connections: ConnectionGene[], unitById: Map<number, HiddenUnitGene>) {
-  const inputToHidden = connections.filter((connection) => connection.source.kind === "input" && connection.target.kind === "hidden");
-  const recurrent = connections.filter((connection) => connection.source.kind === "hidden" && connection.source.mode === "previous" && connection.target.kind === "hidden");
-  const hiddenCurrentToHidden = connections.filter(
-    (connection) => connection.source.kind === "hidden" && connection.source.mode === "current" && connection.target.kind === "hidden",
-  );
-  const hiddenToOutput = connections.filter((connection) => connection.source.kind === "hidden" && connection.target.kind === "output");
-  const inputToOutput = connections.filter((connection) => connection.source.kind === "input" && connection.target.kind === "output");
-  const skip = hiddenCurrentToHidden.filter((connection) => {
-    if (connection.source.kind !== "hidden" || connection.target.kind !== "hidden") return false;
-    const sourceRef = connection.source;
-    const targetRef = connection.target;
-    const source = unitById.get(sourceRef.unitId) ?? genome.units.find((unit) => unit.unitId === sourceRef.unitId);
-    const target = unitById.get(targetRef.unitId) ?? genome.units.find((unit) => unit.unitId === targetRef.unitId);
-    return !!source && !!target && target.layerIndex - source.layerIndex > 1;
-  });
+export function groupConnections(connections: ConnectionGene[], unitById: Map<number, HiddenUnitGene>) {
+  const inputToHidden: ConnectionGene[] = [];
+  const recurrent: ConnectionGene[] = [];
+  const hiddenCurrentToHidden: ConnectionGene[] = [];
+  const hiddenToOutput: ConnectionGene[] = [];
+  const inputToOutput: ConnectionGene[] = [];
+  const skip: ConnectionGene[] = [];
+  for (const connection of connections) {
+    const { source, target } = connection;
+    if (target.kind === "hidden") {
+      if (source.kind === "input") {
+        inputToHidden.push(connection);
+        continue;
+      }
+      if (source.mode === "previous") {
+        recurrent.push(connection);
+        continue;
+      }
+      hiddenCurrentToHidden.push(connection);
+      const sourceUnit = unitById.get(source.unitId);
+      const targetUnit = unitById.get(target.unitId);
+      if (sourceUnit && targetUnit && targetUnit.layerIndex - sourceUnit.layerIndex > 1) skip.push(connection);
+      continue;
+    }
+    if (source.kind === "hidden") hiddenToOutput.push(connection);
+    else inputToOutput.push(connection);
+  }
   return { inputToHidden, recurrent, hiddenCurrentToHidden, hiddenToOutput, inputToOutput, skip };
 }
 

@@ -1,4 +1,5 @@
 import type { SpawnerAgent, SpawnerConfig, SpawnerFood } from "./types";
+import type { SpawnerDeathCause } from "./eventTypes";
 
 export type SpawnerRuntimeIndex = {
   byId: Map<number, SpawnerAgent>;
@@ -13,6 +14,15 @@ export type FoodRuntimeIndex = {
 
 export function isSpawnerAlive(spawner: SpawnerAgent, config: SpawnerConfig) {
   return spawner.energy > config.deathEnergy && spawner.health > config.deathHealth;
+}
+
+export function classifySpawnerDeath(spawner: Pick<SpawnerAgent, "energy" | "health">, config: Pick<SpawnerConfig, "deathEnergy" | "deathHealth">): SpawnerDeathCause {
+  const lowEnergy = Number.isFinite(spawner.energy) && Number.isFinite(config.deathEnergy) && spawner.energy <= config.deathEnergy;
+  const lowHealth = Number.isFinite(spawner.health) && Number.isFinite(config.deathHealth) && spawner.health <= config.deathHealth;
+  if (lowEnergy && lowHealth) return "both";
+  if (lowEnergy) return "low_energy";
+  if (lowHealth) return "low_health";
+  return "unknown";
 }
 
 export function createSpawnerRuntimeIndex(spawners: SpawnerAgent[], config: SpawnerConfig): SpawnerRuntimeIndex {

@@ -9,6 +9,11 @@ export function createTelemetryWindow(telemetry: LeanTelemetrySample[], renderTi
   const lastTick = Math.max(20, lastTelemetryTick, Math.floor(renderTick));
   const populationMax = Math.max(20, ...telemetry.map((sample) => sample.population));
   const lossMax = Math.max(0.1, ...telemetry.map((sample) => sample.rollingLoss)) * 1.18;
+  const payoffAbsMax = Math.max(0.1, ...telemetry.map((sample) => Math.abs(sample.rollingAveragePayoff))) * 1.18;
+  const resolvedVolumeMax = Math.max(1, ...telemetry.map((sample) => sample.resolvedVolume));
+  const cumulativePayoffs = telemetry.map((sample) => sample.cumulativeNetPayoff);
+  const cumulativePayoffMin = Math.min(0, ...cumulativePayoffs);
+  const cumulativePayoffMax = Math.max(0, ...cumulativePayoffs);
 
   if (telemetry.length <= TELEMETRY_SAMPLE_LIMIT) {
     return {
@@ -17,6 +22,10 @@ export function createTelemetryWindow(telemetry: LeanTelemetrySample[], renderTi
       telemetryEndTick: lastTick,
       telemetryPopulationMax: populationMax,
       telemetryLossMax: lossMax,
+      telemetryPayoffAbsMax: payoffAbsMax,
+      telemetryResolvedVolumeMax: resolvedVolumeMax,
+      telemetryCumulativePayoffMin: cumulativePayoffMin,
+      telemetryCumulativePayoffMax: cumulativePayoffMax,
     };
   }
 
@@ -35,6 +44,10 @@ export function createTelemetryWindow(telemetry: LeanTelemetrySample[], renderTi
     telemetryEndTick: lastTick,
     telemetryPopulationMax: populationMax,
     telemetryLossMax: lossMax,
+    telemetryPayoffAbsMax: payoffAbsMax,
+    telemetryResolvedVolumeMax: resolvedVolumeMax,
+    telemetryCumulativePayoffMin: cumulativePayoffMin,
+    telemetryCumulativePayoffMax: cumulativePayoffMax,
   };
 }
 
@@ -43,5 +56,14 @@ function toLeanTelemetry(sample: LeanTelemetrySample): LeanTelemetrySample {
     tick: sample.tick,
     population: sample.population,
     rollingLoss: sample.rollingLoss,
+    rollingHitRate: finiteOr(sample.rollingHitRate, 0),
+    rollingAveragePayoff: finiteOr(sample.rollingAveragePayoff, 0),
+    resolvedVolume: finiteOr(sample.resolvedVolume, 0),
+    totalResolved: finiteOr(sample.totalResolved, 0),
+    cumulativeNetPayoff: finiteOr(sample.cumulativeNetPayoff, 0),
   };
+}
+
+function finiteOr(value: number, fallback: number) {
+  return Number.isFinite(value) ? value : fallback;
 }

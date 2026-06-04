@@ -5,7 +5,7 @@ import type { MarketRuntimeConfig } from "../marketRuntimeConfig";
 import { INITIAL_MARKET_RUNTIME_CONFIG, sanitizeMarketRuntimeConfig } from "../marketRuntimeConfig";
 import type { SpawnerConfig } from "../spawnerSimulation";
 import type { MarketSimulationState } from "../simulationRuntime";
-import { createFoodRuntimeIndex } from "../spawner/runtimeIndex";
+import { createFoodRuntimeIndex, type FoodRuntimeIndex } from "../spawner/runtimeIndex";
 import { currentReproductionCost, currentReproductionEnergyRequirement, populationRoomRatio, reproductionCostMultiplier } from "../spawner/reproductionPressure";
 
 export function createMarketStatsPacket({
@@ -23,6 +23,9 @@ export function createMarketStatsPacket({
   backlogTicks,
   packetSizesKb,
   brainEvalMode = "sync",
+  renderTick,
+  currentSample,
+  foodIndex,
 }: {
   sessionId: MarketWorkerSessionId;
   simulation: MarketSimulationState;
@@ -38,10 +41,13 @@ export function createMarketStatsPacket({
   backlogTicks: number;
   packetSizesKb: MarketStatsPacket["packetSizesKb"];
   brainEvalMode?: MarketStatsPacket["brainEvalMode"];
+  renderTick?: number;
+  currentSample?: ReturnType<typeof getTimelineSampleAtRenderTick>;
+  foodIndex?: FoodRuntimeIndex;
 }): MarketStatsPacket {
-  const renderTick = Math.min(simulation.timeline.tick, simulation.world.tick);
-  const current = getTimelineSampleAtRenderTick(simulation.timeline, renderTick);
-  const foodIndex = createFoodRuntimeIndex(simulation.world.foods);
+  const activeRenderTick = renderTick ?? Math.min(simulation.timeline.tick, simulation.world.tick);
+  const current = currentSample ?? getTimelineSampleAtRenderTick(simulation.timeline, activeRenderTick);
+  const runtimeFoodIndex = foodIndex ?? createFoodRuntimeIndex(simulation.world.foods);
   const livingPopulation = simulation.world.spawners.length;
   const activeWorldConfig = simulation.world.config;
   return {
@@ -51,7 +57,9 @@ export function createMarketStatsPacket({
     runState,
     persistentSessionId,
     tick: simulation.timeline.tick,
-    renderTick,
+    marketTick: simulation.timeline.tick,
+    worldTick: simulation.world.tick,
+    renderTick: activeRenderTick,
     currentSignal: current.signal,
     currentNoise: current.noise,
     backlogTicks,
@@ -60,8 +68,8 @@ export function createMarketStatsPacket({
     reproductionCostMultiplier: reproductionCostMultiplier(activeWorldConfig, livingPopulation),
     currentReproductionCost: currentReproductionCost(activeWorldConfig, livingPopulation),
     currentReproductionEnergyRequirement: currentReproductionEnergyRequirement(activeWorldConfig, livingPopulation),
-    pendingFoods: foodIndex.pendingCount,
-    resolvedFoods: foodIndex.resolvedCount,
+    pendingFoods: runtimeFoodIndex.pendingCount,
+    resolvedFoods: runtimeFoodIndex.resolvedCount,
     totalWins: simulation.world.totalResolved - simulation.world.totalLosses,
     totalLosses: simulation.world.totalLosses,
     brainEvalMode,

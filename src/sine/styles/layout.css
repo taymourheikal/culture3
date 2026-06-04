@@ -1,13 +1,24 @@
 .sine-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  gap: 18px;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) minmax(320px, 430px);
+  grid-template-areas:
+    "header header header"
+    "error error error"
+    "run run run"
+    "left center right"
+    "history history history"
+    "footer footer footer";
+  align-items: start;
+  gap: 16px;
   min-height: 100vh;
-  padding: 20px;
+  padding: 18px;
 }
 
 .sine-stage,
-.sine-controls {
+.sine-controls,
+.sine-run-controls,
+.sine-workbench-panel,
+.sine-workbench-footer {
   border: 1px solid var(--sine-border);
   border-radius: var(--sine-radius-panel);
   background: color-mix(in srgb, var(--sine-surface) 88%, transparent);
@@ -22,11 +33,52 @@
   padding: 18px;
 }
 
+.sine-workbench-left,
+.sine-workbench-right,
+.sine-workbench-history,
+.sine-workbench-footer {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.sine-workbench-footer {
+  padding: 12px;
+}
+
+.sine-workbench-left {
+  grid-area: left;
+  align-content: start;
+}
+
+.sine-workbench-center {
+  grid-area: center;
+}
+
+.sine-workbench-right {
+  grid-area: right;
+}
+
+.sine-workbench-history {
+  grid-area: history;
+  padding: 0;
+}
+
+.sine-workbench-footer {
+  grid-area: footer;
+}
+
 .sine-header {
+  grid-area: header;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--sine-border);
+  border-radius: var(--sine-radius-panel);
+  background: color-mix(in srgb, var(--sine-surface) 88%, transparent);
+  box-shadow: var(--sine-shadow);
 }
 
 .sine-view-tabs {
@@ -56,12 +108,20 @@
 .sine-view-tabs button.active {
   border-color: rgb(var(--sine-amber-rgb) / 0.42);
   background: rgb(var(--sine-amber-rgb) / 0.12);
-  color: #fff0cf;
+  color: color-mix(in srgb, var(--sine-amber) 45%, white);
+}
+
+.sine-run-controls {
+  grid-area: run;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
 }
 
 .sine-eyebrow,
 .sine-readout span,
-.sine-metric span,
+.sine-metric-label,
 .sine-slider > div > span:first-child {
   color: var(--sine-text-faint);
   font-size: 0.72rem;
@@ -96,7 +156,32 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
-  padding-top: 2px;
+}
+
+.sine-metric-label,
+.sine-analysis-title-with-help,
+.selected-spawner-score-label,
+.selected-spawner-metric-label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.sine-analysis-title-with-help {
+  gap: 4px;
+}
+
+.sine-analysis-title-with-help .sine-help svg {
+  width: 9px;
+  height: 9px;
+}
+
+.selected-spawner-score-label .sine-help svg,
+.selected-spawner-metric-label .sine-help svg,
+.sine-metric-label .sine-help svg {
+  width: 11px;
+  height: 11px;
 }
 
 .sine-metric {
@@ -126,10 +211,1069 @@
 }
 
 .sine-error-banner {
+  grid-area: error;
   padding: 10px 12px;
   border: 1px solid rgb(var(--sine-negative-rgb) / 0.35);
   border-radius: var(--sine-radius);
   background: rgb(var(--sine-negative-rgb) / 0.12);
-  color: #ffd1c8;
+  color: color-mix(in srgb, var(--sine-negative) 42%, white);
   font-weight: 760;
+}
+
+.sine-workbench-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.sine-workbench-panel.emphasis {
+  border-color: rgb(var(--sine-amber-rgb) / 0.42);
+  background: color-mix(in srgb, rgb(var(--sine-amber-rgb) / 0.12) 36%, var(--sine-surface));
+}
+
+.sine-workbench-panel.performance {
+  border-color: rgb(var(--sine-accent-rgb) / 0.28);
+  background: color-mix(in srgb, rgb(var(--sine-accent-rgb) / 0.1) 34%, var(--sine-surface));
+}
+
+.sine-workbench-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sine-workbench-panel-head > div {
+  min-width: 0;
+}
+
+.sine-workbench-panel-head h2 {
+  margin: 3px 0 0;
+  color: var(--sine-text-strong);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.sine-workbench-panel-head strong {
+  color: var(--sine-amber);
+  font-size: 0.95rem;
+  text-align: right;
+}
+
+.sine-workbench-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.sine-workbench-actions button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border-color: rgb(var(--sine-accent-rgb) / 0.28);
+  background: rgb(var(--sine-accent-rgb) / 0.08);
+  color: var(--sine-text);
+  font-size: 0.72rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.sine-workbench-mini-grid,
+.selected-spawner-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 8px;
+}
+
+.selected-spawner-panel {
+  background: color-mix(in srgb, var(--sine-surface-raised) 86%, transparent);
+}
+
+.selected-spawner-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.selected-spawner-clock-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.selected-spawner-clock-strip span {
+  padding: 4px 7px;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sine-bg-soft) 82%, transparent);
+  color: var(--sine-text-faint);
+  font-size: 0.67rem;
+  font-weight: 780;
+  text-transform: uppercase;
+}
+
+.selected-spawner-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 4px 7px;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sine-surface-muted) 72%, transparent);
+  color: var(--sine-text-muted);
+  font-size: 0.68rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.selected-spawner-badge.amber {
+  border-color: rgb(var(--sine-amber-rgb) / 0.32);
+  background: rgb(var(--sine-amber-rgb) / 0.1);
+  color: color-mix(in srgb, var(--sine-amber) 72%, white);
+}
+
+.selected-spawner-badge.long {
+  border-color: rgb(var(--sine-accent-rgb) / 0.32);
+  background: rgb(var(--sine-accent-rgb) / 0.1);
+  color: color-mix(in srgb, var(--sine-accent) 72%, white);
+}
+
+.selected-spawner-badge.short {
+  border-color: rgb(var(--sine-negative-rgb) / 0.32);
+  background: rgb(var(--sine-negative-rgb) / 0.1);
+  color: color-mix(in srgb, var(--sine-negative) 74%, white);
+}
+
+.selected-spawner-badge.wait {
+  border-color: rgb(var(--sine-purple-rgb) / 0.32);
+  background: rgb(var(--sine-purple-rgb) / 0.1);
+  color: color-mix(in srgb, var(--sine-purple) 72%, white);
+}
+
+.selected-spawner-section {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: var(--sine-radius);
+  background: color-mix(in srgb, var(--sine-bg-soft) 72%, transparent);
+}
+
+.selected-spawner-section-title {
+  color: var(--sine-text-faint);
+  font-size: 0.7rem;
+  font-weight: 860;
+  text-transform: uppercase;
+}
+
+.selected-spawner-state-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.selected-spawner-meter,
+.selected-spawner-score,
+.selected-spawner-metric-bar {
+  --agent-meter-color: var(--sine-accent);
+}
+
+.selected-spawner-meter.positive,
+.selected-spawner-score.positive,
+.selected-spawner-metric-bar.positive {
+  --agent-meter-color: var(--sine-positive);
+}
+
+.selected-spawner-meter.amber,
+.selected-spawner-score.amber,
+.selected-spawner-metric-bar.amber {
+  --agent-meter-color: var(--sine-amber);
+}
+
+.selected-spawner-meter.negative,
+.selected-spawner-score.negative,
+.selected-spawner-metric-bar.negative {
+  --agent-meter-color: var(--sine-negative);
+}
+
+.selected-spawner-meter.purple,
+.selected-spawner-score.purple,
+.selected-spawner-metric-bar.purple {
+  --agent-meter-color: var(--sine-purple);
+}
+
+.selected-spawner-meter,
+.selected-spawner-metric-bar {
+  display: grid;
+  gap: 6px;
+}
+
+.selected-spawner-meter span,
+.selected-spawner-metric-bar span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--sine-text-muted);
+  font-size: 0.76rem;
+  font-weight: 780;
+}
+
+.selected-spawner-meter i,
+.selected-spawner-score i,
+.selected-spawner-metric-bar i,
+.selected-spawner-funnel i {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sine-bg) 72%, transparent);
+}
+
+.selected-spawner-meter i::before,
+.selected-spawner-score i::before,
+.selected-spawner-metric-bar i::before,
+.selected-spawner-funnel i::before {
+  display: block;
+  width: var(--meter-value);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--agent-meter-color), color-mix(in srgb, var(--agent-meter-color) 44%, white));
+  content: "";
+}
+
+.selected-spawner-performance-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
+  gap: 8px;
+}
+
+.selected-spawner-score {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--agent-meter-color) 24%, var(--sine-border-subtle));
+  border-radius: var(--sine-radius);
+  background: color-mix(in srgb, var(--agent-meter-color) 8%, var(--sine-surface-muted));
+}
+
+.selected-spawner-score-label {
+  color: var(--sine-text-faint);
+  font-size: 0.67rem;
+  font-weight: 840;
+  text-transform: uppercase;
+}
+
+.selected-spawner-score strong {
+  color: var(--sine-text-strong);
+  font-size: 1rem;
+}
+
+.selected-spawner-funnel {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  --agent-meter-color: var(--sine-amber);
+}
+
+.selected-spawner-funnel span {
+  display: grid;
+  gap: 2px;
+  color: var(--sine-text-faint);
+  font-size: 0.68rem;
+  font-weight: 780;
+  text-transform: uppercase;
+}
+
+.selected-spawner-funnel b {
+  color: var(--sine-text-strong);
+  font-size: 0.92rem;
+}
+
+.selected-spawner-recent {
+  display: grid;
+  gap: 9px;
+}
+
+.selected-spawner-action-mix {
+  display: flex;
+  gap: 4px;
+  min-height: 32px;
+}
+
+.selected-spawner-action-mix span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 1 var(--mix-value);
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 7px;
+  color: var(--sine-bg);
+  font-size: 0.66rem;
+  font-weight: 880;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
+
+.selected-spawner-action-mix .long {
+  background: var(--sine-accent);
+}
+
+.selected-spawner-action-mix .short {
+  background: var(--sine-negative);
+}
+
+.selected-spawner-action-mix .wait {
+  background: var(--sine-purple);
+}
+
+.selected-spawner-architecture-mini {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.architecture-stack {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 74px;
+  padding: 9px;
+  border: 1px solid rgb(var(--sine-accent-rgb) / 0.22);
+  border-radius: var(--sine-radius);
+  background: radial-gradient(circle at 28% 24%, rgb(var(--sine-accent-rgb) / 0.2), transparent 30%),
+    color-mix(in srgb, var(--sine-surface-muted) 80%, transparent);
+}
+
+.architecture-stack i {
+  display: block;
+  border-radius: 999px;
+  background: var(--sine-accent);
+  box-shadow: 0 0 16px rgb(var(--sine-accent-rgb) / 0.22);
+}
+
+.architecture-stack i:nth-child(1) {
+  height: 42px;
+}
+
+.architecture-stack i:nth-child(2) {
+  height: 64px;
+  background: var(--sine-amber);
+}
+
+.architecture-stack i:nth-child(3) {
+  height: 32px;
+  background: var(--sine-positive);
+}
+
+.selected-spawner-empty {
+  padding: 10px;
+  border: 1px dashed var(--sine-border);
+  border-radius: var(--sine-radius);
+  color: var(--sine-text-muted);
+  font-size: 0.78rem;
+  font-weight: 760;
+  text-align: center;
+}
+
+.sine-workbench-meter-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.sine-workbench-meter {
+  display: grid;
+  gap: 6px;
+}
+
+.sine-workbench-meter span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--sine-text-muted);
+  font-size: 0.78rem;
+  font-weight: 780;
+}
+
+.sine-workbench-meter i {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--sine-bg-soft);
+}
+
+.sine-workbench-meter i::before {
+  display: block;
+  width: var(--meter-value);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sine-accent), var(--sine-amber));
+  content: "";
+}
+
+.sine-modal-backdrop {
+  position: fixed;
+  z-index: 45;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--sine-bg) 60%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.sine-modal {
+  display: grid;
+  width: min(980px, calc(100vw - 40px));
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  border: 1px solid var(--sine-border);
+  border-radius: var(--sine-radius-panel);
+  background: var(--sine-bg-soft);
+  box-shadow: var(--sine-shadow-modal);
+}
+
+.sine-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border-bottom: 1px solid var(--sine-border-subtle);
+  background: color-mix(in srgb, var(--sine-surface-raised) 64%, transparent);
+}
+
+.sine-modal-head h2 {
+  margin: 3px 0 0;
+  color: var(--sine-text-strong);
+  font-size: 1.16rem;
+}
+
+.sine-modal-close {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-color: rgb(var(--sine-amber-rgb) / 0.28);
+  color: var(--sine-amber);
+}
+
+.sine-modal-body {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.sine-modal-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.sine-modal-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sine-modal-toolbar label {
+  display: grid;
+  min-width: 150px;
+  gap: 5px;
+  color: var(--sine-text-muted);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sine-modal-toolbar select {
+  min-height: 34px;
+  border: 1px solid var(--sine-border);
+  border-radius: 7px;
+  background: var(--sine-bg);
+  color: var(--sine-text-strong);
+  font: inherit;
+}
+
+.sine-ledger-scope,
+.sine-ledger-empty {
+  color: var(--sine-text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.sine-ledger-table {
+  display: grid;
+  gap: 6px;
+  min-width: 760px;
+}
+
+.sine-ledger-row {
+  display: grid;
+  grid-template-columns: 70px 130px 110px 120px minmax(150px, 1fr) 90px 78px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sine-surface-muted) 64%, transparent);
+  color: var(--sine-text);
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.sine-ledger-row.head {
+  min-height: 30px;
+  background: transparent;
+  color: var(--sine-text-faint);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sine-ledger-status {
+  justify-self: start;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: var(--sine-surface-raised);
+  color: var(--sine-text-muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sine-ledger-status.win {
+  background: rgb(var(--sine-positive-rgb) / 0.1);
+  color: color-mix(in srgb, var(--sine-positive) 78%, white);
+}
+
+.sine-ledger-status.loss {
+  background: rgb(var(--sine-negative-rgb) / 0.1);
+  color: color-mix(in srgb, var(--sine-negative) 78%, white);
+}
+
+.sine-runs-shell {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 440px);
+  grid-template-areas:
+    "header header"
+    "error error"
+    "runs settings";
+}
+
+.sine-runs-main {
+  grid-area: runs;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.sine-runs-settings {
+  grid-area: settings;
+  min-width: 0;
+}
+
+.sine-runs-settings .sine-controls {
+  max-height: calc(100vh - 118px);
+}
+
+.sine-runs-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.sine-run-progress {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: 999px;
+  background: var(--sine-bg-soft);
+}
+
+.sine-run-progress div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sine-accent), var(--sine-amber));
+  transition: width 160ms ease;
+}
+
+.sine-headless-analysis {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.sine-analysis-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.sine-analysis-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.sine-cohort-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--sine-border-subtle);
+}
+
+.sine-cohort-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+.sine-analysis-mini-chart {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: var(--sine-radius-card);
+  background: color-mix(in srgb, var(--sine-bg-soft) 78%, transparent);
+}
+
+.sine-analysis-mini-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sine-analysis-mini-chart-head > span,
+.sine-analysis-section-title {
+  color: var(--sine-text-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sine-analysis-mini-chart strong {
+  color: var(--sine-text-strong);
+}
+
+.sine-analysis-mini-chart svg {
+  width: 100%;
+  height: 86px;
+  overflow: visible;
+}
+
+.sine-analysis-mini-chart.sine-cohort-timeline svg {
+  height: 170px;
+}
+
+.sine-analysis-mini-chart path {
+  fill: none;
+  stroke: var(--sine-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sine-analysis-chart-gridlines line {
+  stroke: var(--sine-border-strong);
+  stroke-width: 1;
+  opacity: 0.24;
+  vector-effect: non-scaling-stroke;
+}
+
+.sine-analysis-chart-hover {
+  pointer-events: none;
+}
+
+.sine-analysis-hover-line {
+  stroke: var(--sine-text-muted);
+  stroke-width: 1;
+  opacity: 0.42;
+  vector-effect: non-scaling-stroke;
+}
+
+.sine-analysis-chart-hover circle {
+  fill: var(--sine-bg);
+  stroke: var(--sine-accent);
+  stroke-width: 2;
+}
+
+.sine-analysis-chart-hover circle.negative {
+  stroke: var(--sine-negative);
+}
+
+.sine-analysis-chart-hover circle.low-energy {
+  stroke: var(--sine-negative);
+}
+
+.sine-analysis-chart-hover circle.low-health {
+  stroke: var(--sine-amber);
+}
+
+.sine-analysis-chart-hover circle.both {
+  stroke: var(--sine-purple);
+}
+
+.sine-cohort-timeline rect {
+  fill: rgb(var(--sine-positive-rgb) / 0.38);
+}
+
+.sine-cohort-timeline rect.negative {
+  fill: rgb(var(--sine-negative-rgb) / 0.36);
+}
+
+.sine-cohort-timeline path {
+  stroke: var(--sine-amber);
+}
+
+.sine-cohort-regime-grid {
+  align-content: start;
+}
+
+.sine-cohort-regime-table {
+  display: grid;
+  grid-template-columns: 58px repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  align-items: stretch;
+}
+
+.sine-cohort-regime-table > strong {
+  display: grid;
+  place-items: center;
+  color: var(--sine-text-muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sine-cohort-regime-table > div {
+  display: grid;
+  gap: 2px;
+  min-height: 56px;
+  padding: 7px;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: 7px;
+  background: rgb(var(--sine-positive-rgb) / 0.13);
+  color: var(--sine-text);
+}
+
+.sine-cohort-regime-table > div.negative {
+  background: rgb(var(--sine-negative-rgb) / 0.13);
+}
+
+.sine-cohort-regime-table > div.empty {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--sine-bg-soft) 70%, transparent);
+  color: var(--sine-text-muted);
+}
+
+.sine-cohort-regime-table > div span,
+.sine-cohort-regime-table > div small {
+  color: var(--sine-text-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.sine-cohort-regime-table > div strong {
+  color: var(--sine-text-strong);
+  font-size: 0.8rem;
+}
+
+.sine-analysis-hover-target {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.sine-analysis-mini-chart path.low-energy,
+.sine-analysis-chart-legend .low-energy::before {
+  stroke: var(--sine-negative);
+  background: var(--sine-negative);
+}
+
+.sine-analysis-mini-chart path.low-health,
+.sine-analysis-chart-legend .low-health::before {
+  stroke: var(--sine-amber);
+  background: var(--sine-amber);
+}
+
+.sine-analysis-mini-chart path.both,
+.sine-analysis-chart-legend .both::before {
+  stroke: var(--sine-purple);
+  background: var(--sine-purple);
+}
+
+.sine-analysis-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.sine-analysis-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.sine-analysis-chart-legend span::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  content: "";
+}
+
+.sine-analysis-chart-empty {
+  display: grid;
+  min-height: 86px;
+  place-items: center;
+  padding: 10px;
+  border: 1px dashed var(--sine-border);
+  border-radius: var(--sine-radius);
+  color: var(--sine-text-muted);
+  font-size: 0.78rem;
+  font-weight: 780;
+  text-align: center;
+}
+
+.sine-analysis-toolbar,
+.sine-analysis-preset-row,
+.sine-analysis-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sine-analysis-toolbar label {
+  display: grid;
+  min-width: 126px;
+  gap: 5px;
+  color: var(--sine-text-muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.sine-analysis-toolbar label svg {
+  display: none;
+}
+
+.sine-analysis-toolbar select,
+.sine-analysis-toolbar input {
+  min-height: 32px;
+  border: 1px solid var(--sine-border);
+  border-radius: 7px;
+  background: var(--sine-bg);
+  color: var(--sine-text-strong);
+  font: inherit;
+}
+
+.sine-analysis-preset-row button,
+.sine-analysis-filter-pill button,
+.sine-analysis-pagination button,
+.sine-analysis-drawer button {
+  min-height: 32px;
+}
+
+.sine-analysis-filter-pill {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgb(var(--sine-accent-rgb) / 0.3);
+  border-radius: 999px;
+  color: var(--sine-accent);
+  background: rgb(var(--sine-accent-rgb) / 0.08);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.sine-analysis-table {
+  display: grid;
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: var(--sine-radius-card);
+}
+
+.sine-analysis-row {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  min-width: 760px;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--sine-border-subtle);
+  background: transparent;
+  color: var(--sine-text);
+  font: inherit;
+  text-align: left;
+}
+
+.sine-analysis-row:last-child {
+  border-bottom: 0;
+}
+
+.sine-analysis-row:not(.head):hover {
+  background: var(--sine-surface-raised);
+}
+
+.sine-analysis-row.head {
+  color: var(--sine-text-muted);
+  background: color-mix(in srgb, var(--sine-surface-raised) 72%, transparent);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.agent-table .sine-analysis-row {
+  grid-template-columns: 1.3fr 0.45fr 0.7fr 0.6fr 0.6fr 0.7fr 0.5fr 0.7fr 0.65fr;
+}
+
+.lineage-table .sine-analysis-row {
+  grid-template-columns: 0.9fr 0.7fr 0.75fr 0.65fr 0.8fr 0.55fr 0.6fr 0.65fr;
+}
+
+.trade-table .sine-analysis-row {
+  grid-template-columns: 0.55fr 0.85fr 1fr 1.1fr 0.75fr 0.55fr;
+}
+
+.sine-analysis-table.compact .sine-analysis-row {
+  min-width: 0;
+  grid-template-columns: 0.7fr 1fr 1fr;
+}
+
+.sine-analysis-candidates {
+  display: grid;
+  gap: 8px;
+}
+
+.sine-analysis-candidates button {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 38px;
+  color: var(--sine-text);
+}
+
+.sine-analysis-event-timeline,
+.sine-analysis-breakdowns,
+.sine-analysis-detail {
+  display: grid;
+  gap: 10px;
+}
+
+.sine-analysis-event-row {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) minmax(160px, auto);
+  gap: 10px;
+  align-items: center;
+}
+
+.sine-analysis-event-row > span,
+.sine-analysis-event-row strong {
+  color: var(--sine-text-muted);
+  font-size: 0.72rem;
+}
+
+.sine-analysis-event-row > div {
+  display: grid;
+  gap: 3px;
+}
+
+.sine-analysis-event-row i {
+  display: block;
+  height: 5px;
+  min-width: 2px;
+  border-radius: 999px;
+}
+
+.sine-analysis-event-row .births {
+  background: var(--sine-positive);
+}
+
+.sine-analysis-event-row .deaths {
+  background: var(--sine-negative);
+}
+
+.sine-analysis-event-row .reproductions {
+  background: var(--sine-amber);
+}
+
+.sine-analysis-breakdown-table {
+  display: grid;
+  gap: 6px;
+}
+
+.sine-analysis-breakdown-row {
+  display: grid;
+  grid-template-columns: 1fr 0.8fr 0.7fr 0.8fr;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--sine-border-subtle);
+  color: var(--sine-text);
+  font-size: 0.78rem;
+}
+
+.sine-analysis-drawer-backdrop {
+  position: fixed;
+  z-index: 42;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--sine-bg) 45%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.sine-analysis-drawer {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  width: min(860px, 92vw);
+  height: 100vh;
+  overflow: auto;
+  padding: 18px;
+  border-left: 1px solid var(--sine-border);
+  background: var(--sine-bg-soft);
+  box-shadow: var(--sine-shadow-modal);
+}
+
+.sine-analysis-drawer .sine-workbench-panel-head {
+  position: sticky;
+  z-index: 2;
+  top: -18px;
+  padding: 10px 0;
+  background: var(--sine-bg-soft);
+}
+
+.sine-analysis-drawer .sine-workbench-mini-grid {
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+}
+
+.sine-analysis-pagination {
+  justify-content: flex-end;
+  color: var(--sine-text-muted);
+  font-size: 0.78rem;
 }

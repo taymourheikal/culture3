@@ -6,12 +6,52 @@ import type { SpawnerConfig, SpawnerPerception, SpawnerPerceptionLagPair } from 
 export const PERCEPTION_MAX_TICKS = 1000;
 export const ROLLING_SAMPLE_COUNT = 7;
 
+type PerceptionScalarKey = Exclude<keyof SpawnerPerception, "deltaLagPairs">;
+type PerceptionMutationStdDevGroup = "lag" | "window" | "sensitivity" | "density";
+
+type PerceptionScalarDescriptor = {
+  key: PerceptionScalarKey;
+  label: string;
+  fallback: number;
+  sanitizer: "tick" | "nonNegative";
+  min?: number;
+  mutationStdDevGroup: PerceptionMutationStdDevGroup;
+  cacheKey: true;
+  longestWindow: boolean;
+  format: (value: number) => string;
+};
+
 const DEFAULT_DELTA_LAG_PAIRS: SpawnerPerceptionLagPair[] = [
   { fromTicks: 0, toTicks: 3 },
   { fromTicks: 3, toTicks: 7 },
   { fromTicks: 7, toTicks: 13 },
   { fromTicks: 13, toTicks: 27 },
   { fromTicks: 27, toTicks: 53 },
+];
+
+const PERCEPTION_SCALAR_DESCRIPTORS: readonly PerceptionScalarDescriptor[] = [
+  tickDescriptor("rollingWindowTicks", "Rolling window", 53, "window", true),
+  tickDescriptor("localScaleWindowTicks", "Local scale window", 53, "window", true),
+  tickDescriptor("localScaleSampleStepTicks", "Local sample step", 3, "window", false, 1),
+  tickDescriptor("volumeScaleWindowTicks", "Volume scale window", 53, "window", true),
+  tickDescriptor("volumeScaleSampleStepTicks", "Volume sample step", 3, "window", false, 1),
+  tickDescriptor("volumeDeltaLagTicks", "Volume delta lag", 7, "lag", true),
+  tickDescriptor("volumeAccelerationLagTicks", "Volume acceleration lag", 7, "lag", true),
+  tickDescriptor("rsiWindowTicks", "RSI window", 14, "window", true, 1),
+  tickDescriptor("volumePriceAgreementLagTicks", "Volume-price agreement lag", 7, "lag", true),
+  tickDescriptor("trendWindowTicks", "Trend window", 53, "window", true),
+  tickDescriptor("cycleWindowTicks", "Cycle window", 53, "window", true),
+  {
+    key: "roughnessSensitivity",
+    label: "Roughness sensitivity",
+    fallback: 0.02,
+    sanitizer: "nonNegative",
+    mutationStdDevGroup: "sensitivity",
+    cacheKey: true,
+    longestWindow: false,
+    format: (value) => value.toFixed(4),
+  },
+  tickDescriptor("pendingDensityScale", "Pending density scale", 80, "density", false, 1),
 ];
 
 export function defaultPerceptionFromConfig(config: SpawnerConfig): SpawnerPerception {
@@ -26,6 +66,12 @@ export function defaultPerceptionFromConfig(config: SpawnerConfig): SpawnerPerce
     rollingWindowTicks: config.defaultRollingWindowTicks,
     localScaleWindowTicks: config.defaultLocalScaleWindowTicks,
     localScaleSampleStepTicks: config.defaultLocalScaleSampleStepTicks,
+    volumeScaleWindowTicks: config.defaultVolumeScaleWindowTicks,
+    volumeScaleSampleStepTicks: config.defaultVolumeScaleSampleStepTicks,
+    volumeDeltaLagTicks: config.defaultVolumeDeltaLagTicks,
+    volumeAccelerationLagTicks: config.defaultVolumeAccelerationLagTicks,
+    rsiWindowTicks: config.defaultRsiWindowTicks,
+    volumePriceAgreementLagTicks: config.defaultVolumePriceAgreementLagTicks,
     trendWindowTicks: config.defaultTrendWindowTicks,
     cycleWindowTicks: config.defaultCycleWindowTicks,
     roughnessSensitivity: config.defaultRoughnessSensitivity,
@@ -35,16 +81,11 @@ export function defaultPerceptionFromConfig(config: SpawnerConfig): SpawnerPerce
 
 export function sanitizePerception(perception: Partial<SpawnerPerception> | undefined): SpawnerPerception {
   const deltaLagPairs = sanitizeDeltaLagPairs(perception?.deltaLagPairs);
-  return {
-    deltaLagPairs,
-    rollingWindowTicks: sanitizeTick(perception?.rollingWindowTicks, 53),
-    localScaleWindowTicks: sanitizeTick(perception?.localScaleWindowTicks, 53),
-    localScaleSampleStepTicks: Math.max(1, sanitizeTick(perception?.localScaleSampleStepTicks, 3)),
-    trendWindowTicks: sanitizeTick(perception?.trendWindowTicks, 53),
-    cycleWindowTicks: sanitizeTick(perception?.cycleWindowTicks, 53),
-    roughnessSensitivity: sanitizeNonNegative(perception?.roughnessSensitivity, 0.02),
-    pendingDensityScale: Math.max(1, sanitizeTick(perception?.pendingDensityScale, 80)),
-  };
+  const sanitized = { deltaLagPairs } as SpawnerPerception;
+  for (const descriptor of PERCEPTION_SCALAR_DESCRIPTORS) {
+    sanitized[descriptor.key] = sanitizePerceptionScalar(descriptor, perception?.[descriptor.key]);
+  }
+  return sanitized;
 }
 
 export function randomizeFounderPerception(config: SpawnerConfig, rng: SeededRng) {
@@ -77,21 +118,21 @@ export function mutatePerception(
 ): SpawnerPerception {
   const chance = mutationChance(rate);
   const next = sanitizePerception(perception);
+  const mutated = { ...next } as SpawnerPerception;
+  mutated.deltaLagPairs = next.deltaLagPairs.map((pair) => ({
+    fromTicks: mutateIntegerByRate(pair.fromTicks, chance, lagStdDev, rng),
+    toTicks: mutateIntegerByRate(pair.toTicks, chance, lagStdDev, rng),
+  }));
+  for (const descriptor of PERCEPTION_SCALAR_DESCRIPTORS) {
+    mutated[descriptor.key] = mutatePerceptionScalar(descriptor, next[descriptor.key], chance, {
+      lag: lagStdDev,
+      window: windowStdDev,
+      sensitivity: sensitivityStdDev,
+      density: densityScaleStdDev,
+    }, rng);
+  }
 
-  return sanitizePerception({
-    ...next,
-    deltaLagPairs: next.deltaLagPairs.map((pair) => ({
-      fromTicks: mutateIntegerByRate(pair.fromTicks, chance, lagStdDev, rng),
-      toTicks: mutateIntegerByRate(pair.toTicks, chance, lagStdDev, rng),
-    })),
-    rollingWindowTicks: mutateIntegerByRate(next.rollingWindowTicks, chance, windowStdDev, rng),
-    localScaleWindowTicks: mutateIntegerByRate(next.localScaleWindowTicks, chance, windowStdDev, rng),
-    localScaleSampleStepTicks: mutateIntegerByRate(next.localScaleSampleStepTicks, chance, windowStdDev, rng),
-    trendWindowTicks: mutateIntegerByRate(next.trendWindowTicks, chance, windowStdDev, rng),
-    cycleWindowTicks: mutateIntegerByRate(next.cycleWindowTicks, chance, windowStdDev, rng),
-    roughnessSensitivity: mutateNumberByRate(next.roughnessSensitivity, chance, sensitivityStdDev, rng),
-    pendingDensityScale: mutateIntegerByRate(next.pendingDensityScale, chance, densityScaleStdDev, rng),
-  });
+  return sanitizePerception(mutated);
 }
 
 export function rollingLags(perception: SpawnerPerception) {
@@ -106,13 +147,7 @@ export function perceptionCacheKey(perception: SpawnerPerception) {
   const sanitized = sanitizePerception(perception);
   return [
     ...sanitized.deltaLagPairs.flatMap((pair) => [pair.fromTicks, pair.toTicks]),
-    sanitized.rollingWindowTicks,
-    sanitized.localScaleWindowTicks,
-    sanitized.localScaleSampleStepTicks,
-    sanitized.trendWindowTicks,
-    sanitized.cycleWindowTicks,
-    sanitized.roughnessSensitivity,
-    sanitized.pendingDensityScale,
+    ...PERCEPTION_SCALAR_DESCRIPTORS.filter((descriptor) => descriptor.cacheKey).map((descriptor) => sanitized[descriptor.key]),
   ].join("|");
 }
 
@@ -121,10 +156,7 @@ export function summarizePerception(perception: SpawnerPerception) {
   const lagEndpoints = sanitized.deltaLagPairs.flatMap((pair) => [pair.fromTicks, pair.toTicks]);
   const averageLag = lagEndpoints.reduce((sum, value) => sum + value, 0) / Math.max(1, lagEndpoints.length);
   const longestWindow = Math.max(
-    sanitized.rollingWindowTicks,
-    sanitized.localScaleWindowTicks,
-    sanitized.trendWindowTicks,
-    sanitized.cycleWindowTicks,
+    ...PERCEPTION_SCALAR_DESCRIPTORS.filter((descriptor) => descriptor.longestWindow).map((descriptor) => sanitized[descriptor.key]),
     ...lagEndpoints,
   );
   return {
@@ -141,13 +173,10 @@ export function perceptionDetailRows(perception: SpawnerPerception) {
       label: `Delta pair ${index + 1}`,
       value: `${pair.fromTicks}-${pair.toTicks} ticks`,
     })),
-    { label: "Rolling window", value: `${sanitized.rollingWindowTicks} ticks` },
-    { label: "Local scale window", value: `${sanitized.localScaleWindowTicks} ticks` },
-    { label: "Local sample step", value: `${sanitized.localScaleSampleStepTicks} ticks` },
-    { label: "Trend window", value: `${sanitized.trendWindowTicks} ticks` },
-    { label: "Cycle window", value: `${sanitized.cycleWindowTicks} ticks` },
-    { label: "Roughness sensitivity", value: sanitized.roughnessSensitivity.toFixed(4) },
-    { label: "Pending density scale", value: `${sanitized.pendingDensityScale} ticks` },
+    ...PERCEPTION_SCALAR_DESCRIPTORS.map((descriptor) => ({
+      label: descriptor.label,
+      value: descriptor.format(sanitized[descriptor.key]),
+    })),
   ];
 }
 
@@ -167,4 +196,45 @@ function sanitizeTick(value: number | undefined, fallback: number) {
 
 function sanitizeNonNegative(value: number | undefined, fallback: number) {
   return sanitizeNonNegativeNumber(value, fallback);
+}
+
+function tickDescriptor(
+  key: PerceptionScalarKey,
+  label: string,
+  fallback: number,
+  mutationStdDevGroup: PerceptionMutationStdDevGroup,
+  longestWindow: boolean,
+  min?: number,
+): PerceptionScalarDescriptor {
+  return {
+    key,
+    label,
+    fallback,
+    sanitizer: "tick",
+    min,
+    mutationStdDevGroup,
+    cacheKey: true,
+    longestWindow,
+    format: (value) => `${value} ticks`,
+  };
+}
+
+function sanitizePerceptionScalar(descriptor: PerceptionScalarDescriptor, value: number | undefined) {
+  const sanitized = descriptor.sanitizer === "tick"
+    ? sanitizeTick(value, descriptor.fallback)
+    : sanitizeNonNegative(value, descriptor.fallback);
+  return descriptor.min !== undefined ? Math.max(descriptor.min, sanitized) : sanitized;
+}
+
+function mutatePerceptionScalar(
+  descriptor: PerceptionScalarDescriptor,
+  value: number,
+  chance: number,
+  stddevs: Record<PerceptionMutationStdDevGroup, number>,
+  rng: SeededRng,
+) {
+  const stdDev = stddevs[descriptor.mutationStdDevGroup];
+  return descriptor.sanitizer === "nonNegative"
+    ? mutateNumberByRate(value, chance, stdDev, rng)
+    : mutateIntegerByRate(value, chance, stdDev, rng);
 }

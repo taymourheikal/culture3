@@ -4,6 +4,67 @@ import type { SpawnerConfig, SpawnerMutationProfile } from "./types";
 
 const STDDEV_SAFETY_MAX = 10;
 
+type MutationProfileKey = keyof SpawnerMutationProfile;
+type MutationProfileGroupTitle =
+  | "Topology Mutation"
+  | "Weight And Bias Mutation"
+  | "Perception Mutation"
+  | "Payoff Scale Mutation"
+  | "Trading Policy Mutation"
+  | "Control Mutation";
+
+type MutationProfileDescriptor = {
+  key: MutationProfileKey;
+  label: string;
+  group: MutationProfileGroupTitle;
+  fallback: number;
+  sanitizer: "probability" | "stddev";
+  format: (value: number) => string;
+  drifts: true;
+};
+
+const MUTATION_PROFILE_GROUPS: readonly MutationProfileGroupTitle[] = [
+  "Topology Mutation",
+  "Weight And Bias Mutation",
+  "Perception Mutation",
+  "Payoff Scale Mutation",
+  "Trading Policy Mutation",
+  "Control Mutation",
+];
+
+const MUTATION_PROFILE_DESCRIPTORS: readonly MutationProfileDescriptor[] = [
+  probabilityDescriptor("addUnitRate", "Add unit rate", "Topology Mutation", 0.015),
+  probabilityDescriptor("disableUnitRate", "Disable unit rate", "Topology Mutation", 0.006),
+  probabilityDescriptor("reenableUnitRate", "Re-enable unit rate", "Topology Mutation", 0.003),
+  probabilityDescriptor("addConnectionRate", "Add connection rate", "Topology Mutation", 0.06),
+  probabilityDescriptor("disableConnectionRate", "Disable connection rate", "Topology Mutation", 0.025),
+  probabilityDescriptor("reenableConnectionRate", "Re-enable connection rate", "Topology Mutation", 0.012),
+  probabilityDescriptor("weightMutationRate", "Weight mutation rate", "Weight And Bias Mutation", 0.82),
+  stddevDescriptor("weightMutationStdDev", "Weight mutation stddev", "Weight And Bias Mutation", 0.045),
+  probabilityDescriptor("weightReplaceRate", "Weight replace rate", "Weight And Bias Mutation", 0.015),
+  stddevDescriptor("newConnectionWeightStdDev", "New connection stddev", "Weight And Bias Mutation", 0.45),
+  probabilityDescriptor("gateBiasMutationRate", "Gate bias rate", "Weight And Bias Mutation", 0.7),
+  stddevDescriptor("gateBiasMutationStdDev", "Gate bias stddev", "Weight And Bias Mutation", 0.035),
+  probabilityDescriptor("outputBiasMutationRate", "Output bias rate", "Weight And Bias Mutation", 0.7),
+  stddevDescriptor("outputBiasMutationStdDev", "Output bias stddev", "Weight And Bias Mutation", 0.035),
+  probabilityDescriptor("perceptionMutationRate", "Perception mutation rate", "Perception Mutation", 0.08),
+  stddevDescriptor("perceptionLagMutationStdDev", "Lag mutation stddev", "Perception Mutation", 2, "ticks"),
+  stddevDescriptor("perceptionWindowMutationStdDev", "Window mutation stddev", "Perception Mutation", 4, "ticks"),
+  stddevDescriptor("perceptionSensitivityMutationStdDev", "Roughness mutation stddev", "Perception Mutation", 0.002, undefined, 4),
+  stddevDescriptor("perceptionDensityScaleMutationStdDev", "Density-scale mutation stddev", "Perception Mutation", 4, "ticks"),
+  probabilityDescriptor("payoffScaleMutationRate", "Payoff scale mutation rate", "Payoff Scale Mutation", 0.08),
+  stddevDescriptor("payoffScaleWindowMutationStdDev", "Payoff window stddev", "Payoff Scale Mutation", 4, "ticks"),
+  stddevDescriptor("payoffScaleSampleStepMutationStdDev", "Payoff sample-step stddev", "Payoff Scale Mutation", 4, "ticks"),
+  probabilityDescriptor("tradingPolicyMutationRate", "Trading policy mutation rate", "Trading Policy Mutation", 0.08),
+  stddevDescriptor("spawnThresholdMutationStdDev", "Spawn-threshold stddev", "Trading Policy Mutation", 0.025),
+  stddevDescriptor("minSignalStrengthMutationStdDev", "Min-strength stddev", "Trading Policy Mutation", 0.025),
+  stddevDescriptor("thresholdBiasMutationStdDev", "Threshold-bias stddev", "Control Mutation", 0.015),
+  stddevDescriptor("minHorizonTicksMutationStdDev", "Min horizon stddev", "Control Mutation", 0.67, "ticks"),
+  stddevDescriptor("maxHorizonTicksMutationStdDev", "Max horizon stddev", "Control Mutation", 1.56, "ticks"),
+  stddevDescriptor("cooldownBaseTicksMutationStdDev", "Cooldown stddev", "Control Mutation", 0.44, "ticks"),
+  stddevDescriptor("mutationProfileMutationStdDev", "Profile drift stddev", "Control Mutation", 0.006),
+];
+
 export function defaultMutationProfileFromConfig(config: SpawnerConfig): SpawnerMutationProfile {
   return sanitizeMutationProfile({
     addUnitRate: config.addUnitRate,
@@ -40,75 +101,21 @@ export function defaultMutationProfileFromConfig(config: SpawnerConfig): Spawner
 }
 
 export function sanitizeMutationProfile(profile: Partial<SpawnerMutationProfile> | undefined): SpawnerMutationProfile {
-  return {
-    addUnitRate: probability(profile?.addUnitRate, 0.015),
-    disableUnitRate: probability(profile?.disableUnitRate, 0.006),
-    reenableUnitRate: probability(profile?.reenableUnitRate, 0.003),
-    addConnectionRate: probability(profile?.addConnectionRate, 0.06),
-    disableConnectionRate: probability(profile?.disableConnectionRate, 0.025),
-    reenableConnectionRate: probability(profile?.reenableConnectionRate, 0.012),
-    weightMutationRate: probability(profile?.weightMutationRate, 0.82),
-    weightMutationStdDev: stddev(profile?.weightMutationStdDev, 0.045),
-    weightReplaceRate: probability(profile?.weightReplaceRate, 0.015),
-    newConnectionWeightStdDev: stddev(profile?.newConnectionWeightStdDev, 0.45),
-    gateBiasMutationRate: probability(profile?.gateBiasMutationRate, 0.7),
-    gateBiasMutationStdDev: stddev(profile?.gateBiasMutationStdDev, 0.035),
-    outputBiasMutationRate: probability(profile?.outputBiasMutationRate, 0.7),
-    outputBiasMutationStdDev: stddev(profile?.outputBiasMutationStdDev, 0.035),
-    perceptionMutationRate: probability(profile?.perceptionMutationRate, 0.08),
-    perceptionLagMutationStdDev: stddev(profile?.perceptionLagMutationStdDev, 2),
-    perceptionWindowMutationStdDev: stddev(profile?.perceptionWindowMutationStdDev, 4),
-    perceptionSensitivityMutationStdDev: stddev(profile?.perceptionSensitivityMutationStdDev, 0.002),
-    perceptionDensityScaleMutationStdDev: stddev(profile?.perceptionDensityScaleMutationStdDev, 4),
-    payoffScaleMutationRate: probability(profile?.payoffScaleMutationRate, 0.08),
-    payoffScaleWindowMutationStdDev: stddev(profile?.payoffScaleWindowMutationStdDev, 4),
-    payoffScaleSampleStepMutationStdDev: stddev(profile?.payoffScaleSampleStepMutationStdDev, 4),
-    tradingPolicyMutationRate: probability(profile?.tradingPolicyMutationRate, 0.08),
-    spawnThresholdMutationStdDev: stddev(profile?.spawnThresholdMutationStdDev, 0.025),
-    minSignalStrengthMutationStdDev: stddev(profile?.minSignalStrengthMutationStdDev, 0.025),
-    thresholdBiasMutationStdDev: stddev(profile?.thresholdBiasMutationStdDev, 0.015),
-    minHorizonTicksMutationStdDev: stddev(profile?.minHorizonTicksMutationStdDev, 0.67),
-    maxHorizonTicksMutationStdDev: stddev(profile?.maxHorizonTicksMutationStdDev, 1.56),
-    cooldownBaseTicksMutationStdDev: stddev(profile?.cooldownBaseTicksMutationStdDev, 0.44),
-    mutationProfileMutationStdDev: stddev(profile?.mutationProfileMutationStdDev, 0.006),
-  };
+  const sanitized = {} as SpawnerMutationProfile;
+  for (const descriptor of MUTATION_PROFILE_DESCRIPTORS) {
+    sanitized[descriptor.key] = sanitizeMutationProfileField(descriptor, profile?.[descriptor.key]);
+  }
+  return sanitized;
 }
 
 export function driftMutationProfile(profile: SpawnerMutationProfile, rng: SeededRng) {
   const current = sanitizeMutationProfile(profile);
   const drift = current.mutationProfileMutationStdDev;
-  return sanitizeMutationProfile({
-    addUnitRate: mutate(current.addUnitRate, drift, rng),
-    disableUnitRate: mutate(current.disableUnitRate, drift, rng),
-    reenableUnitRate: mutate(current.reenableUnitRate, drift, rng),
-    addConnectionRate: mutate(current.addConnectionRate, drift, rng),
-    disableConnectionRate: mutate(current.disableConnectionRate, drift, rng),
-    reenableConnectionRate: mutate(current.reenableConnectionRate, drift, rng),
-    weightMutationRate: mutate(current.weightMutationRate, drift, rng),
-    weightMutationStdDev: mutate(current.weightMutationStdDev, drift, rng),
-    weightReplaceRate: mutate(current.weightReplaceRate, drift, rng),
-    newConnectionWeightStdDev: mutate(current.newConnectionWeightStdDev, drift, rng),
-    gateBiasMutationRate: mutate(current.gateBiasMutationRate, drift, rng),
-    gateBiasMutationStdDev: mutate(current.gateBiasMutationStdDev, drift, rng),
-    outputBiasMutationRate: mutate(current.outputBiasMutationRate, drift, rng),
-    outputBiasMutationStdDev: mutate(current.outputBiasMutationStdDev, drift, rng),
-    perceptionMutationRate: mutate(current.perceptionMutationRate, drift, rng),
-    perceptionLagMutationStdDev: mutate(current.perceptionLagMutationStdDev, drift, rng),
-    perceptionWindowMutationStdDev: mutate(current.perceptionWindowMutationStdDev, drift, rng),
-    perceptionSensitivityMutationStdDev: mutate(current.perceptionSensitivityMutationStdDev, drift, rng),
-    perceptionDensityScaleMutationStdDev: mutate(current.perceptionDensityScaleMutationStdDev, drift, rng),
-    payoffScaleMutationRate: mutate(current.payoffScaleMutationRate, drift, rng),
-    payoffScaleWindowMutationStdDev: mutate(current.payoffScaleWindowMutationStdDev, drift, rng),
-    payoffScaleSampleStepMutationStdDev: mutate(current.payoffScaleSampleStepMutationStdDev, drift, rng),
-    tradingPolicyMutationRate: mutate(current.tradingPolicyMutationRate, drift, rng),
-    spawnThresholdMutationStdDev: mutate(current.spawnThresholdMutationStdDev, drift, rng),
-    minSignalStrengthMutationStdDev: mutate(current.minSignalStrengthMutationStdDev, drift, rng),
-    thresholdBiasMutationStdDev: mutate(current.thresholdBiasMutationStdDev, drift, rng),
-    minHorizonTicksMutationStdDev: mutate(current.minHorizonTicksMutationStdDev, drift, rng),
-    maxHorizonTicksMutationStdDev: mutate(current.maxHorizonTicksMutationStdDev, drift, rng),
-    cooldownBaseTicksMutationStdDev: mutate(current.cooldownBaseTicksMutationStdDev, drift, rng),
-    mutationProfileMutationStdDev: mutate(current.mutationProfileMutationStdDev, drift, rng),
-  });
+  const drifted = {} as SpawnerMutationProfile;
+  for (const descriptor of MUTATION_PROFILE_DESCRIPTORS) {
+    drifted[descriptor.key] = descriptor.drifts ? mutate(current[descriptor.key], drift, rng) : current[descriptor.key];
+  }
+  return sanitizeMutationProfile(drifted);
 }
 
 export function summarizeMutationProfile(profile: SpawnerMutationProfile) {
@@ -139,68 +146,12 @@ export function summarizeMutationProfile(profile: SpawnerMutationProfile) {
 
 export function mutationProfileDetailGroups(profile: SpawnerMutationProfile) {
   const current = sanitizeMutationProfile(profile);
-  return [
-    {
-      title: "Topology Mutation",
-      rows: [
-        { label: "Add unit rate", value: formatProbability(current.addUnitRate) },
-        { label: "Disable unit rate", value: formatProbability(current.disableUnitRate) },
-        { label: "Re-enable unit rate", value: formatProbability(current.reenableUnitRate) },
-        { label: "Add connection rate", value: formatProbability(current.addConnectionRate) },
-        { label: "Disable connection rate", value: formatProbability(current.disableConnectionRate) },
-        { label: "Re-enable connection rate", value: formatProbability(current.reenableConnectionRate) },
-      ],
-    },
-    {
-      title: "Weight And Bias Mutation",
-      rows: [
-        { label: "Weight mutation rate", value: formatProbability(current.weightMutationRate) },
-        { label: "Weight mutation stddev", value: formatDecimal(current.weightMutationStdDev) },
-        { label: "Weight replace rate", value: formatProbability(current.weightReplaceRate) },
-        { label: "New connection stddev", value: formatDecimal(current.newConnectionWeightStdDev) },
-        { label: "Gate bias rate", value: formatProbability(current.gateBiasMutationRate) },
-        { label: "Gate bias stddev", value: formatDecimal(current.gateBiasMutationStdDev) },
-        { label: "Output bias rate", value: formatProbability(current.outputBiasMutationRate) },
-        { label: "Output bias stddev", value: formatDecimal(current.outputBiasMutationStdDev) },
-      ],
-    },
-    {
-      title: "Perception Mutation",
-      rows: [
-        { label: "Perception mutation rate", value: formatProbability(current.perceptionMutationRate) },
-        { label: "Lag mutation stddev", value: `${formatDecimal(current.perceptionLagMutationStdDev)} ticks` },
-        { label: "Window mutation stddev", value: `${formatDecimal(current.perceptionWindowMutationStdDev)} ticks` },
-        { label: "Roughness mutation stddev", value: formatDecimal(current.perceptionSensitivityMutationStdDev, 4) },
-        { label: "Density-scale mutation stddev", value: `${formatDecimal(current.perceptionDensityScaleMutationStdDev)} ticks` },
-      ],
-    },
-    {
-      title: "Payoff Scale Mutation",
-      rows: [
-        { label: "Payoff scale mutation rate", value: formatProbability(current.payoffScaleMutationRate) },
-        { label: "Payoff window stddev", value: `${formatDecimal(current.payoffScaleWindowMutationStdDev)} ticks` },
-        { label: "Payoff sample-step stddev", value: `${formatDecimal(current.payoffScaleSampleStepMutationStdDev)} ticks` },
-      ],
-    },
-    {
-      title: "Trading Policy Mutation",
-      rows: [
-        { label: "Trading policy mutation rate", value: formatProbability(current.tradingPolicyMutationRate) },
-        { label: "Spawn-threshold stddev", value: formatDecimal(current.spawnThresholdMutationStdDev) },
-        { label: "Min-strength stddev", value: formatDecimal(current.minSignalStrengthMutationStdDev) },
-      ],
-    },
-    {
-      title: "Control Mutation",
-      rows: [
-        { label: "Threshold-bias stddev", value: formatDecimal(current.thresholdBiasMutationStdDev) },
-        { label: "Min horizon stddev", value: `${formatDecimal(current.minHorizonTicksMutationStdDev)} ticks` },
-        { label: "Max horizon stddev", value: `${formatDecimal(current.maxHorizonTicksMutationStdDev)} ticks` },
-        { label: "Cooldown stddev", value: `${formatDecimal(current.cooldownBaseTicksMutationStdDev)} ticks` },
-        { label: "Profile drift stddev", value: formatDecimal(current.mutationProfileMutationStdDev) },
-      ],
-    },
-  ];
+  return MUTATION_PROFILE_GROUPS.map((title) => ({
+    title,
+    rows: MUTATION_PROFILE_DESCRIPTORS
+      .filter((descriptor) => descriptor.group === title)
+      .map((descriptor) => ({ label: descriptor.label, value: descriptor.format(current[descriptor.key]) })),
+  }));
 }
 
 function mutate(value: number, stdDev: number, rng: SeededRng) {
@@ -213,6 +164,48 @@ function probability(value: number | undefined, fallback: number) {
 
 function stddev(value: number | undefined, fallback: number) {
   return sanitizeStdDev(value, fallback, STDDEV_SAFETY_MAX);
+}
+
+function probabilityDescriptor(
+  key: MutationProfileKey,
+  label: string,
+  group: MutationProfileGroupTitle,
+  fallback: number,
+): MutationProfileDescriptor {
+  return {
+    key,
+    label,
+    group,
+    fallback,
+    sanitizer: "probability",
+    format: formatProbability,
+    drifts: true,
+  };
+}
+
+function stddevDescriptor(
+  key: MutationProfileKey,
+  label: string,
+  group: MutationProfileGroupTitle,
+  fallback: number,
+  unit?: "ticks",
+  digits = 3,
+): MutationProfileDescriptor {
+  return {
+    key,
+    label,
+    group,
+    fallback,
+    sanitizer: "stddev",
+    format: (value) => `${formatDecimal(value, digits)}${unit ? ` ${unit}` : ""}`,
+    drifts: true,
+  };
+}
+
+function sanitizeMutationProfileField(descriptor: MutationProfileDescriptor, value: number | undefined) {
+  return descriptor.sanitizer === "probability"
+    ? probability(value, descriptor.fallback)
+    : stddev(value, descriptor.fallback);
 }
 
 function formatProbability(value: number) {

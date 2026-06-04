@@ -1,5 +1,5 @@
 import { OUTPUT_INDEX } from "./config";
-import type { BrainEvaluation } from "./brain";
+import type { BrainEvaluation, BrainTraceActivations } from "./brain";
 import { activeConnections } from "./genomeConnections";
 import { clamp } from "./math";
 import {
@@ -20,24 +20,35 @@ export function captureDecisionTrace({
   evaluation,
   decoded,
   action,
+  traceActivations,
 }: {
   spawner: SpawnerAgent;
   tick: number;
   evaluation: BrainEvaluation;
   decoded: SpawnerDecodedOutputs;
   action: Exclude<SpawnerActionChoice, "wait"> | "reproduce";
+  traceActivations?: BrainTraceActivations;
 }) {
   spawner.traceStore = spawner.traceStore ?? createEmptyTraceStore();
   const id = Math.max(1, Math.round(spawner.traceStore.nextTraceId || 1));
   spawner.traceStore.nextTraceId = id + 1;
+  const activations = traceActivations ?? {
+    activeConnectionIds: evaluation.activeConnectionIds,
+    connectionActivations: evaluation.connectionActivations,
+    owned: false,
+  };
+  const consumeOwnedActivations = activations.owned;
   const trace: SpawnerDecisionTrace = {
     id,
     tick,
     action,
     strength: decoded.strength,
-    activeConnectionIds: [...evaluation.activeConnectionIds],
-    connectionActivations: copyConnectionActivations(evaluation.connectionActivations),
+    activeConnectionIds: consumeOwnedActivations ? activations.activeConnectionIds : [...activations.activeConnectionIds],
+    connectionActivations: consumeOwnedActivations
+      ? activations.connectionActivations
+      : copyConnectionActivations(activations.connectionActivations, activations.activeConnectionIds),
   };
+  if (consumeOwnedActivations) activations.owned = false;
   spawner.traceStore.traces[String(id)] = trace;
   return id;
 }
@@ -155,8 +166,15 @@ function applyActionOutputBias(spawner: SpawnerAgent, trace: SpawnerDecisionTrac
   return addDelta(spawner.learnedState.outputBiasDeltas, outputBiasDeltaKey(OUTPUT_INDEX.strength), amount * trace.strength, cap) || changed;
 }
 
-function copyConnectionActivations(evaluationActivations: BrainEvaluation["connectionActivations"]) {
+function copyConnectionActivations(evaluationActivations: BrainEvaluation["connectionActivations"], activeConnectionIds?: number[]) {
   const activations: SpawnerDecisionTrace["connectionActivations"] = {};
+  if (activeConnectionIds) {
+    for (const innovationId of activeConnectionIds) {
+      const activation = evaluationActivations[String(innovationId)];
+      if (activation) activations[String(innovationId)] = { source: activation.source, target: activation.target };
+    }
+    return activations;
+  }
   for (const [innovationId, activation] of Object.entries(evaluationActivations)) {
     activations[innovationId] = { source: activation.source, target: activation.target };
   }

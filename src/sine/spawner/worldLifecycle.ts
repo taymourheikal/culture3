@@ -2,7 +2,7 @@ import { ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
 import { recordSpawnerEvent } from "./events";
 import { createRandomGenome } from "./genome";
 import { createEmptyLearnedState, createEmptyTraceStore } from "./plasticity";
-import { isSpawnerAlive } from "./runtimeIndex";
+import { classifySpawnerDeath, isSpawnerAlive } from "./runtimeIndex";
 import { createSpawnerSnapshot } from "./snapshots";
 import type { SpawnerAgent, SpawnerGenome, SpawnerWorld } from "./types";
 
@@ -86,6 +86,9 @@ function collectLivingSpawners(world: SpawnerWorld) {
         kind: "death",
         spawnerId: spawner.id,
         lineageId: spawner.lineageId,
+        deathCause: classifySpawnerDeath(spawner, world.config),
+        deathEnergyThreshold: world.config.deathEnergy,
+        deathHealthThreshold: world.config.deathHealth,
         spawnerSnapshot: createSpawnerSnapshot(spawner),
       });
     }

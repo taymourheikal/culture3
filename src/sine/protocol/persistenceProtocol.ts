@@ -3,6 +3,7 @@ import type { MarketRuntimeConfig } from "../marketRuntimeConfig";
 import type {
   SpawnerAgent,
   SpawnerConfig,
+  SpawnerDeathCause,
   SpawnerEvent,
   SpawnerFood,
   SpawnerLearnedState,
@@ -53,7 +54,7 @@ export type SinePersistencePacket = {
   marketConfig?: MarketRuntimeConfig;
   spawnerConfig: SpawnerConfig;
   births: Array<{ tick: number; spawner: SpawnerAgent; parentSpawnerId?: number }>;
-  deaths: Array<{ tick: number; spawner: SpawnerAgent }>;
+  deaths: Array<{ tick: number; spawner: SpawnerAgent; deathCause?: SpawnerDeathCause; deathEnergyThreshold?: number; deathHealthThreshold?: number }>;
   genomeSnapshots: Array<{ tick: number; reason: "initial" | "birth" | "manual"; spawner: SpawnerAgent }>;
   stateSnapshots: SineSpawnerStateSnapshot[];
   uniquenessSnapshots: SineSpawnerUniquenessSnapshot[];

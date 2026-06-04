@@ -7,9 +7,14 @@ import {
 import type { MarketWorkerSessionId } from "../marketWorkerProtocol";
 import { computeSpawnerUniqueness, type SpawnerUniquenessScore } from "../spawnerSimulation";
 import type { MarketSimulationState } from "../simulationRuntime";
+import type { FoodRuntimeIndex } from "../spawner/runtimeIndex";
 
 export const UNIQUENESS_INTERVAL_TICKS = 250;
-type UniquenessOnDemandResult = { score: SpawnerUniquenessScore | null; skippedReason?: "population_limit" };
+export type UniquenessOnDemandResult = {
+  score: SpawnerUniquenessScore | null;
+  skippedReason?: "population_limit";
+  result?: UniquenessComputeResult;
+};
 
 export type UniquenessComputeResult =
   | { status: "unchanged"; scores: Map<number, SpawnerUniquenessScore> }
@@ -69,13 +74,14 @@ export function createUniquenessInspectionService({
     return ensureScores(simulation, { force, allowIntervalReuse: true });
   }
 
-  function ensureRosterScores(simulation: MarketSimulationState, selectedSpawnerId: number | null = null) {
+  function ensureRosterScores(simulation: MarketSimulationState, selectedSpawnerId: number | null = null, pendingFoodCounts?: FoodRuntimeIndex["pendingByCreatorId"]) {
     const rosterSpawners = selectRosterSpawners({
       spawners: simulation.world.spawners,
       foods: simulation.world.foods,
+      pendingFoodCounts,
       selectedSpawnerId,
     });
-    ensureScores(simulation, { requiredSpawnerIds: rosterSpawners.map((spawner) => spawner.id) });
+    return ensureScores(simulation, { requiredSpawnerIds: rosterSpawners.map((spawner) => spawner.id) });
   }
 
   function ensureSelectedTelemetryScores(simulation: MarketSimulationState, spawnerId: number | null): UniquenessComputeResult {
@@ -90,11 +96,11 @@ export function createUniquenessInspectionService({
     if (!target) return { score: null };
     const result = ensureScores(simulation, { force: true, requiredSpawnerIds: [spawnerId], detailSpawnerId: spawnerId });
     if (result.status === "skipped") {
-      return { score: null, skippedReason: "population_limit" };
+      return { score: null, skippedReason: "population_limit", result };
     }
     const score = result.scores.get(spawnerId) ?? null;
     if (score) onDetailedScore(spawnerId, score);
-    return { score };
+    return { score, result };
   }
 
   return {
@@ -107,6 +113,7 @@ export function createUniquenessInspectionService({
     computeIfNeeded,
     ensureRosterScores,
     ensureSelectedTelemetryScores,
+    computeOnDemand,
 
     scores() {
       return scores;

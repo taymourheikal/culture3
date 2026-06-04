@@ -9,19 +9,19 @@
 .sine-rnn-node {
   min-width: 0;
   padding: 13px;
-  border: 1px solid rgba(105, 215, 208, 0.22);
+  border: 1px solid rgb(var(--sine-accent-rgb) / 0.22);
   border-radius: 8px;
-  background: rgba(105, 215, 208, 0.08);
+  background: rgb(var(--sine-accent-rgb) / 0.08);
 }
 
 .sine-rnn-node.primary {
-  border-color: rgba(255, 214, 128, 0.35);
-  background: rgba(255, 214, 128, 0.11);
+  border-color: rgb(var(--sine-amber-rgb) / 0.35);
+  background: rgb(var(--sine-amber-rgb) / 0.11);
 }
 
 .sine-rnn-node.outcome {
-  border-color: rgba(158, 230, 161, 0.28);
-  background: rgba(158, 230, 161, 0.08);
+  border-color: rgb(var(--sine-positive-rgb) / 0.28);
+  background: rgb(var(--sine-positive-rgb) / 0.08);
 }
 
 .sine-rnn-node span,
@@ -30,7 +30,7 @@
 }
 
 .sine-rnn-node span {
-  color: #aebfbc;
+  color: var(--sine-text-muted);
   font-size: 0.72rem;
   font-weight: 850;
   text-transform: uppercase;
@@ -38,7 +38,7 @@
 
 .sine-rnn-node strong {
   margin-top: 5px;
-  color: #f7fbfa;
+  color: var(--sine-text-strong);
   font-size: 0.98rem;
 }
 
@@ -46,7 +46,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffd680;
+  color: var(--sine-amber);
   font-weight: 900;
   white-space: nowrap;
 }
@@ -64,9 +64,9 @@
 .sine-rule-card,
 .sine-life-step {
   min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--sine-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.045);
+  background: color-mix(in srgb, var(--sine-surface-muted) 54%, transparent);
 }
 
 .sine-map-node {
@@ -82,8 +82,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(255, 214, 128, 0.16);
-  color: #ffd680;
+  background: rgb(var(--sine-amber-rgb) / 0.16);
+  color: var(--sine-amber);
   font-size: 0.72rem;
   font-weight: 950;
 }
@@ -92,7 +92,7 @@
 .sine-life-step strong {
   display: block;
   margin-top: 8px;
-  color: #f7fbfa;
+  color: var(--sine-text-strong);
   font-size: 0.92rem;
 }
 
@@ -100,33 +100,33 @@
 .sine-life-step small {
   display: block;
   margin-top: 7px;
-  color: #aebfbc;
+  color: var(--sine-text-muted);
   line-height: 1.4;
 }
 
 .sine-map-node.source {
-  border-color: rgba(134, 201, 255, 0.24);
-  background: rgba(134, 201, 255, 0.08);
+  border-color: rgb(var(--sine-accent-rgb) / 0.24);
+  background: rgb(var(--sine-accent-rgb) / 0.08);
 }
 
 .sine-map-node.brain {
-  border-color: rgba(255, 214, 128, 0.34);
-  background: rgba(255, 214, 128, 0.1);
+  border-color: rgb(var(--sine-amber-rgb) / 0.34);
+  background: rgb(var(--sine-amber-rgb) / 0.1);
 }
 
 .sine-map-node.food {
-  border-color: rgba(105, 215, 208, 0.26);
-  background: rgba(105, 215, 208, 0.08);
+  border-color: rgb(var(--sine-accent-rgb) / 0.26);
+  background: rgb(var(--sine-accent-rgb) / 0.08);
 }
 
 .sine-map-node.outcome {
-  border-color: rgba(158, 230, 161, 0.28);
-  background: rgba(158, 230, 161, 0.08);
+  border-color: rgb(var(--sine-positive-rgb) / 0.28);
+  background: rgb(var(--sine-positive-rgb) / 0.08);
 }
 
 .sine-map-node.mutation {
-  border-color: rgba(194, 153, 255, 0.3);
-  background: rgba(194, 153, 255, 0.09);
+  border-color: rgb(var(--sine-purple-rgb) / 0.3);
+  background: rgb(var(--sine-purple-rgb) / 0.09);
 }
 
 .sine-map-arrow,
@@ -134,7 +134,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffd680;
+  color: var(--sine-amber);
   font-weight: 900;
   white-space: nowrap;
 }
@@ -151,8 +151,8 @@
 }
 
 .sine-io-panel.outputs {
-  border-color: rgba(255, 214, 128, 0.24);
-  background: rgba(255, 214, 128, 0.06);
+  border-color: rgb(var(--sine-amber-rgb) / 0.24);
+  background: rgb(var(--sine-amber-rgb) / 0.06);
 }
 
 .sine-chip-list {
@@ -165,16 +165,16 @@
 .sine-chip-list span {
   max-width: 100%;
   padding: 7px 9px;
-  border: 1px solid rgba(105, 215, 208, 0.18);
+  border: 1px solid rgb(var(--sine-accent-rgb) / 0.18);
   border-radius: 999px;
-  background: rgba(105, 215, 208, 0.07);
-  color: #d9e9e6;
+  background: rgb(var(--sine-accent-rgb) / 0.07);
+  color: var(--sine-text);
   font-size: 0.78rem;
   font-weight: 800;
   line-height: 1.2;
 }
 
 .sine-io-panel.outputs .sine-chip-list span {
-  border-color: rgba(255, 214, 128, 0.2);
-  background: rgba(255, 214, 128, 0.08);
+  border-color: rgb(var(--sine-amber-rgb) / 0.2);
+  background: rgb(var(--sine-amber-rgb) / 0.08);
 }

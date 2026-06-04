@@ -1,5 +1,6 @@
 import type { MarketChartPacket } from "../marketWorkerProtocol";
 import { centeredTickWindow, drawGrid, drawMarketTimeAxis, prepareCanvas, tickToX, valueToY } from "./canvas";
+import { chartTheme } from "./chartTheme";
 
 export function drawBtcPriceChart(canvas: HTMLCanvasElement, packet: MarketChartPacket) {
   const prepared = prepareCanvas(canvas);
@@ -22,7 +23,7 @@ export function drawBtcPriceChart(canvas: HTMLCanvasElement, packet: MarketChart
   const valueMax = Number.isFinite(max) ? max + pad : 1;
   const centerX = bounds.left + (bounds.right - bounds.left) / 2;
 
-  context.fillStyle = "#0d1216";
+  context.fillStyle = chartTheme.background;
   context.fillRect(0, 0, cssWidth, cssHeight);
   drawGrid(context, bounds, valueMin, valueMax, formatPriceAxis);
   drawMarketTimeAxis(context, bounds, samples, start, packet.ticksVisible);
@@ -34,15 +35,15 @@ export function drawBtcPriceChart(canvas: HTMLCanvasElement, packet: MarketChart
     if (index === 0) context.moveTo(x, y);
     else context.lineTo(x, y);
   });
-  context.strokeStyle = "#ffd680";
+  context.strokeStyle = chartTheme.amber;
   context.lineWidth = 2.5;
   context.shadowBlur = 12;
-  context.shadowColor = "rgba(255, 214, 128, 0.3)";
+  context.shadowColor = chartTheme.amberShadow;
   context.stroke();
   context.shadowBlur = 0;
 
   const currentY = valueToY(packet.currentPrice ?? 0, valueMin, valueMax, bounds);
-  context.strokeStyle = "rgba(255, 214, 128, 0.95)";
+  context.strokeStyle = chartTheme.amberStrong;
   context.lineWidth = 2;
   context.beginPath();
   context.moveTo(centerX, bounds.top);
@@ -50,12 +51,12 @@ export function drawBtcPriceChart(canvas: HTMLCanvasElement, packet: MarketChart
   context.stroke();
 
   if (packet.currentPrice !== undefined) {
-    context.fillStyle = "#ffd680";
+    context.fillStyle = chartTheme.amber;
     context.beginPath();
     context.arc(centerX, currentY, 4.5, 0, Math.PI * 2);
     context.fill();
 
-    context.fillStyle = "#dce8e5";
+    context.fillStyle = chartTheme.text;
     context.font = "700 12px Inter, system-ui, sans-serif";
     context.textAlign = "left";
     context.fillText(formatPrice(packet.currentPrice), centerX + 10, currentY - 10);

@@ -3,13 +3,16 @@
   flex-direction: column;
   gap: 16px;
   align-self: start;
+  max-height: min(620px, calc(100vh - 180px));
+  min-height: 0;
+  overflow: hidden;
   padding: 18px;
 }
 
-.sine-control-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+.sine-control-panel-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 3px;
 }
 
 .sine-button {
@@ -24,7 +27,7 @@
 .sine-button.primary {
   border-color: rgb(var(--sine-accent-rgb) / 0.42);
   background: rgb(var(--sine-accent-rgb) / 0.12);
-  color: #d9fffb;
+  color: color-mix(in srgb, var(--sine-accent) 42%, white);
 }
 
 .sine-control-mode-tabs {
@@ -51,7 +54,7 @@
 .sine-control-mode-tabs button.active {
   border-color: rgb(var(--sine-accent-rgb) / 0.42);
   background: rgb(var(--sine-accent-rgb) / 0.12);
-  color: #d9fffb;
+  color: color-mix(in srgb, var(--sine-accent) 42%, white);
 }
 
 .sine-parameters-stack {
@@ -75,6 +78,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-width: 0;
+}
+
+.sine-control-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.sine-control-group-body[hidden] {
+  display: none;
 }
 
 .sine-control-group-title {
@@ -83,6 +97,44 @@
   font-weight: 760;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.sine-control-collapse-button {
+  display: inline-flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sine-text-strong);
+  text-align: left;
+}
+
+.sine-control-collapse-button .sine-control-group-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sine-control-collapse-button:hover,
+.sine-control-collapse-button:focus-visible {
+  background: transparent;
+  color: color-mix(in srgb, var(--sine-accent) 46%, white);
+  outline: none;
+}
+
+.sine-control-collapse-button svg {
+  flex: 0 0 auto;
+  color: var(--sine-amber);
+  transition: transform 120ms ease;
+}
+
+.sine-control-group.collapsed .sine-control-collapse-button svg {
+  transform: rotate(-90deg);
 }
 
 .sine-parameter-fields {
@@ -96,6 +148,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 13px;
+  border: 1px solid var(--sine-border-subtle);
   border-radius: var(--sine-radius);
   background: var(--sine-surface-muted);
   color: var(--sine-text);
@@ -109,7 +162,7 @@
   min-height: 36px;
   border: 1px solid var(--sine-border);
   border-radius: 7px;
-  background: var(--sine-bg);
+  background: var(--sine-bg-soft);
   color: var(--sine-text-strong);
   font: inherit;
 }
@@ -127,15 +180,32 @@
 }
 
 .saved-defaults {
+  display: inline-flex;
+  flex: 0 1 auto;
+  max-width: 42%;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  padding: 3px 6px;
+  border: 1px solid rgb(var(--sine-positive-rgb) / 0.24);
+  border-radius: 999px;
+  background: rgb(var(--sine-positive-rgb) / 0.08);
   color: var(--sine-positive);
   font-size: 0.72rem;
   font-weight: 740;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sine-readonly-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 8px;
+}
+
+.sine-controls .sine-metric {
+  background: var(--sine-surface-muted);
 }
 
 .sine-slider {
@@ -159,8 +229,10 @@
   display: inline-flex;
   min-width: 0;
   align-items: center;
+  flex-wrap: wrap;
   gap: 5px;
   line-height: 1.15;
+  overflow-wrap: anywhere;
   white-space: normal;
 }
 
@@ -215,14 +287,19 @@
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .sine-slider strong {
+  min-width: 0;
+  overflow: hidden;
   color: var(--sine-text-strong);
   font-size: 0.9rem;
   font-weight: 760;
   line-height: 1.15;
   text-align: right;
+  text-overflow: ellipsis;
 }
 
 .sine-slider input {

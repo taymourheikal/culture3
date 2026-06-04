@@ -2,10 +2,27 @@ import type { SpawnerWorld } from "./types";
 import { ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
 
 export function recordTelemetry(world: SpawnerWorld, plansBySpawnerId: Map<number, CompiledBrainPlan> = new Map()) {
-  const recentLosses = world.recentResolvedPayoffs.map((payoff) => Math.max(0, -payoff));
-  const rollingLoss = recentLosses.reduce((sum, loss) => sum + loss, 0) / Math.max(1, recentLosses.length);
-  const lossRate =
-    world.recentResolvedPayoffs.filter((payoff) => payoff < 0).length / Math.max(1, world.recentResolvedPayoffs.length);
+  const population = Math.max(1, world.spawners.length);
+  const recentResolvedCount = world.recentResolvedPayoffs.length;
+  let recentLossSum = 0;
+  let recentHitCount = 0;
+  let recentLossCount = 0;
+  let recentPayoffSum = 0;
+  for (const payoff of world.recentResolvedPayoffs) {
+    recentPayoffSum += payoff;
+    if (payoff > 0) recentHitCount += 1;
+    if (payoff < 0) {
+      recentLossCount += 1;
+      recentLossSum += -payoff;
+    }
+  }
+  const rollingLoss = recentLossSum / Math.max(1, recentResolvedCount);
+  const rollingHitRate = recentHitCount / Math.max(1, recentResolvedCount);
+  const rollingTradeAveragePayoff = recentPayoffSum / Math.max(1, recentResolvedCount);
+  const rollingAveragePayoff = rollingTradeAveragePayoff * Math.min(1, recentResolvedCount / population);
+  const lossRate = recentLossCount / Math.max(1, recentResolvedCount);
+  const previousTotalResolved = world.telemetry.at(-1)?.totalResolved ?? 0;
+  const resolvedVolume = Math.max(0, world.totalResolved - previousTotalResolved);
   let activeUnitTotal = 0;
   let activeConnectionTotal = 0;
   let activeLayerTotal = 0;
@@ -15,12 +32,15 @@ export function recordTelemetry(world: SpawnerWorld, plansBySpawnerId: Map<numbe
     activeConnectionTotal += plan.activeConnectionCount;
     activeLayerTotal += plan.activeLayerCount;
   }
-  const population = Math.max(1, world.spawners.length);
 
   world.telemetry.push({
     tick: world.tick,
     population: world.spawners.length,
     rollingLoss,
+    rollingHitRate,
+    rollingAveragePayoff,
+    resolvedVolume,
+    totalResolved: world.totalResolved,
     lossRate,
     cumulativeLoss: world.cumulativeLoss,
     cumulativeNetPayoff: world.cumulativeNetPayoff,

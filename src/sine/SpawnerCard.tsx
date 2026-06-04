@@ -29,8 +29,8 @@ export function SpawnerCard({
         <span className={`spawner-action ${spawner.lastAction}`}>{spawner.lastAction}</span>
       </button>
       <span className="spawner-bars">
-        <SpawnerMeter label="Energy" value={spawner.energy} max={energyMax} color="#69d7d0" />
-        <SpawnerMeter label="Health" value={spawner.health} max={healthMax} color="#86d87a" />
+        <SpawnerMeter label="Energy" value={spawner.energy} max={energyMax} color="var(--sine-accent)" />
+        <SpawnerMeter label="Health" value={spawner.health} max={healthMax} color="var(--sine-positive)" />
       </span>
       <span className="spawner-card-stats">
         <span>{spawner.pendingFoodCount} pending</span>

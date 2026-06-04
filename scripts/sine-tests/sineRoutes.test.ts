@@ -105,6 +105,40 @@ async function testSineRoutesReturnNotFoundForIncompleteHistoricalSpawnerRows() 
   }
 }
 
+async function testSineRoutesReturnCohortAnalysis() {
+  const sessionId = uniqueTestSessionId("route-cohort-analysis");
+  try {
+    const snapshot = await request("POST", "/api/sine/snapshots", {
+      persistentSessionId: sessionId,
+      settings: INITIAL_SETTINGS,
+      spawnerConfig: DEFAULT_SPAWNER_CONFIG,
+      births: [],
+      deaths: [],
+      genomeSnapshots: [],
+      stateSnapshots: [],
+      foodEvents: [],
+      events: [],
+      uniquenessSnapshots: [],
+    });
+    assert.equal(snapshot.status, 200);
+
+    const cohort = await request("GET", `/api/sine/sessions/${encodeURIComponent(sessionId)}/cohort-analysis?fromPercent=0&toPercent=100&minTrades=50&minAgePercentile=75&bucketCount=20`);
+    assert.equal(cohort.status, 200);
+    assert.equal(cohort.payload.ok, true);
+    assert.equal(cohort.payload.analysis.sessionId, sessionId);
+    assert.equal(cohort.payload.analysis.filter.minTrades, 50);
+    assert.equal(cohort.payload.analysis.filter.minAgePercentile, 75);
+    assert.equal(cohort.payload.analysis.concentration.totalTrades, 0);
+    assert.equal(Array.isArray(cohort.payload.analysis.timeline), true);
+
+    const missing = await request("GET", "/api/sine/sessions/missing/cohort-analysis");
+    assert.equal(missing.status, 404);
+    assert.deepEqual(missing.payload, { error: "Not found" });
+  } finally {
+    deleteSineSession(sessionId);
+  }
+}
+
 async function request(method: string, url: string, body?: unknown) {
   return rawRequest(method, url, body === undefined ? undefined : JSON.stringify(body));
 }
@@ -137,4 +171,5 @@ export const tests: SineTest[] = [
   { name: "Sine Routes Preserve Session Lifecycle Responses", run: testSineRoutesPreserveSessionLifecycleResponses },
   { name: "Sine Routes Preserve Inspection And Snapshot Errors", run: testSineRoutesPreserveInspectionAndSnapshotErrors },
   { name: "Sine Routes Return Not Found For Incomplete Historical Spawner Rows", run: testSineRoutesReturnNotFoundForIncompleteHistoricalSpawnerRows },
+  { name: "Sine Routes Return Cohort Analysis", run: testSineRoutesReturnCohortAnalysis },
 ];

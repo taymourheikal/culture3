@@ -3,6 +3,7 @@ import { INITIAL_SETTINGS } from "../../src/sine/marketSignal";
 import { DEFAULT_SPAWNER_CONFIG } from "../../src/sine/spawnerSimulation";
 import { createSimulationState } from "../../src/sine/simulationRuntime";
 import { createUniquenessInspectionService, UNIQUENESS_INTERVAL_TICKS } from "../../src/sine/worker/uniquenessInspectionService";
+import { createUniquenessRuntimeService } from "../../src/sine/worker/uniquenessRuntimeService";
 import { createUniquenessTelemetryService } from "../../src/sine/worker/uniquenessTelemetryService";
 import { createUniquenessTelemetryWindow, UNIQUENESS_TELEMETRY_SAMPLE_LIMIT } from "../../src/sine/marketWorkerSnapshot";
 import type { SineTest } from "./helpers";
@@ -179,6 +180,32 @@ function testSelectedGenerationOneSpawnerGetsCurrentTelemetrySample() {
   assert.equal(window.selectedSpawnerUniquenessSamples[0]?.rawDistance, selectedResult.scores.get(child.id)?.rawDistance);
 }
 
+function testRosterRecomputeRecordsTelemetrySample() {
+  const simulation = createSimulationState(INITIAL_SETTINGS, { ...DEFAULT_SPAWNER_CONFIG, initialSpawners: 1, maxSpawners: 10 });
+  const runtime = createUniquenessRuntimeService({ onDetailedScore: () => undefined });
+  const initial = runtime.computeIfNeeded(simulation, true);
+  const parent = simulation.world.spawners[0];
+  assert.ok(parent);
+
+  const child = structuredClone(parent);
+  child.id = 999;
+  child.generation = parent.generation + 1;
+  child.birthTick = 100;
+  simulation.world.tick = 100;
+  simulation.world.spawners.push(child);
+  const rosterResult = runtime.ensureRosterScores(simulation, null);
+  const afterRosterWindow = runtime.window(simulation.world.tick);
+
+  simulation.world.tick = UNIQUENESS_INTERVAL_TICKS;
+  const scheduledAtInterval = runtime.computeIfNeeded(simulation, false);
+
+  assert.equal(initial.status, "computed");
+  assert.equal(rosterResult.status, "computed");
+  assert.equal(afterRosterWindow.uniquenessSamples.at(-1)?.tick, 100);
+  assert.equal(scheduledAtInterval.status, "unchanged");
+  assert.equal(runtime.window(simulation.world.tick).uniquenessSamples.some((sample) => sample.tick === 100), true);
+}
+
 function testUniquenessPopulationLimitComesFromSpawnerConfig() {
   const simulation = createSimulationState(INITIAL_SETTINGS, {
     ...DEFAULT_SPAWNER_CONFIG,
@@ -285,6 +312,7 @@ export const tests: SineTest[] = [
   { name: "Uniqueness Recovers Immediately After Population Limit Drops", run: testUniquenessRecoversImmediatelyAfterPopulationLimitDrops },
   { name: "Uniqueness Samples Again After Recovery Interval", run: testUniquenessSamplesAgainAfterRecoveryInterval },
   { name: "Selected Generation One Spawner Gets Current Telemetry Sample", run: testSelectedGenerationOneSpawnerGetsCurrentTelemetrySample },
+  { name: "Roster Recompute Records Telemetry Sample", run: testRosterRecomputeRecordsTelemetrySample },
   { name: "Uniqueness Population Limit Comes From Spawner Config", run: testUniquenessPopulationLimitComesFromSpawnerConfig },
   { name: "Selected Uniqueness Respects Population Limit", run: testSelectedUniquenessRespectsPopulationLimit },
   { name: "Selected Uniqueness Ignores Missing Spawner", run: testSelectedUniquenessIgnoresMissingSpawner },

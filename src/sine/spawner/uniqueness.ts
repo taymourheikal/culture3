@@ -1,14 +1,13 @@
 import type { SpawnerAgent } from "./types";
 import {
-  buildShrunkInverseCovariance,
   finite,
   mahalanobisDistance,
-  median,
   percentileRank,
   ROBUST_DISTANCE_EPSILON,
   whitenedDistance,
 } from "./robustDistance";
-import { buildFunctionalGenomeVector, FUNCTIONAL_GENOME_VECTOR_VERSION, type UniquenessFeature } from "./uniquenessVector";
+import { FUNCTIONAL_GENOME_VECTOR_VERSION } from "./uniquenessVector";
+import { MIN_MAD, preparePopulationFeatureSpace, type PreparedPopulationFeatureSpace } from "./populationFeatureSpace";
 
 export const UNIQUENESS_VERSION = "mahalanobis-v1";
 
@@ -35,27 +34,8 @@ export type SpawnerUniquenessScore = {
   mostDissimilarFeatures: UniquenessFeatureDeviation[];
 };
 
-type FeatureStats = {
-  key: string;
-  label: string;
-  median: number;
-  mad: number;
-  active: boolean;
-};
-
-type PreparedPopulation = {
-  spawners: SpawnerAgent[];
-  featuresById: Map<number, UniquenessFeature[]>;
-  stats: FeatureStats[];
-  normalizedRows: Map<number, number[]>;
-  activeIndexes: number[];
-  inverseCovariance: number[][];
-};
-
 const NEIGHBOR_COUNT = 5;
 const EXPLANATION_COUNT = 8;
-const MIN_MAD = 1e-7;
-const SHRINKAGE = 0.15;
 
 export function computeSpawnerUniqueness(
   spawners: SpawnerAgent[],
@@ -65,7 +45,7 @@ export function computeSpawnerUniqueness(
   const scores = new Map<number, SpawnerUniquenessScore>();
   if (spawners.length === 0) return scores;
 
-  const prepared = preparePopulation(spawners);
+  const prepared = preparePopulationFeatureSpace(spawners);
   const distances = new Map(spawners.map((spawner) => [spawner.id, mahalanobisDistance(prepared.normalizedRows.get(spawner.id) ?? [], prepared.inverseCovariance)]));
   const allDistances = [...distances.values()];
   const allZero = allDistances.every((distance) => Math.abs(distance) <= ROBUST_DISTANCE_EPSILON);
@@ -92,39 +72,7 @@ export function computeSpawnerUniqueness(
   return scores;
 }
 
-function preparePopulation(spawners: SpawnerAgent[]): PreparedPopulation {
-  const featuresById = new Map(spawners.map((spawner) => [spawner.id, buildFunctionalGenomeVector(spawner)]));
-  const firstFeatures = featuresById.get(spawners[0]?.id ?? -1) ?? [];
-  const stats = firstFeatures.map((feature, index) => {
-    const values = spawners.map((spawner) => featuresById.get(spawner.id)?.[index]?.value ?? 0);
-    const medianValue = median(values);
-    const madValue = median(values.map((value) => Math.abs(value - medianValue)));
-    const rangeScale = (Math.max(...values) - Math.min(...values)) / 2;
-    const scale = madValue > MIN_MAD ? madValue : rangeScale;
-    return {
-      key: feature.key,
-      label: feature.label,
-      median: medianValue,
-      mad: scale,
-      active: scale > MIN_MAD,
-    };
-  });
-  const activeIndexes = stats.map((stat, index) => (stat.active ? index : -1)).filter((index) => index >= 0);
-  const normalizedRows = new Map(
-    spawners.map((spawner) => [
-      spawner.id,
-      activeIndexes.map((index) => {
-        const stat = stats[index];
-        const value = featuresById.get(spawner.id)?.[index]?.value ?? 0;
-        return stat ? (value - stat.median) / stat.mad : 0;
-      }),
-    ]),
-  );
-  const inverseCovariance = activeIndexes.length > 0 ? buildShrunkInverseCovariance([...normalizedRows.values()], activeIndexes.length, SHRINKAGE) : [];
-  return { spawners, featuresById, stats, normalizedRows, activeIndexes, inverseCovariance };
-}
-
-function nearestNeighbors(spawner: SpawnerAgent, prepared: PreparedPopulation) {
+function nearestNeighbors(spawner: SpawnerAgent, prepared: PreparedPopulationFeatureSpace) {
   const target = prepared.normalizedRows.get(spawner.id) ?? [];
   return prepared.spawners
     .filter((candidate) => candidate.id !== spawner.id)
@@ -137,7 +85,7 @@ function nearestNeighbors(spawner: SpawnerAgent, prepared: PreparedPopulation) {
     .map((neighbor) => neighbor.id);
 }
 
-function featureExplanations(spawner: SpawnerAgent, prepared: PreparedPopulation) {
+function featureExplanations(spawner: SpawnerAgent, prepared: PreparedPopulationFeatureSpace) {
   const features = prepared.featuresById.get(spawner.id) ?? [];
   const deviations = features.map((feature, index) => {
     const stat = prepared.stats[index];

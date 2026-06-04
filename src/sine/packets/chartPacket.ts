@@ -1,9 +1,10 @@
 import { buildTimelineSamples, getTimelineSampleAtRenderTick } from "../marketTimeline";
-import type { ChartFoodMarker, MarketChartPacket, MarketWorkerSessionId } from "../marketWorkerProtocol";
+import type { ChartFoodMarker, MarketChartPacket, MarketWorkerSessionId, SelectedSpawnerTimeline, StrategyMapWindow } from "../marketWorkerProtocol";
 import { getVisibleSpawnerFoods } from "../spawnerSimulation";
 import type { MarketSimulationState } from "../simulationRuntime";
 import { createTelemetryWindow } from "./telemetryWindow";
 import { createEmptyUniquenessTelemetryWindow, type UniquenessTelemetryWindow } from "./uniquenessTelemetryWindow";
+import { createEmptyStrategyMapWindow } from "./strategyMapWindow";
 
 export const CHART_TICKS_VISIBLE = 89;
 export const CHART_SAMPLE_INTERVAL_TICKS = 0.5;
@@ -13,22 +14,30 @@ export function createMarketChartPacket({
   simulation,
   version,
   centerTick,
+  renderTick,
+  currentSample,
   uniquenessWindow,
+  selectedSpawnerTimeline = null,
+  strategyMap,
 }: {
   sessionId: MarketWorkerSessionId;
   simulation: MarketSimulationState;
   version: number;
   centerTick?: number;
+  renderTick?: number;
+  currentSample?: ReturnType<typeof getTimelineSampleAtRenderTick>;
   uniquenessWindow?: UniquenessTelemetryWindow;
+  selectedSpawnerTimeline?: SelectedSpawnerTimeline | null;
+  strategyMap?: StrategyMapWindow;
 }): MarketChartPacket {
   const requestedTick = centerTick ?? simulation.timeline.tick;
-  const renderTick = Math.max(0, Math.min(requestedTick, simulation.timeline.tick, simulation.world.tick));
-  const current = getTimelineSampleAtRenderTick(simulation.timeline, renderTick);
-  const visibleSignalSamples = buildAnchoredSignalSamples(simulation, renderTick);
+  const activeRenderTick = renderTick ?? Math.max(0, Math.min(requestedTick, simulation.timeline.tick, simulation.world.tick));
+  const current = currentSample ?? getTimelineSampleAtRenderTick(simulation.timeline, activeRenderTick);
+  const visibleSignalSamples = buildAnchoredSignalSamples(simulation, activeRenderTick);
   return {
     sessionId,
     version,
-    renderTick,
+    renderTick: activeRenderTick,
     marketSource: simulation.timeline.source,
     currentSignal: current.signal,
     currentNoise: current.noise,
@@ -56,9 +65,11 @@ export function createMarketChartPacket({
               sourceTimestamp: sample.sourceTimestamp,
               sourceDatetime: sample.sourceDatetime,
             })),
-    visibleFoods: getVisibleSpawnerFoods(simulation.world, renderTick, CHART_TICKS_VISIBLE).map(toChartFoodMarker),
+    visibleFoods: getVisibleSpawnerFoods(simulation.world, activeRenderTick, CHART_TICKS_VISIBLE).map(toChartFoodMarker),
     ...createTelemetryWindow(simulation.world.telemetry, simulation.world.tick),
     ...(uniquenessWindow ?? createEmptyUniquenessTelemetryWindow(simulation.world.tick)),
+    selectedSpawnerTimeline,
+    strategyMap: strategyMap ?? createEmptyStrategyMapWindow(activeRenderTick),
   };
 }
 

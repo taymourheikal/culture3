@@ -153,6 +153,12 @@ function validatePerception(genome: SpawnerGenome, errors: string[]) {
     ["rollingWindowTicks", perception.rollingWindowTicks],
     ["localScaleWindowTicks", perception.localScaleWindowTicks],
     ["localScaleSampleStepTicks", perception.localScaleSampleStepTicks],
+    ["volumeScaleWindowTicks", perception.volumeScaleWindowTicks],
+    ["volumeScaleSampleStepTicks", perception.volumeScaleSampleStepTicks],
+    ["volumeDeltaLagTicks", perception.volumeDeltaLagTicks],
+    ["volumeAccelerationLagTicks", perception.volumeAccelerationLagTicks],
+    ["rsiWindowTicks", perception.rsiWindowTicks],
+    ["volumePriceAgreementLagTicks", perception.volumePriceAgreementLagTicks],
     ["trendWindowTicks", perception.trendWindowTicks],
     ["cycleWindowTicks", perception.cycleWindowTicks],
   ] as const;
@@ -161,6 +167,12 @@ function validatePerception(genome: SpawnerGenome, errors: string[]) {
   }
   if (!Number.isInteger(perception.localScaleSampleStepTicks) || perception.localScaleSampleStepTicks < 1) {
     errors.push("Perception local scale sample step must be an integer of at least 1.");
+  }
+  if (!Number.isInteger(perception.volumeScaleSampleStepTicks) || perception.volumeScaleSampleStepTicks < 1) {
+    errors.push("Perception volume scale sample step must be an integer of at least 1.");
+  }
+  if (!Number.isInteger(perception.rsiWindowTicks) || perception.rsiWindowTicks < 1) {
+    errors.push("Perception RSI window must be an integer of at least 1.");
   }
   if (!Number.isFinite(perception.roughnessSensitivity) || perception.roughnessSensitivity < 0) {
     errors.push("Perception roughness sensitivity must be finite and non-negative.");
