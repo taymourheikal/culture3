@@ -3,6 +3,7 @@ import { DEFAULT_SPAWNER_CONFIG, type SpawnerConfig } from "../spawnerSimulation
 import { sanitizeSpawnerConfig } from "../spawnerSettingsStorage";
 import { advanceSimulationToTarget, type MarketSimulationState } from "../simulationRuntime";
 import { createBufferedHeadlessRecordSink } from "./bufferedSink";
+import { sanitizeHeadlessChunkTicks } from "./chunkPolicy";
 import { createHeadlessCheckpointScheduler } from "./headlessCheckpointScheduler";
 import {
   createHeadlessSimulation,
@@ -32,6 +33,7 @@ export type HeadlessRunOptions = {
   marketConfig?: Partial<MarketRuntimeConfig>;
   spawnerConfig?: Partial<SpawnerConfig>;
   minimumResolvedTrades: number;
+  resolvedTradeSnapshotInterval?: number;
   sink: HeadlessRecordSink;
   candleLoader?: HeadlessCandleLoader;
   chunkTicks?: number;
@@ -53,12 +55,11 @@ export type HeadlessRunResult = {
 };
 
 const DEFAULT_HEADLESS_SEED = 101;
-const DEFAULT_CHUNK_TICKS = 1000;
 
 export async function runHeadlessSineExperiment(options: HeadlessRunOptions): Promise<HeadlessRunResult> {
   const seed = Number.isFinite(options.seed) ? Math.floor(Number(options.seed)) : DEFAULT_HEADLESS_SEED;
   const targetTick = Math.max(0, Math.floor(options.ticks));
-  const chunkTicks = Math.max(1, Math.floor(options.chunkTicks ?? DEFAULT_CHUNK_TICKS));
+  const chunkTicks = sanitizeHeadlessChunkTicks(options.chunkTicks, "throughput");
   const checkpointIntervalTicks = Math.max(0, Math.floor(options.checkpointIntervalTicks ?? 0));
   const marketConfig = sanitizeMarketRuntimeConfig({ ...INITIAL_MARKET_RUNTIME_CONFIG, ...options.marketConfig });
   const spawnerConfig = sanitizeSpawnerConfig({ ...DEFAULT_SPAWNER_CONFIG, ...options.spawnerConfig });
@@ -72,6 +73,7 @@ export async function runHeadlessSineExperiment(options: HeadlessRunOptions): Pr
     runId: options.runId,
     simulation,
     minimumResolvedTrades: options.minimumResolvedTrades,
+    resolvedTradeSnapshotInterval: options.resolvedTradeSnapshotInterval,
     sink,
     timing: timing.recorder,
   });
@@ -149,7 +151,9 @@ export async function runHeadlessSineExperiment(options: HeadlessRunOptions): Pr
       }
       const nextTarget = Math.min(targetTick, simulation.world.tick + chunkTicks, checkpointScheduler.nextTick());
       const advanceStarted = nowMs();
-      const result = advanceHeadlessSimulationToTarget(simulation, nextTarget, chunkTicks);
+      const result = advanceHeadlessSimulationToTarget(simulation, nextTarget, chunkTicks, {
+        afterProcessedTick: recorder.capturePendingSnapshotsAfterTick,
+      });
       const advanceTotalMs = nowMs() - advanceStarted;
       if (simulation.world.spawners.length === 0) {
         ended = true;
@@ -260,6 +264,9 @@ function advanceHeadlessSimulationToTarget(
   simulation: MarketSimulationState,
   targetTick: number,
   maxTicks: number,
+  hooks: {
+    afterProcessedTick?: () => void;
+  } = {},
 ) {
   let processedTicks = 0;
   let ended = false;
@@ -267,6 +274,7 @@ function advanceHeadlessSimulationToTarget(
     const result = advanceSimulationToTarget(simulation, simulation.world.tick + 1, 1);
     processedTicks += result.processedTicks;
     ended = !!result.ended;
+    if (result.processedTicks > 0) hooks.afterProcessedTick?.();
     if (ended || result.processedTicks === 0 || simulation.world.spawners.length === 0) {
       return {
         processedTicks,

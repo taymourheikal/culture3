@@ -32,18 +32,34 @@ export function deleteSineSession(id) {
 }
 
 export function listSineSessions(limit = 30) {
-  return sineStatements.listSineSessions.all(limit).map((row) => ({
-    id: row.id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    status: row.status,
-    settings: parseJson(row.settings_json, {}),
-    spawnerConfig: parseJson(row.spawner_config_json, {}),
-    births: row.births,
-    deaths: row.deaths,
-    stateSnapshots: row.state_snapshots,
-    latestTick: row.latest_tick ?? 0,
-  }));
+  return sineStatements.listSineSessions.all(limit).map((row) => {
+    const settings = parseJson(row.settings_json, {});
+    return {
+      id: row.id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      completedAt: row.completed_at ?? null,
+      status: row.status,
+      runMode: row.run_mode ?? "lab",
+      marketSource: settings.source ?? null,
+      seed: row.seed ?? null,
+      targetTicks: row.target_ticks ?? null,
+      checkpointIntervalTicks: row.checkpoint_interval_ticks ?? null,
+      minimumResolvedTrades: row.minimum_resolved_trades ?? null,
+      terminationReason: row.termination_reason ?? null,
+      error: row.error ?? null,
+      settings,
+      spawnerConfig: parseJson(row.spawner_config_json, {}),
+      births: row.births,
+      deaths: row.deaths,
+      stateSnapshots: row.state_snapshots,
+      headlessCheckpoints: row.headless_checkpoints ?? 0,
+      eligibleAgents: row.eligible_agents ?? 0,
+      reconstructionSnapshots: row.reconstruction_snapshots ?? 0,
+      reconstructableAgents: row.reconstructable_agents ?? 0,
+      latestTick: row.latest_tick ?? 0,
+    };
+  });
 }
 
 export function getSineSessionAnalysis(sessionId, rangeInput = {}) {
@@ -58,7 +74,15 @@ export function getSineSessionAnalysis(sessionId, rangeInput = {}) {
       id: session.id,
       createdAt: session.created_at,
       updatedAt: session.updated_at,
+      completedAt: session.completed_at ?? null,
       status: session.status,
+      runMode: session.run_mode ?? "lab",
+      seed: session.seed ?? null,
+      targetTicks: session.target_ticks ?? null,
+      checkpointIntervalTicks: session.checkpoint_interval_ticks ?? null,
+      minimumResolvedTrades: session.minimum_resolved_trades ?? null,
+      terminationReason: session.termination_reason ?? null,
+      error: session.error ?? null,
       settings: parseJson(session.settings_json, {}),
       spawnerConfig: parseJson(session.spawner_config_json, {}),
     },

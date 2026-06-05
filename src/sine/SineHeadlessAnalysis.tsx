@@ -15,7 +15,9 @@ import {
   type SineHeadlessTradeBreakdownResponse,
 } from "./headless/headlessApi";
 import type { HeadlessRunCheckpointRecord } from "./headless/types";
-import { BreakdownTable, EventTimeline, MiniSeriesChart, formatNumber, formatPercent } from "./history/RunDiagnosticsUi";
+import { EventTimeline, BreakdownTable } from "./history/DistributionViews";
+import { MiniSeriesChart } from "./history/MiniCharts";
+import { formatNumber, formatPercent } from "./history/diagnosticFormatters";
 import { Metric } from "./SineMetric";
 import { SpawnerArchitectureModal } from "./SpawnerArchitectureModal";
 import type { SpawnerAgent } from "./spawnerSimulation";
@@ -129,7 +131,7 @@ export function SineHeadlessAnalysis({ runId, checkpoints, checkpointIntervalTic
   const selectedSnapshot = selectedDetail?.snapshots[selectedSnapshotIndex] ?? null;
   const topLineage = lineages[0] ?? null;
   const finalResolvedTrades = checkpoints.at(-1)?.resolvedTrades ?? 0;
-  const persistedResolvedTrades = tradeBreakdown ? tradeBreakdown.byDirection.reduce((sum, row) => sum + row.trades, 0) : 0;
+  const coreResolvedTrades = tradeBreakdown ? tradeBreakdown.byDirection.reduce((sum, row) => sum + row.trades, 0) : 0;
 
   return (
     <section className="sine-headless-analysis">
@@ -157,7 +159,7 @@ export function SineHeadlessAnalysis({ runId, checkpoints, checkpointIntervalTic
         <section className="sine-workbench-panel">
           <div className="sine-workbench-panel-head">
             <div>
-              <span className="sine-eyebrow">Eligible agents</span>
+              <span className="sine-eyebrow">Agent population</span>
               <h2>Leaderboard</h2>
             </div>
             <strong>{agentTotal.toLocaleString()} rows</strong>
@@ -245,13 +247,13 @@ export function SineHeadlessAnalysis({ runId, checkpoints, checkpointIntervalTic
         <section className="sine-workbench-panel">
           <div className="sine-workbench-panel-head">
             <div>
-              <span className="sine-eyebrow">Eligible persisted rows</span>
-              <h2>Eligible Persisted Trade Performance</h2>
+              <span className="sine-eyebrow">Core trade rows</span>
+              <h2>Run Trade Performance</h2>
             </div>
-            <strong>{persistedResolvedTrades.toLocaleString()} / {finalResolvedTrades.toLocaleString()}</strong>
+            <strong>{coreResolvedTrades.toLocaleString()} / {finalResolvedTrades.toLocaleString()}</strong>
           </div>
           <div className="sine-ledger-scope">
-            Breakdown covers eligible persisted trade rows. Final run resolved trades are shown for coverage.
+            Breakdown is derived from unified core food/trade rows. Final run resolved trades are shown for coverage.
           </div>
           {tradeBreakdown ? <TradeBreakdown breakdown={tradeBreakdown} /> : <div className="sine-history-empty">Loading trade breakdown...</div>}
         </section>
@@ -331,7 +333,7 @@ export function SineHeadlessAnalysis({ runId, checkpoints, checkpointIntervalTic
 
 function AgentTable({ rows, onSelect }: { rows: SineHeadlessAgentMetrics[]; onSelect: (spawnerId: number) => void }) {
   return (
-    <div className="sine-analysis-table agent-table" role="table" aria-label="Eligible agent leaderboard">
+    <div className="sine-analysis-table agent-table" role="table" aria-label="Agent leaderboard">
       <div className="sine-analysis-row head" role="row">
         <span>Agent</span>
         <span>Gen</span>
@@ -356,7 +358,7 @@ function AgentTable({ rows, onSelect }: { rows: SineHeadlessAgentMetrics[]; onSe
           <span>{agent.snapshotCount}</span>
         </button>
       ))}
-      {rows.length === 0 ? <div className="sine-history-empty">No eligible agents match these filters.</div> : null}
+      {rows.length === 0 ? <div className="sine-history-empty">No agents match these filters.</div> : null}
     </div>
   );
 }
@@ -367,7 +369,7 @@ function LineageTable({ rows, onSelect }: { rows: SineHeadlessLineageRow[]; onSe
       <div className="sine-analysis-row head" role="row">
         <span>Lineage</span>
         <span>Agents</span>
-        <span>Eligible</span>
+        <span>Reconstructable</span>
         <span>Alive</span>
         <span>Trades</span>
         <span>Hit</span>

@@ -1,8 +1,11 @@
 import { strict as assert } from "node:assert";
 import { deleteSineSession, getSineSessionAnalysis, getSineSessionCohortAnalysis, getSineSpawnerInspection, listSineSessions } from "../../src/sine/history/sineHistoryApi";
+import { getActiveSineHeadlessRuns, startSineHeadlessRun } from "../../src/sine/headless/headlessApi";
 import { fetchMarketCandles } from "../../src/sine/worker/marketDataLoader";
 import { postSineSnapshot } from "../../src/sine/persistence/sinePersistenceClient";
 import { fetchSineJson, getSineJson, sineApiUrl } from "../../src/sine/sineApi";
+import { INITIAL_MARKET_RUNTIME_CONFIG, INITIAL_PLAYBACK_SETTINGS } from "../../src/sine/marketRuntimeConfig";
+import { DEFAULT_SPAWNER_CONFIG } from "../../src/sine/spawnerSimulation";
 import type { SineTest } from "./helpers";
 
 function testSineApiUrlBuildsStableAbsoluteUrls() {
@@ -21,13 +24,23 @@ async function testSineApiClientsSendExactRequests() {
     await getSineSessionCohortAnalysis("session/1", { fromPercent: 40, toPercent: 100, minTrades: 50, minAgePercentile: 75, bucketCount: 100 });
     await getSineSpawnerInspection("session/1", 4, 12);
     await deleteSineSession("session/1");
+    await getActiveSineHeadlessRuns();
+    await startSineHeadlessRun({
+      ticks: 2000,
+      seed: 101,
+      marketConfig: INITIAL_MARKET_RUNTIME_CONFIG,
+      spawnerConfig: DEFAULT_SPAWNER_CONFIG,
+      minimumResolvedTrades: 10,
+      resolvedTradeSnapshotInterval: 25,
+      checkpointIntervalTicks: 100,
+    });
     await postSineSnapshot({ persistentSessionId: "session/1", births: [] });
     await fetchMarketCandles(
       {
         timeModel: "ticks-v2",
         source: "btcusd_5m",
         generated: {} as never,
-        playback: { rocLengthBars: 50, startDateTime: "2021-01-01T00:00", generatedTicksPerSecond: 5, barsPerSecond: 30 },
+        playback: { ...INITIAL_PLAYBACK_SETTINGS, rocLengthBars: 50, startDateTime: "2021-01-01T00:00", generatedTicksPerSecond: 5, barsPerSecond: 30 },
       },
       "2021-01-01T00:00",
       123,
@@ -41,12 +54,25 @@ async function testSineApiClientsSendExactRequests() {
   assert.equal(calls[3]?.url, "http://127.0.0.1:8787/api/sine/sessions/session%2F1/spawners/4?tick=12");
   assert.equal(calls[4]?.url, "http://127.0.0.1:8787/api/sine/sessions/session%2F1");
   assert.equal(calls[4]?.init?.method, "DELETE");
-  assert.equal(calls[5]?.url, "http://127.0.0.1:8787/api/sine/snapshots");
-  assert.equal(calls[5]?.init?.method, "POST");
-  assert.deepEqual(calls[5]?.init?.headers, { "Content-Type": "application/json" });
-  assert.equal(calls[5]?.init?.body, JSON.stringify({ persistentSessionId: "session/1", births: [] }));
+  assert.equal(calls[5]?.url, "http://127.0.0.1:8787/api/sine/headless/runs/active-list");
+  assert.equal(calls[5]?.init?.method, undefined);
+  assert.equal(calls[6]?.url, "http://127.0.0.1:8787/api/sine/headless/runs");
+  assert.equal(calls[6]?.init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(calls[6]?.init?.body)), {
+    ticks: 2000,
+    seed: 101,
+    marketConfig: INITIAL_MARKET_RUNTIME_CONFIG,
+    spawnerConfig: DEFAULT_SPAWNER_CONFIG,
+    minimumResolvedTrades: 10,
+    resolvedTradeSnapshotInterval: 25,
+    checkpointIntervalTicks: 100,
+  });
+  assert.equal(calls[7]?.url, "http://127.0.0.1:8787/api/sine/snapshots");
+  assert.equal(calls[7]?.init?.method, "POST");
+  assert.deepEqual(calls[7]?.init?.headers, { "Content-Type": "application/json" });
+  assert.equal(calls[7]?.init?.body, JSON.stringify({ persistentSessionId: "session/1", births: [] }));
   assert.equal(
-    calls[6]?.url,
+    calls[8]?.url,
     "http://127.0.0.1:8787/api/market/candles?source=btcusd_5m&start=2021-01-01T00%3A00&limit=123&rocLength=50",
   );
 }

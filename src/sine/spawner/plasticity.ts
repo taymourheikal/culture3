@@ -27,6 +27,8 @@ export type SpawnerDecisionTrace = {
   strength: number;
   activeConnectionIds: number[];
   connectionActivations: Record<string, { source: number; target: number }>;
+  connectionActivationSources?: number[];
+  connectionActivationTargets?: number[];
 };
 
 export type SpawnerTraceStore = {
@@ -162,6 +164,44 @@ export function cloneTraceStore(store: Partial<SpawnerTraceStore> | undefined): 
   return sanitizeTraceStore(store);
 }
 
+export function traceConnectionActivation(trace: SpawnerDecisionTrace, innovationId: number, activeConnectionIndex?: number) {
+  const compactIndex = activeConnectionIndex ?? trace.activeConnectionIds.indexOf(innovationId);
+  if (
+    compactIndex >= 0 &&
+    Array.isArray(trace.connectionActivationSources) &&
+    Array.isArray(trace.connectionActivationTargets)
+  ) {
+    const sourceValue = trace.connectionActivationSources[compactIndex];
+    const targetValue = trace.connectionActivationTargets[compactIndex];
+    if (sourceValue === undefined || targetValue === undefined) return undefined;
+    const source = finiteOr(sourceValue, 0);
+    const target = finiteOr(targetValue, 0);
+    return { source, target };
+  }
+  const activation = trace.connectionActivations[String(innovationId)];
+  return activation ? { source: finiteOr(activation.source, 0), target: finiteOr(activation.target, 0) } : undefined;
+}
+
+export function materializeDecisionTrace(trace: SpawnerDecisionTrace): SpawnerDecisionTrace {
+  const connectionActivations = sanitizeConnectionActivations(trace.connectionActivations);
+  if (Array.isArray(trace.connectionActivationSources) && Array.isArray(trace.connectionActivationTargets)) {
+    for (let index = 0; index < trace.activeConnectionIds.length; index += 1) {
+      const innovationId = trace.activeConnectionIds[index];
+      if (innovationId === undefined || connectionActivations[String(innovationId)]) continue;
+      const activation = traceConnectionActivation(trace, innovationId, index);
+      if (activation) connectionActivations[String(innovationId)] = activation;
+    }
+  }
+  return {
+    id: trace.id,
+    tick: trace.tick,
+    action: trace.action,
+    strength: trace.strength,
+    activeConnectionIds: [...trace.activeConnectionIds],
+    connectionActivations,
+  };
+}
+
 export function sanitizePlasticityProfile(profile: Partial<SpawnerPlasticityProfile> | undefined): SpawnerPlasticityProfile {
   return {
     weightLearningRate: sanitizeProbability(profile?.weightLearningRate, DEFAULT_PLASTICITY_PROFILE.weightLearningRate),
@@ -247,14 +287,16 @@ function sanitizeDecisionTrace(trace: SpawnerDecisionTrace | undefined) {
       : legacyAction === "long" || legacyAction === "short"
         ? legacyAction
         : "reproduce";
-  return {
+  return materializeDecisionTrace({
     id: sanitizeCount(trace.id),
     tick: sanitizeCount(trace.tick, 0),
     action,
     strength: finiteOr(trace.strength, 0),
     activeConnectionIds: Array.isArray(trace.activeConnectionIds) ? trace.activeConnectionIds.map((id) => sanitizeCount(id)).filter((id) => id > 0) : [],
     connectionActivations: sanitizeConnectionActivations(trace.connectionActivations),
-  } satisfies SpawnerDecisionTrace;
+    connectionActivationSources: sanitizeActivationArray((trace as Partial<SpawnerDecisionTrace>).connectionActivationSources),
+    connectionActivationTargets: sanitizeActivationArray((trace as Partial<SpawnerDecisionTrace>).connectionActivationTargets),
+  } satisfies SpawnerDecisionTrace);
 }
 
 function sanitizeConnectionActivations(value: SpawnerDecisionTrace["connectionActivations"] | undefined) {
@@ -267,6 +309,10 @@ function sanitizeConnectionActivations(value: SpawnerDecisionTrace["connectionAc
     };
   }
   return activations;
+}
+
+function sanitizeActivationArray(value: number[] | undefined) {
+  return Array.isArray(value) ? value.map((entry) => finiteOr(entry, 0)) : undefined;
 }
 
 function sanitizeDeltaMap(value: Record<string, number> | undefined, cap: number) {

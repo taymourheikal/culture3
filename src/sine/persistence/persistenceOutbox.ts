@@ -3,6 +3,7 @@ import type { WaveSettings } from "../marketSignal";
 import type { MarketRuntimeConfig } from "../marketRuntimeConfig";
 import type { MarketSimulationState } from "../simulationRuntime";
 import type { SpawnerAgent, SpawnerConfig, SpawnerEvent, SpawnerUniquenessScore } from "../spawnerSimulation";
+import type { PersistenceOutboxDiagnostics } from "../protocol/statsProtocol";
 import { buildSinePersistencePacket, type PendingUniquenessSnapshot } from "./buildSinePersistencePacket";
 
 type InFlightPersistence = {
@@ -56,6 +57,17 @@ export function createPersistenceOutbox() {
 
     enqueueUniqueness(spawnerId: number, score: SpawnerUniquenessScore) {
       pendingUniquenessSnapshots.push({ spawnerId, score });
+    },
+
+    diagnostics(): PersistenceOutboxDiagnostics {
+      return {
+        pendingEvents: pendingEvents.length,
+        pendingUniquenessSnapshots: pendingUniquenessSnapshots.length,
+        hasInFlight: inFlight !== null,
+        inFlightPacketKb: inFlight ? estimatePacketKb(inFlight.packet) : null,
+        pendingStatus,
+        retryPending: inFlight?.needsRetry ?? false,
+      };
     },
 
     createDelivery({
@@ -160,6 +172,10 @@ export function createPersistenceOutbox() {
       return true;
     },
   };
+}
+
+function estimatePacketKb(packet: unknown) {
+  return Math.round((JSON.stringify(packet).length / 1024) * 10) / 10;
 }
 
 function mergePendingStatus(

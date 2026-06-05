@@ -1,7 +1,7 @@
 import type { WaveSettings } from "../marketSignal";
 import { roundForInput } from "../charts/format";
-import type { MarketDataSource, MarketPlaybackSettings, MarketRuntimeConfig } from "../marketRuntimeConfig";
-import { isBtcSource, PLAYBACK_SETTING_BOUNDS, sourceLabel } from "../marketRuntimeConfig";
+import type { MarketDataSource, MarketPlaybackEndMode, MarketPlaybackSettings, MarketRuntimeConfig } from "../marketRuntimeConfig";
+import { isBtcSource, PLAYBACK_SETTING_BOUNDS, sourceLabel, sourceSupportsDatePlaybackEnd } from "../marketRuntimeConfig";
 import { saveMarketSettingsGroup, saveMarketSourceDefault, savePlaybackSettingsGroup } from "../settingsStorage";
 import { CONTROL_GROUPS, type ControlConfig } from "../sineControlGroups";
 import { ControlGroupSection } from "./ControlGroupSection";
@@ -18,6 +18,7 @@ export function MarketControlGroups({
   updateMarketSource,
   replaceMarketConfig,
   showSaveActions = true,
+  showPlaybackEndControls = true,
   saveMarketSource = saveMarketSourceDefault,
   savePlaybackSettings = savePlaybackSettingsGroup,
   saveMarketSettings = saveMarketSettingsGroup,
@@ -31,10 +32,16 @@ export function MarketControlGroups({
   updateMarketSource: (source: MarketDataSource) => void;
   replaceMarketConfig: (config: MarketRuntimeConfig) => void;
   showSaveActions?: boolean;
+  showPlaybackEndControls?: boolean;
   saveMarketSource?: (config: MarketRuntimeConfig) => MarketRuntimeConfig;
   savePlaybackSettings?: (playback: MarketPlaybackSettings, keys: Array<keyof MarketPlaybackSettings>) => MarketRuntimeConfig;
   saveMarketSettings?: (settings: WaveSettings, keys: Array<keyof WaveSettings>) => WaveSettings;
 }) {
+  const supportsDateEnd = sourceSupportsDatePlaybackEnd(marketConfig.source);
+  const playbackForEndSave = supportsDateEnd || marketConfig.playback.endMode !== "date"
+    ? marketConfig.playback
+    : { ...marketConfig.playback, endMode: "none" as const };
+
   return (
     <div className="sine-parameters-stack">
       <ControlGroupSection
@@ -118,6 +125,19 @@ export function MarketControlGroups({
         </ControlGroupSection>
       ) : null}
 
+      {showPlaybackEndControls ? (
+        <PlaybackEndControls
+          playback={marketConfig.playback}
+          supportsDateEnd={supportsDateEnd}
+          saved={showSaveActions && savedGroup === "market:playback-end"}
+          onSave={showSaveActions ? () => {
+            replaceMarketConfig(savePlaybackSettings(playbackForEndSave, ["endMode", "endAfterTicks", "endDateTime"]));
+            setSavedGroup("market:playback-end");
+          } : undefined}
+          updatePlaybackSetting={updatePlaybackSetting}
+        />
+      ) : null}
+
       {!isBtcSource(marketConfig.source) &&
         <NumberControlGroups<keyof WaveSettings, ControlConfig>
           groups={CONTROL_GROUPS}
@@ -139,5 +159,56 @@ export function MarketControlGroups({
           }}
         />}
     </div>
+  );
+}
+
+function PlaybackEndControls({
+  playback,
+  supportsDateEnd,
+  saved,
+  onSave,
+  updatePlaybackSetting,
+}: {
+  playback: MarketPlaybackSettings;
+  supportsDateEnd: boolean;
+  saved: boolean;
+  onSave?: () => void;
+  updatePlaybackSetting: <K extends keyof MarketPlaybackSettings>(key: K, value: MarketPlaybackSettings[K]) => void;
+}) {
+  const visibleEndMode = supportsDateEnd || playback.endMode !== "date" ? playback.endMode : "none";
+  return (
+    <ControlGroupSection title="Playback End" saveTitle="Save playback end" saved={saved} onSave={onSave}>
+      <label className="sine-select-field">
+        <span>End mode</span>
+        <select value={visibleEndMode} onChange={(event) => updatePlaybackSetting("endMode", event.target.value as MarketPlaybackEndMode)}>
+          <option value="none">No deterministic end</option>
+          <option value="ticks">After ticks</option>
+          {supportsDateEnd ? <option value="date">At date</option> : null}
+        </select>
+      </label>
+      {visibleEndMode === "ticks" ? (
+        <label className="sine-select-field">
+          <span>End after ticks</span>
+          <input
+            type="number"
+            min={PLAYBACK_SETTING_BOUNDS.endAfterTicks.min}
+            max={PLAYBACK_SETTING_BOUNDS.endAfterTicks.max}
+            step={PLAYBACK_SETTING_BOUNDS.endAfterTicks.step}
+            value={roundForInput(playback.endAfterTicks, PLAYBACK_SETTING_BOUNDS.endAfterTicks.step)}
+            onChange={(event) => updatePlaybackSetting("endAfterTicks", Number(event.target.value))}
+          />
+        </label>
+      ) : null}
+      {visibleEndMode === "date" && supportsDateEnd ? (
+        <label className="sine-select-field">
+          <span>End date/time (UTC)</span>
+          <input
+            type="datetime-local"
+            value={playback.endDateTime}
+            onChange={(event) => updatePlaybackSetting("endDateTime", event.target.value)}
+          />
+        </label>
+      ) : null}
+    </ControlGroupSection>
   );
 }

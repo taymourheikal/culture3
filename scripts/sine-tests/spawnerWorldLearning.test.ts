@@ -15,6 +15,7 @@ import {
   ensureCompiledBrainPlan,
   gateBiasDeltaKey,
   learnedStateNorm,
+  materializeDecisionTrace,
   outputBiasDeltaKey,
   OUTPUT_COUNT,
   OUTPUT_INDEX,
@@ -102,7 +103,11 @@ function testResolvedFoodAppliesLearningAndClearsTrace() {
   advanceSpawnerWorldToTimeline(world, timeline, 10);
   const pending = world.foods.find((food) => food.status === "pending");
   assert(pending?.traceId);
-  assert.ok(spawner.traceStore.traces[String(pending.traceId)]);
+  const pendingTrace = spawner.traceStore.traces[String(pending.traceId)];
+  assert.ok(pendingTrace);
+  assert.deepEqual(pendingTrace.connectionActivations, {});
+  assert.equal(Array.isArray(pendingTrace.connectionActivationSources), true);
+  assert.equal(Object.keys(materializeDecisionTrace(pendingTrace).connectionActivations).length, pendingTrace.activeConnectionIds.length);
 
   advanceMarketTimeline(timeline, 2, 10);
   advanceSpawnerWorldToTimeline(world, timeline, 10);

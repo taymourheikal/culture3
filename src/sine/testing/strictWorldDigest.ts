@@ -1,4 +1,5 @@
 import type { SpawnerWorld } from "../spawner/types";
+import { materializeDecisionTrace } from "../spawner/plasticity";
 
 type NumericRecord = Record<string, number> | Record<number, number>;
 
@@ -88,14 +89,15 @@ export function strictWorldDigest(world: SpawnerWorld | any) {
 }
 
 function strictTraceDigest(trace: any) {
+  const publicTrace = materializeDecisionTrace(trace);
   return {
-    id: trace.id,
-    tick: trace.tick,
-    action: trace.action,
-    strength: trace.strength,
-    activeConnectionIds: [...trace.activeConnectionIds],
+    id: publicTrace.id,
+    tick: publicTrace.tick,
+    action: publicTrace.action,
+    strength: publicTrace.strength,
+    activeConnectionIds: [...publicTrace.activeConnectionIds],
     connectionActivations: Object.fromEntries(
-      Object.entries(trace.connectionActivations)
+      Object.entries(publicTrace.connectionActivations)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([key, value]: [string, any]) => [key, { source: value.source, target: value.target }]),
     ),

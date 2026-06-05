@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import {
   activeConnections,
+  activeConnectionForInnovation,
   activeUnits,
   alignHiddenState,
   architectureMetrics,
@@ -401,7 +402,17 @@ function testBrainPlanCountsMatchArchitectureMetrics() {
   assert.equal(plan.activeUnitCount, metrics.activeUnits);
   assert.equal(plan.activeConnectionCount, metrics.activeConnections);
   assert.equal(plan.activeLayerCount, metrics.activeLayers);
-  assert.deepEqual(plan.activeConnectionIds, activeConnections(spawner.genome).map((connection) => connection.innovationId));
+  const expectedConnections = activeConnections(spawner.genome);
+  assert.deepEqual(plan.activeConnectionIds, expectedConnections.map((connection) => connection.innovationId));
+  assert.deepEqual(plan.activeConnections, expectedConnections);
+  for (let index = 0; index < plan.activeConnections.length; index += 1) {
+    const connection = plan.activeConnections[index];
+    assert(connection);
+    assert.equal(plan.activeConnectionIds[index], connection.innovationId);
+    assert.equal(plan.connectionIndexByInnovationId.get(connection.innovationId), index);
+    assert.equal(activeConnectionForInnovation(plan, connection.innovationId), connection);
+  }
+  assert.equal(activeConnectionForInnovation(plan, -1), undefined);
 }
 
 function testBrainPlanDenseIndexesAreStableForSparseUnits() {

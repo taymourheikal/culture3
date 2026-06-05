@@ -11,11 +11,13 @@ import {
 } from "../src/sine/spawnerSimulation";
 import { createMarketChartPacket, createMarketRosterPacket, createMarketStatsPacket } from "../src/sine/marketWorkerSnapshot";
 import { createMarketInputResolver } from "../src/sine/spawner/marketInputs";
-import { buildBrainEvaluationJobs, buildSpawnerEvaluationFrame, type BrainTraceInstrumentation } from "../src/sine/spawner/worldBrainEvaluation";
+import { buildBrainEvaluationJobs, buildSpawnerEvaluationFrame } from "../src/sine/spawner/worldBrainEvaluation";
 import { compactJobFromBrainEvaluationJob, evaluateCompactBrainJob } from "../src/sine/spawner/compactBrainEvaluation";
 import { createBrainEvalPool } from "../src/sine/worker/brainEvalPool";
 import { BRAIN_EVAL_TIMEOUT_MS, defaultBrainEvalWorkerCount } from "../src/sine/worker/brainEvalConfig";
 import { buildSinePersistencePacket } from "../src/sine/persistence/buildSinePersistencePacket";
+import { sineBenchmarkScenarios } from "./sine-benchmark/scenarios";
+import { createTraceInstrumentation, summarizeTraceInstrumentation } from "./sine-benchmark/trace";
 
 type BenchResult = {
   name: string;
@@ -83,11 +85,12 @@ for (const population of POPULATIONS) {
   pool.dispose?.();
 }
 
-for (const scenario of traceScenarios()) {
-  const simulation = createSimulation(scenario.population, scenario.config);
+for (const scenario of sineBenchmarkScenarios().filter((candidate) => candidate.name === "mostly-waiting" || candidate.name === "high-action")) {
+  const tracePopulation = 250;
+  const simulation = createSimulation(tracePopulation, scenario.config);
   const runner = createSyncBrainEvaluationRunner();
   const traceInstrumentation = createTraceInstrumentation();
-  await printAsyncBench(`trace fallback ${scenario.name} @ ${scenario.population} pop / ${ADVANCE_TICKS} ticks`, async () => {
+  await printAsyncBench(`trace fallback ${scenario.name} @ ${tracePopulation} pop / ${ADVANCE_TICKS} ticks`, async () => {
     const before = simulation.world.tick;
     const result = await advanceSimulationToTargetAsync(simulation, simulation.world.tick + ADVANCE_TICKS, ADVANCE_TICKS, {
       brainEvaluationRunner: runner,
@@ -225,62 +228,6 @@ function createSimulation(initialSpawners: number, config: Partial<SpawnerConfig
     uniquenessPopulationLimit: 1000,
     ...config,
   } satisfies Partial<SpawnerConfig>);
-}
-
-function traceScenarios() {
-  return [
-    {
-      name: "mostly waiting",
-      population: 250,
-      config: {
-        defaultSpawnThreshold: 2,
-        initialReproductionOutputBias: -20,
-      } satisfies Partial<SpawnerConfig>,
-    },
-    {
-      name: "high action",
-      population: 250,
-      config: {
-        defaultSpawnThreshold: 0,
-        defaultMinSignalStrength: 0,
-        initialCooldownMaxTicks: 0,
-        cooldownBaseTicksInitialMin: 0,
-        cooldownBaseTicksInitialMax: 0,
-        cooldownOutputMultiplierTicks: 0,
-        initialEnergyMin: 100,
-        initialEnergyMax: 100,
-        initialReproductionOutputBias: -20,
-      } satisfies Partial<SpawnerConfig>,
-    },
-  ];
-}
-
-function createTraceInstrumentation(): BrainTraceInstrumentation {
-  return {
-    evaluatedAgents: 0,
-    firstPassBatches: 0,
-    firstPassMs: 0,
-    waitActions: 0,
-    longActions: 0,
-    shortActions: 0,
-    reproductionTraces: 0,
-    optimizedTraceMaterializations: 0,
-    optimizedTraceMaterializationMs: 0,
-    fallbackTraceEvaluations: 0,
-    fallbackTraceMs: 0,
-  };
-}
-
-function summarizeTraceInstrumentation(stats: BrainTraceInstrumentation) {
-  const actionCount = stats.longActions + stats.shortActions;
-  return {
-    ...stats,
-    actionCount,
-    firstPassMsPerAgent: stats.evaluatedAgents > 0 ? stats.firstPassMs / stats.evaluatedAgents : 0,
-    optimizedTraceMaterializationMsPerEvaluation:
-      stats.optimizedTraceMaterializations > 0 ? stats.optimizedTraceMaterializationMs / stats.optimizedTraceMaterializations : 0,
-    fallbackTraceMsPerEvaluation: stats.fallbackTraceEvaluations > 0 ? stats.fallbackTraceMs / stats.fallbackTraceEvaluations : 0,
-  };
 }
 
 function buildInputs(simulation: ReturnType<typeof createSimulationState>) {

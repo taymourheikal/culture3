@@ -51,5 +51,6 @@ export const RUN_DIAGNOSTIC_HELP = {
   longShortBreakdown: "For each direction: trades, wins / trades, and total payoff / trades.",
   horizonBreakdown: "For each horizon bucket: trades, wins / trades, and total payoff / trades.",
   strengthBreakdown: "For each strength bucket: trades, wins / trades, and total payoff / trades.",
-  agentAge: "Agent exposure inside the selected range: min(death tick, range end) - max(birth tick, range start).",
+  agentAge: "Age exposure inside the selected tick range: min(death tick, range end) - max(birth tick, range start).",
+  topLineagePayoffShare: "abs(payoff of highest signed-payoff lineage) / sum(abs(lineage payoff)).",
 } as const;

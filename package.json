@@ -10,7 +10,8 @@
     "start:server": "tsx server/index.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "check": "tsc -b",
+    "check": "tsc -b && npm run check:server:mjs",
+    "check:server:mjs": "node scripts/checkServerMjsSyntax.mjs",
     "test:sine": "tsx scripts/testSine.ts",
     "test:sine:smoke": "tsx scripts/sineSmoke.ts",
     "test:sine:ui-characterization": "tsx scripts/sineUiCharacterizationSmoke.ts",
@@ -21,6 +22,8 @@
     "sim:batch": "tsx scripts/runBatch.ts",
     "data:btc-bitstamp": "tsx scripts/downloadBitstampBtcusd.ts",
     "db:split": "node scripts/splitDatabases.mjs",
+    "db:reset:toy-market": "node scripts/resetToyMarketDb.mjs",
+    "db:sine:smoke": "tsx scripts/sineUnifiedDbSmoke.ts",
     "db:sine-reproduction-output": "node scripts/migrateToyMarketReproductionOutput.mjs"
   },
   "keywords": [],

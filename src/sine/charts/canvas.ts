@@ -1,4 +1,5 @@
 import { chartTheme } from "./chartTheme";
+import { dateFromUnixSeconds } from "../sourceTime";
 
 export type ChartBounds = {
   left: number;
@@ -211,6 +212,5 @@ function marketDate(sample: TimeAxisSample) {
     const date = new Date(sample.sourceDatetime);
     if (Number.isFinite(date.getTime())) return date;
   }
-  if (sample.sourceTimestamp !== undefined) return new Date(sample.sourceTimestamp * 1000);
-  return null;
+  return dateFromUnixSeconds(sample.sourceTimestamp);
 }

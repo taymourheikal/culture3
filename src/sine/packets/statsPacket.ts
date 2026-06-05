@@ -7,6 +7,16 @@ import type { SpawnerConfig } from "../spawnerSimulation";
 import type { MarketSimulationState } from "../simulationRuntime";
 import { createFoodRuntimeIndex, type FoodRuntimeIndex } from "../spawner/runtimeIndex";
 import { currentReproductionCost, currentReproductionEnergyRequirement, populationRoomRatio, reproductionCostMultiplier } from "../spawner/reproductionPressure";
+import type { PersistenceOutboxDiagnostics } from "../protocol/statsProtocol";
+
+const EMPTY_PERSISTENCE_OUTBOX_DIAGNOSTICS: PersistenceOutboxDiagnostics = {
+  pendingEvents: 0,
+  pendingUniquenessSnapshots: 0,
+  hasInFlight: false,
+  inFlightPacketKb: null,
+  pendingStatus: null,
+  retryPending: false,
+};
 
 export function createMarketStatsPacket({
   sessionId,
@@ -22,6 +32,7 @@ export function createMarketStatsPacket({
   version,
   backlogTicks,
   packetSizesKb,
+  persistenceOutbox = EMPTY_PERSISTENCE_OUTBOX_DIAGNOSTICS,
   brainEvalMode = "sync",
   renderTick,
   currentSample,
@@ -40,6 +51,7 @@ export function createMarketStatsPacket({
   version: number;
   backlogTicks: number;
   packetSizesKb: MarketStatsPacket["packetSizesKb"];
+  persistenceOutbox?: PersistenceOutboxDiagnostics;
   brainEvalMode?: MarketStatsPacket["brainEvalMode"];
   renderTick?: number;
   currentSample?: ReturnType<typeof getTimelineSampleAtRenderTick>;
@@ -81,5 +93,6 @@ export function createMarketStatsPacket({
     activeSpawnerConfig: { ...spawnerConfig },
     pendingSpawnerConfig: { ...(pendingSpawnerConfig ?? spawnerConfig) },
     packetSizesKb,
+    persistenceOutbox,
   };
 }

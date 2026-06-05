@@ -5,6 +5,7 @@ import { chromium, expect, type Page } from "@playwright/test";
 import { delay, isServerReady, SINE_BROWSER_URL, startSineBrowserServer } from "./sineBrowserHarness";
 import { INITIAL_MARKET_RUNTIME_CONFIG } from "../src/sine/marketRuntimeConfig";
 import { DEFAULT_SPAWNER_CONFIG } from "../src/sine/spawner/config";
+import { parseFlagArgs, readIntegerOption, readIntegerListOption, roundKb } from "./sine-benchmark/cli";
 
 const MARKET_RUNTIME_STORAGE_KEY = "roc-signal-lab.runtime-settings.v1";
 const SPAWNER_STORAGE_KEY = "roc-signal-lab.spawner-settings.v1";
@@ -220,30 +221,11 @@ function dbSizeBytes(dbPath: string) {
 }
 
 function parseArgs(args: string[]): CliOptions {
-  const values = new Map<string, string>();
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index] ?? "";
-    if (!token.startsWith("--")) throw new Error(`Unexpected argument ${token}`);
-    const key = token.slice(2);
-    const next = args[index + 1];
-    if (!next || next.startsWith("--")) throw new Error(`Missing value for --${key}`);
-    values.set(key, next);
-    index += 1;
-  }
+  const values = parseFlagArgs(args);
   return {
-    populations: (values.get("populations") ?? "100,250").split(",").map((value) => readInteger(value, "--populations", 1)),
-    minTick: readInteger(values.get("min-tick") ?? "1000", "--min-tick", 1),
-    maxWaitMs: readInteger(values.get("max-wait-ms") ?? "180000", "--max-wait-ms", 1000),
+    populations: readIntegerListOption(values, "populations", [100, 250], 1),
+    minTick: readIntegerOption(values, "min-tick", 1000, 1),
+    maxWaitMs: readIntegerOption(values, "max-wait-ms", 180000, 1000),
     db: values.get("db"),
   };
-}
-
-function readInteger(value: string, label: string, min: number) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || Math.floor(parsed) < min) throw new Error(`${label} must be an integer >= ${min}`);
-  return Math.floor(parsed);
-}
-
-function roundKb(value: number) {
-  return Number(value.toFixed(1));
 }

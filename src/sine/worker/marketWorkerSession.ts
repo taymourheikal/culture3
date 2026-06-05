@@ -1,4 +1,5 @@
 import { applyTimelineSettings } from "../marketTimeline";
+import { playbackEndReached } from "../playbackEnd";
 import { sanitizeSettings } from "../settingsStorage";
 import { sanitizeSpawnerConfig } from "../spawnerSettingsStorage";
 import { createPersistenceOutbox } from "../persistence/persistenceOutbox";
@@ -43,6 +44,7 @@ let lastLoopTime = performance.now();
 let persistentSessionId: string | null = null;
 let selectedSpawnerId: number | null = null;
 let startAttemptId = 0;
+let runStartTick = 0;
 const packetScheduler = createPacketScheduler();
 const persistenceOutbox = createPersistenceOutbox();
 const brainEvaluation = createBrainEvaluationCoordinator();
@@ -112,6 +114,7 @@ async function loop() {
 
     if (runState === "running") {
       targetTick += elapsed * playbackSpeed();
+      targetTick = cappedTargetTickForPlaybackEnd(targetTick);
       void marketData.maybeLoadMoreCandles(activeMarketConfig, simulation);
       const result = await advanceSimulationWithinBudget();
       if (result.stale) return;
@@ -120,12 +123,13 @@ async function loop() {
         version += 1;
         computeUniqueness(false);
       }
-      if (simulation.timeline.candleEndReached && backlogTicks <= 0) {
+      if ((simulation.timeline.candleEndReached || result.playbackEndReached) && backlogTicks <= 0) {
         setRunState("stopped");
       }
     }
 
-    packetPoster.postAllPackets(false);
+    packetPoster.postUiPackets(false);
+    packetPoster.postPersistencePacket(false);
   } catch (error) {
     packetPoster.postError(error);
   } finally {
@@ -256,7 +260,9 @@ function updatePendingSpawnerConfig(nextConfig: SpawnerConfig) {
 }
 
 function handlePersistenceAck(packetId: number, ok: boolean) {
-  if (persistenceOutbox.acknowledge(packetId, ok)) packetScheduler.retryNow("persistence");
+  if (!persistenceOutbox.acknowledge(packetId, ok)) return;
+  packetScheduler.retryNow("persistence");
+  packetPoster.postStats(true);
 }
 
 async function startRun() {
@@ -313,6 +319,7 @@ function resetRunStateForNewSession() {
   resetAdvanceRuntimeForSession();
   targetTick = 0;
   backlogTicks = 0;
+  runStartTick = simulation.world.tick;
   resetRunArtifactsForSession();
 }
 
@@ -335,6 +342,7 @@ async function advanceSimulationWithinBudget() {
   const started = performance.now();
   let processedTicks = 0;
   let remainingTicks = 0;
+  let reachedPlaybackEnd = playbackEndReachedForActiveRun();
   const generation = runGeneration;
   const epoch = advanceEpoch;
   const activeSessionId = sessionId;
@@ -359,6 +367,12 @@ async function advanceSimulationWithinBudget() {
       if (activeSimulation !== simulation || generation !== runGeneration || epoch !== advanceEpoch || activeSessionId !== sessionId) return { processedTicks, remainingTicks, stale: true };
       processedTicks += result.processedTicks;
       remainingTicks = result.remainingTicks;
+      reachedPlaybackEnd = playbackEndReachedForActiveRun();
+      if (reachedPlaybackEnd) {
+        targetTick = simulation.world.tick;
+        remainingTicks = 0;
+        break;
+      }
       if (result.processedTicks === 0 || result.remainingTicks <= 0) break;
     } while (performance.now() - started < SIMULATION_LOOP_BUDGET_MS);
   } catch (error) {
@@ -366,7 +380,22 @@ async function advanceSimulationWithinBudget() {
     throw error;
   }
 
-  return { processedTicks, remainingTicks, stale: false };
+  return { processedTicks, remainingTicks, stale: false, playbackEndReached: reachedPlaybackEnd };
+}
+
+function cappedTargetTickForPlaybackEnd(nextTargetTick: number) {
+  if (activeMarketConfig.playback.endMode !== "ticks") return nextTargetTick;
+  return Math.min(nextTargetTick, runStartTick + activeMarketConfig.playback.endAfterTicks);
+}
+
+function playbackEndReachedForActiveRun() {
+  const currentSample = simulation.timeline.samples.at(-1);
+  return playbackEndReached({
+    playback: activeMarketConfig.playback,
+    currentTick: simulation.world.tick,
+    runStartTick,
+    currentSourceTimestamp: currentSample?.sourceTimestamp,
+  });
 }
 
 function currentBrainEvaluationMode() {

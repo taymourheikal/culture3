@@ -7,11 +7,16 @@ export { sanitizeGeneratedSettings } from "./marketGeneratedSettings";
 export type MarketDataSource = "generated" | "btcusd_1m" | "btcusd_5m";
 export const MARKET_TIME_MODEL = "ticks-v2";
 
+export type MarketPlaybackEndMode = "none" | "ticks" | "date";
+
 export type MarketPlaybackSettings = {
   rocLengthBars: number;
   startDateTime: string;
   generatedTicksPerSecond: number;
   barsPerSecond: number;
+  endMode: MarketPlaybackEndMode;
+  endAfterTicks: number;
+  endDateTime: string;
 };
 
 export type MarketRuntimeConfig = {
@@ -26,12 +31,16 @@ export const INITIAL_PLAYBACK_SETTINGS: MarketPlaybackSettings = {
   startDateTime: "2021-01-01T00:00",
   generatedTicksPerSecond: 1 / LEGACY_SECONDS_PER_TICK,
   barsPerSecond: 30,
+  endMode: "none",
+  endAfterTicks: 10000,
+  endDateTime: "2021-01-01T00:00",
 };
 
-export const PLAYBACK_SETTING_BOUNDS: Record<keyof Pick<MarketPlaybackSettings, "rocLengthBars" | "generatedTicksPerSecond" | "barsPerSecond">, NumericBounds> = {
+export const PLAYBACK_SETTING_BOUNDS: Record<keyof Pick<MarketPlaybackSettings, "rocLengthBars" | "generatedTicksPerSecond" | "barsPerSecond" | "endAfterTicks">, NumericBounds> = {
   rocLengthBars: { min: 1, max: 500, step: 1 },
   generatedTicksPerSecond: { min: 1, max: 240, step: 1 },
   barsPerSecond: { min: 1, max: 240, step: 1 },
+  endAfterTicks: { min: 1, max: 10_000_000, step: 100 },
 };
 
 export const INITIAL_MARKET_RUNTIME_CONFIG: MarketRuntimeConfig = {
@@ -64,11 +73,18 @@ export function sanitizePlaybackSettings(settings: unknown, legacyGeneratedSetti
       record.generatedTicksPerSecond ?? legacyGeneratedSpeedToTicksPerSecond(generatedRecord.speed),
     ),
     barsPerSecond: sanitizePlaybackNumber("barsPerSecond", record.barsPerSecond),
+    endMode: sanitizePlaybackEndMode(record.endMode),
+    endAfterTicks: sanitizePlaybackNumber("endAfterTicks", record.endAfterTicks),
+    endDateTime: sanitizeDateTime(record.endDateTime, INITIAL_PLAYBACK_SETTINGS.endDateTime),
   };
 }
 
 export function isBtcSource(source: MarketDataSource) {
   return source === "btcusd_1m" || source === "btcusd_5m";
+}
+
+export function sourceSupportsDatePlaybackEnd(source: MarketDataSource) {
+  return isBtcSource(source);
 }
 
 export function sourceLabel(source: MarketDataSource) {
@@ -92,7 +108,10 @@ function samePlaybackSettings(left: MarketPlaybackSettings, right: MarketPlaybac
     left.rocLengthBars === right.rocLengthBars &&
     left.startDateTime === right.startDateTime &&
     left.generatedTicksPerSecond === right.generatedTicksPerSecond &&
-    left.barsPerSecond === right.barsPerSecond
+    left.barsPerSecond === right.barsPerSecond &&
+    left.endMode === right.endMode &&
+    left.endAfterTicks === right.endAfterTicks &&
+    left.endDateTime === right.endDateTime
   );
 }
 
@@ -100,7 +119,7 @@ function sanitizeSource(value: unknown): MarketDataSource {
   return value === "btcusd_1m" || value === "btcusd_5m" || value === "generated" ? value : "generated";
 }
 
-function sanitizePlaybackNumber(key: keyof Pick<MarketPlaybackSettings, "rocLengthBars" | "generatedTicksPerSecond" | "barsPerSecond">, value: unknown) {
+function sanitizePlaybackNumber(key: keyof Pick<MarketPlaybackSettings, "rocLengthBars" | "generatedTicksPerSecond" | "barsPerSecond" | "endAfterTicks">, value: unknown) {
   return clampToBounds(Number(value), INITIAL_PLAYBACK_SETTINGS[key], PLAYBACK_SETTING_BOUNDS[key]);
 }
 
@@ -110,10 +129,18 @@ function legacyGeneratedSpeedToTicksPerSecond(value: unknown) {
 }
 
 function sanitizeStartDateTime(value: unknown) {
+  return sanitizeDateTime(value, INITIAL_PLAYBACK_SETTINGS.startDateTime);
+}
+
+function sanitizeDateTime(value: unknown, fallback: string) {
   const text = typeof value === "string" ? value.trim() : "";
-  if (!text) return INITIAL_PLAYBACK_SETTINGS.startDateTime;
+  if (!text) return fallback;
   const parsed = Date.parse(text);
-  return Number.isFinite(parsed) ? text : INITIAL_PLAYBACK_SETTINGS.startDateTime;
+  return Number.isFinite(parsed) ? text : fallback;
+}
+
+function sanitizePlaybackEndMode(value: unknown): MarketPlaybackEndMode {
+  return value === "ticks" || value === "date" || value === "none" ? value : INITIAL_PLAYBACK_SETTINGS.endMode;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

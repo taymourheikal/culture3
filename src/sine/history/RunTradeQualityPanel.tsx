@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { SineSessionAnalysis, SineSessionDiagnostics } from "./sineHistoryTypes";
-import { DiagnosticsPanel, formatNumber } from "./RunDiagnosticsUi";
+import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { formatNumber } from "./diagnosticFormatters";
 import { Distribution, SummaryMetricGrid, uniqueTradeQualityOptions } from "./RunDiagnosticsShared";
 import { RunCohortPerformancePanel } from "./RunCohortPerformancePanel";
 import { RUN_DIAGNOSTIC_HELP } from "../sineMetricHelp";
@@ -30,7 +31,7 @@ export function RunTradeQualityPanel({ analysis, diagnostics }: { analysis: Sine
           </select>
         </label>
         <label>
-          Age
+          Age exposure
           <select value={minAgePercentile} onChange={(event) => setMinAgePercentile(Number(event.target.value))}>
             {ageOptions.map((filter) => (
               <option key={filter.minAgePercentile} value={filter.minAgePercentile}>{filter.ageLabel}</option>
@@ -48,7 +49,7 @@ export function RunTradeQualityPanel({ analysis, diagnostics }: { analysis: Sine
           { label: "Sortino median", value: formatNumber(selected.sortinoSummary.median), help: RUN_DIAGNOSTIC_HELP.sortino },
           { label: "Sortino > 0.75", value: selected.agentsAboveSortino075.toLocaleString(), help: RUN_DIAGNOSTIC_HELP.sortino },
           { label: "Downside vol median", value: formatNumber(selected.downsideVolatilitySummary.median), help: RUN_DIAGNOSTIC_HELP.downsideVolatility },
-          { label: "Age threshold", value: selected.minAgePercentile === 0 ? "None" : `${formatNumber(selected.minAgeTicks)} ticks`, help: RUN_DIAGNOSTIC_HELP.agentAge },
+          { label: "Age exposure threshold", value: selected.minAgePercentile === 0 ? "None" : `${formatNumber(selected.minAgeTicks)} ticks`, help: RUN_DIAGNOSTIC_HELP.agentAge },
         ]}
       />
       <div className="sine-run-distribution-grid">

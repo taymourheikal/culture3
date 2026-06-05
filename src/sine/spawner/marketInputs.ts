@@ -1,5 +1,5 @@
 import type { MarketTimeline } from "../marketTimeline";
-import { createMarketFeatureContext, type MarketFeatureInstrumentation } from "./marketFeatureContext";
+import { createMarketFeatureFrame, type MarketFeatureInstrumentation } from "./marketFeatureContext";
 import { perceptionCacheKey, sanitizePerception } from "./perception";
 import type { SpawnerPerception } from "./types";
 
@@ -9,7 +9,7 @@ export function createMarketInputResolver(
   pendingFoodCount: number,
   instrumentation?: MarketFeatureInstrumentation,
 ) {
-  const context = createMarketFeatureContext(timeline, tick, instrumentation);
+  const frame = createMarketFeatureFrame(timeline, tick, instrumentation);
   const cache = new Map<string, number[]>();
   let resolveCount = 0;
   let cacheHitCount = 0;
@@ -23,7 +23,7 @@ export function createMarketInputResolver(
         cacheHitCount += 1;
         return cached;
       }
-      const inputs = context.resolveInputs(perception, pendingFoodCount);
+      const inputs = frame.resolveInputs(perception, pendingFoodCount);
       cache.set(key, inputs);
       computeCount += 1;
       return inputs;
@@ -32,14 +32,14 @@ export function createMarketInputResolver(
     getCacheHitCount: () => cacheHitCount,
     getComputeCount: () => computeCount,
     getCacheSize: () => cache.size,
-    getFeatureResolveCount: () => context.getFeatureResolveCount(),
-    getFeatureCacheHitCount: () => context.getFeatureCacheHitCount(),
-    getFeatureComputeCount: () => context.getFeatureComputeCount(),
-    getFeatureCacheSize: () => context.getFeatureCacheSize(),
-    getSampleCacheSize: () => context.getSampleCacheSize(),
+    getFeatureResolveCount: () => frame.getFeatureResolveCount(),
+    getFeatureCacheHitCount: () => frame.getFeatureCacheHitCount(),
+    getFeatureComputeCount: () => frame.getFeatureComputeCount(),
+    getFeatureCacheSize: () => frame.getFeatureCacheSize(),
+    getSampleCacheSize: () => frame.getSampleCacheSize(),
   };
 }
 
 export function buildMarketInputs(timeline: MarketTimeline, tick: number, pendingFoodCount: number, perception: SpawnerPerception) {
-  return createMarketFeatureContext(timeline, tick).resolveInputs(sanitizePerception(perception), pendingFoodCount);
+  return createMarketFeatureFrame(timeline, tick).resolveInputs(sanitizePerception(perception), pendingFoodCount);
 }

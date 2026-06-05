@@ -7,7 +7,7 @@ import { drawStrategyMapChart, type StrategyMapViewOptions } from "../charts/str
 import { drawTelemetryChart } from "../charts/telemetryChart";
 import { drawTradingPerformanceChart } from "../charts/tradingPerformanceChart";
 import { drawUniquenessChart } from "../charts/uniquenessChart";
-import type { MarketChartPacket } from "../marketWorkerProtocol";
+import type { MarketChartPacket, MarketRunState } from "../marketWorkerProtocol";
 
 type DrawRefs = {
   priceCanvasRef: RefObject<HTMLCanvasElement | null>;
@@ -21,6 +21,9 @@ type DrawRefs = {
   selectedSpawnerIdRef: RefObject<number | null>;
   strategyMapViewOptions: StrategyMapViewOptions;
   strategyMapViewKey: string;
+  chartRevision: number;
+  runState: MarketRunState;
+  selectedSpawnerId: number | null;
   lastCanvasDrawRef: RefObject<{ version: number; renderTick: number; selectedSpawnerId: number | null; strategyMapViewKey: string }>;
 };
 
@@ -36,11 +39,20 @@ export function useSineCanvasRenderer({
   selectedSpawnerIdRef,
   strategyMapViewOptions,
   strategyMapViewKey,
+  chartRevision,
+  runState,
+  selectedSpawnerId,
   lastCanvasDrawRef,
 }: DrawRefs) {
   useEffect(() => {
     let animationId: number | null = null;
+    const shouldLoop = () => runState === "running" && !document.hidden;
+    const schedule = () => {
+      if (animationId === null) animationId = requestAnimationFrame(draw);
+    };
     const draw = () => {
+      animationId = null;
+      if (document.hidden) return;
       drawIfChanged({
         priceCanvasRef,
         noiseCanvasRef,
@@ -53,27 +65,38 @@ export function useSineCanvasRenderer({
         selectedSpawnerIdRef,
         strategyMapViewOptions,
         strategyMapViewKey,
+        chartRevision,
+        runState,
+        selectedSpawnerId,
         lastCanvasDrawRef,
       });
-      animationId = requestAnimationFrame(draw);
+      if (shouldLoop()) schedule();
     };
-    animationId = requestAnimationFrame(draw);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) schedule();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    schedule();
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (animationId !== null) cancelAnimationFrame(animationId);
     };
   }, [
+    chartRevision,
     lastCanvasDrawRef,
     latestChartPacketRef,
     noiseCanvasRef,
     parameterCanvasRef,
     priceCanvasRef,
     selectedSpawnerIdRef,
+    selectedSpawnerId,
     telemetryCanvasRef,
     tradingPerformanceCanvasRef,
     uniquenessCanvasRef,
     strategyMapCanvasRef,
     strategyMapViewOptions,
     strategyMapViewKey,
+    runState,
   ]);
 
   useEffect(() => {
@@ -90,6 +113,9 @@ export function useSineCanvasRenderer({
         selectedSpawnerIdRef,
         strategyMapViewOptions,
         strategyMapViewKey,
+        chartRevision,
+        runState,
+        selectedSpawnerId,
         lastCanvasDrawRef,
       });
     };
@@ -102,12 +128,15 @@ export function useSineCanvasRenderer({
     parameterCanvasRef,
     priceCanvasRef,
     selectedSpawnerIdRef,
+    selectedSpawnerId,
     telemetryCanvasRef,
     tradingPerformanceCanvasRef,
     uniquenessCanvasRef,
     strategyMapCanvasRef,
     strategyMapViewOptions,
     strategyMapViewKey,
+    chartRevision,
+    runState,
   ]);
 }
 

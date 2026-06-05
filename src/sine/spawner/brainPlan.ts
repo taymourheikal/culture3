@@ -34,6 +34,7 @@ export type CompiledBrainPlan = {
   connectionIndexByInnovationId: Map<number, number>;
   unitTopologyById: Map<number, string>;
   connectionTopologyByInnovationId: Map<number, string>;
+  activeConnections: ConnectionGene[];
   activeConnectionIds: number[];
   activeUnitCount: number;
   activeConnectionCount: number;
@@ -90,11 +91,17 @@ export function compileBrainPlan(genome: SpawnerGenome, signature = brainPlanSig
     connectionIndexByInnovationId,
     unitTopologyById: new Map(index.units.map((unit) => [unit.unitId, unitTopologySignature(unit)])),
     connectionTopologyByInnovationId: new Map(index.connections.map((connection) => [connection.innovationId, connectionTopologySignature(connection)])),
+    activeConnections: index.connections,
     activeConnectionIds: index.connections.map((connection) => connection.innovationId),
     activeUnitCount: index.units.length,
     activeConnectionCount: index.connections.length,
     activeLayerCount: index.layerIndexes.length,
   };
+}
+
+export function activeConnectionForInnovation(plan: CompiledBrainPlan, innovationId: number) {
+  const connectionIndex = plan.connectionIndexByInnovationId.get(innovationId);
+  return connectionIndex === undefined ? undefined : plan.activeConnections[connectionIndex];
 }
 
 export function brainPlanSignature(genome: SpawnerGenome) {

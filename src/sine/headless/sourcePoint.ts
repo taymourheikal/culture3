@@ -1,4 +1,5 @@
 import { getTimelineSampleByTick, type MarketTimeline } from "../marketTimeline";
+import { datetimeFromUnixSeconds, nullableUnixSeconds } from "../sourceTime";
 
 export type HeadlessSourcePoint = {
   sourceTimestamp: number | null;
@@ -9,16 +10,12 @@ export function sourcePointForTick(timeline: MarketTimeline, tick: number): Head
   try {
     const sample = getTimelineSampleByTick(timeline, tick);
     return {
-      sourceTimestamp: nullableNumber(sample.sourceTimestamp),
-      sourceDatetime: sample.sourceDatetime ?? datetimeFromTimestamp(sample.sourceTimestamp),
+      sourceTimestamp: nullableUnixSeconds(sample.sourceTimestamp),
+      sourceDatetime: sample.sourceDatetime ?? datetimeFromUnixSeconds(sample.sourceTimestamp),
     };
   } catch {
     return { sourceTimestamp: null, sourceDatetime: null };
   }
-}
-
-export function datetimeFromTimestamp(timestamp: number | undefined) {
-  return Number.isFinite(timestamp) ? new Date(Number(timestamp) * 1000).toISOString() : null;
 }
 
 export function nullableNumber(value: number | undefined) {

@@ -1,5 +1,7 @@
 import type { SineSessionDiagnostics } from "./sineHistoryTypes";
-import { BreakdownTable, DiagnosticsPanel, formatNumber } from "./RunDiagnosticsUi";
+import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { BreakdownTable } from "./DistributionViews";
+import { formatNumber } from "./diagnosticFormatters";
 import { Distribution, SummaryMetricGrid } from "./RunDiagnosticsShared";
 import { RUN_DIAGNOSTIC_HELP } from "../sineMetricHelp";
 

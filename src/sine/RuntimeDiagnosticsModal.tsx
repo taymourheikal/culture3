@@ -31,6 +31,12 @@ export function RuntimeDiagnosticsModal({
         <Metric label="Roster packet" value={`${stats.packetSizesKb.roster?.toFixed(1) ?? "0.0"} KB`} />
         <Metric label="Stats packet" value={`${stats.packetSizesKb.stats?.toFixed(1) ?? "0.0"} KB`} />
         <Metric label="Persistence packet" value={`${stats.packetSizesKb.persistence?.toFixed(1) ?? "0.0"} KB`} />
+        <Metric label="Pending events" value={String(stats.persistenceOutbox.pendingEvents)} />
+        <Metric label="Pending uniqueness" value={String(stats.persistenceOutbox.pendingUniquenessSnapshots)} />
+        <Metric label="In-flight write" value={stats.persistenceOutbox.hasInFlight ? "yes" : "no"} />
+        <Metric label="In-flight size" value={stats.persistenceOutbox.inFlightPacketKb === null ? "0.0 KB" : `${stats.persistenceOutbox.inFlightPacketKb.toFixed(1)} KB`} />
+        <Metric label="Pending status" value={stats.persistenceOutbox.pendingStatus ?? "none"} />
+        <Metric label="Retry pending" value={stats.persistenceOutbox.retryPending ? "yes" : "no"} />
       </div>
     </SineWorkbenchModal>
   );

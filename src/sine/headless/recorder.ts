@@ -2,50 +2,35 @@ import { foodEventToPersistenceFood } from "../persistence/sinePersistenceDtos";
 import { createSpawnerSnapshot } from "../spawner/snapshots";
 import type { SpawnerAgent, SpawnerEvent, SpawnerFood } from "../spawnerSimulation";
 import type { MarketSimulationState } from "../simulationRuntime";
-import { datetimeFromTimestamp, finiteNumber, nullableNumber, sourcePointForTick, type HeadlessSourcePoint } from "./sourcePoint";
+import { datetimeFromUnixSeconds } from "../sourceTime";
 import {
+  createHeadlessAgentAccumulator,
+  headlessAgentRecord,
+  headlessMetricsRecord,
+  recordHeadlessAgentChild,
+  recordHeadlessAgentDeath,
+  recordHeadlessAgentResolvedTrade,
+  summarizeHeadlessAgents,
+  type HeadlessAgentAccumulator,
+} from "./agentAccumulator";
+import {
+  bufferHeadlessSnapshot,
+  bufferHeadlessTrade,
+  createHeadlessEligibilityPolicy,
+  dropIneligibleHeadlessBuffersIfDone,
+  maybeMarkHeadlessAgentEligible,
+  type HeadlessEligibilityFlush,
+} from "./eligibilityBuffer";
+import { nullableNumber, sourcePointForTick, type HeadlessSourcePoint } from "./sourcePoint";
+import {
+  DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL,
   HEADLESS_SNAPSHOT_SCHEMA_VERSION,
   type HeadlessAgentEventRecord,
-  type HeadlessAgentMetricsRecord,
-  type HeadlessAgentRecord,
   type HeadlessAgentSnapshotRecord,
   type HeadlessRecordSink,
   type HeadlessSnapshotReason,
   type HeadlessTradeRecord,
 } from "./types";
-
-type AgentAccumulator = {
-  runId: string;
-  spawnerId: number;
-  lineageId: number;
-  generation: number;
-  parentSpawnerId: number | null;
-  birthTick: number;
-  birthSourceTimestamp: number | null;
-  birthSourceDatetime: string | null;
-  deathTick: number | null;
-  deathSourceTimestamp: number | null;
-  deathSourceDatetime: string | null;
-  eligible: boolean;
-  openTrades: Set<number>;
-  bufferedTrades: Map<number, HeadlessTradeRecord>;
-  bufferedSnapshots: HeadlessAgentSnapshotRecord[];
-  resolvedTrades: number;
-  wins: number;
-  losses: number;
-  payoffSum: number;
-  payoffSquareSum: number;
-  winPayoffSum: number;
-  lossPayoffSum: number;
-  longTrades: number;
-  shortTrades: number;
-  longPayoffSum: number;
-  shortPayoffSum: number;
-  horizonSum: number;
-  strengthSum: number;
-  children: number;
-  lastResolvedTick: number | null;
-};
 
 export type HeadlessRecorderTiming = {
   recordFounders(ms: number): void;
@@ -59,17 +44,23 @@ export function createHeadlessRecorder({
   runId,
   simulation,
   minimumResolvedTrades,
+  resolvedTradeSnapshotInterval = DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL,
   sink,
   timing,
 }: {
   runId: string;
   simulation: MarketSimulationState;
   minimumResolvedTrades: number;
+  resolvedTradeSnapshotInterval?: number;
   sink: HeadlessRecordSink;
   timing?: HeadlessRecorderTiming;
 }) {
-  const threshold = Math.max(0, Math.floor(minimumResolvedTrades));
-  const agents = new Map<number, AgentAccumulator>();
+  const eligibilityPolicy = createHeadlessEligibilityPolicy(runId, minimumResolvedTrades);
+  const snapshotPolicy = {
+    resolvedTradeSnapshotInterval: sanitizeResolvedTradeSnapshotInterval(resolvedTradeSnapshotInterval),
+  };
+  const agents = new Map<number, HeadlessAgentAccumulator>();
+  const pendingTradeSnapshotTicks = new Map<number, number>();
   const priorEventSink = simulation.world.eventSink;
 
   const recorder = {
@@ -103,33 +94,17 @@ export function createHeadlessRecorder({
     },
     finalize() {
       const started = nowMs();
+      captureFinalSnapshots();
       for (const agent of agents.values()) {
-        if (agent.eligible) sink.writeMetrics(metricsRecord(agent, simulation.world.tick));
+        if (agent.eligible) sink.writeMetrics(headlessMetricsRecord(agent, simulation.world.tick));
       }
       timing?.finalize(nowMs() - started);
     },
+    capturePendingSnapshotsAfterTick() {
+      capturePendingTradeSnapshots();
+    },
     summary() {
-      let resolvedTrades = 0;
-      let wins = 0;
-      let losses = 0;
-      let cumulativePayoff = 0;
-      let eligibleAgents = 0;
-      for (const agent of agents.values()) {
-        resolvedTrades += agent.resolvedTrades;
-        wins += agent.wins;
-        losses += agent.losses;
-        cumulativePayoff += agent.payoffSum;
-        if (agent.eligible) eligibleAgents += 1;
-      }
-      return {
-        eligibleAgents,
-        resolvedTrades,
-        wins,
-        losses,
-        hitRate: resolvedTrades > 0 ? wins / resolvedTrades : 0,
-        cumulativePayoff,
-        averagePayoff: resolvedTrades > 0 ? cumulativePayoff / resolvedTrades : 0,
-      };
+      return summarizeHeadlessAgents(agents.values());
     },
     agentState(spawnerId: number) {
       return agents.get(spawnerId);
@@ -144,40 +119,9 @@ export function createHeadlessRecorder({
   function recordAgentBirth(spawner: SpawnerAgent, parentSpawnerId: number | null, eventId: number | null) {
     const point = sourcePointForTick(simulation.timeline, spawner.birthTick);
     const parentId = parentSpawnerId ?? spawner.parentSpawnerId ?? null;
-    const agent: AgentAccumulator = {
-      runId,
-      spawnerId: spawner.id,
-      lineageId: spawner.lineageId,
-      generation: spawner.generation,
-      parentSpawnerId: parentId,
-      birthTick: spawner.birthTick,
-      birthSourceTimestamp: point.sourceTimestamp,
-      birthSourceDatetime: point.sourceDatetime,
-      deathTick: null,
-      deathSourceTimestamp: null,
-      deathSourceDatetime: null,
-      eligible: false,
-      openTrades: new Set(),
-      bufferedTrades: new Map(),
-      bufferedSnapshots: [],
-      resolvedTrades: 0,
-      wins: 0,
-      losses: 0,
-      payoffSum: 0,
-      payoffSquareSum: 0,
-      winPayoffSum: 0,
-      lossPayoffSum: 0,
-      longTrades: 0,
-      shortTrades: 0,
-      longPayoffSum: 0,
-      shortPayoffSum: 0,
-      horizonSum: 0,
-      strengthSum: 0,
-      children: 0,
-      lastResolvedTick: null,
-    };
+    const agent = createHeadlessAgentAccumulator({ runId, spawner, parentSpawnerId: parentId, birthPoint: point });
     agents.set(spawner.id, agent);
-    sink.writeAgent(agentRecord(agent));
+    sink.writeAgent(headlessAgentRecord(agent, spawner));
     sink.writeAgentEvent({
       runId,
       eventId,
@@ -198,10 +142,10 @@ export function createHeadlessRecorder({
     const point = sourcePointForTick(simulation.timeline, event.tick);
     const parent = ensureAgent(event.spawnerId, event.spawnerSnapshot);
     if (parent) {
-      parent.children += 1;
+      recordHeadlessAgentChild(parent);
       sink.writeAgentEvent(lifecycleEvent(event, "reproduction", point));
       if (event.spawnerSnapshot) bufferSnapshot(parent, snapshotRecord(event.spawnerSnapshot, "reproduction", event.tick));
-      if (parent.eligible) sink.writeMetrics(metricsRecord(parent, event.tick));
+      if (parent.eligible) sink.writeMetrics(headlessMetricsRecord(parent, event.tick));
     }
     if (event.childSpawnerSnapshot) {
       recordAgentBirth(event.childSpawnerSnapshot, event.spawnerId, event.id);
@@ -212,9 +156,7 @@ export function createHeadlessRecorder({
     const point = sourcePointForTick(simulation.timeline, event.tick);
     const agent = ensureAgent(event.spawnerId, event.spawnerSnapshot);
     if (!agent) return;
-    agent.deathTick = event.tick;
-    agent.deathSourceTimestamp = point.sourceTimestamp;
-    agent.deathSourceDatetime = point.sourceDatetime;
+    recordHeadlessAgentDeath(agent, event.tick, point);
     sink.markAgentDead({
       runId,
       spawnerId: agent.spawnerId,
@@ -224,8 +166,8 @@ export function createHeadlessRecorder({
     });
     sink.writeAgentEvent(lifecycleEvent(event, "death", point));
     if (event.spawnerSnapshot) bufferSnapshot(agent, snapshotRecord(event.spawnerSnapshot, "death", event.tick));
-    if (agent.eligible) sink.writeMetrics(metricsRecord(agent, event.tick));
-    dropIneligibleBuffersIfDone(agent);
+    if (agent.eligible) sink.writeMetrics(headlessMetricsRecord(agent, event.tick));
+    dropIneligibleHeadlessBuffersIfDone(agent);
   }
 
   function recordTradeEvent(event: SpawnerEvent) {
@@ -235,20 +177,24 @@ export function createHeadlessRecorder({
     const trade = tradeRecord(food);
     if (event.kind === "spawn") {
       agent.openTrades.add(food.id);
-      agent.bufferedTrades.set(food.id, trade);
-      if (agent.eligible) sink.writeTrade(trade);
+      const writeNow = bufferHeadlessTrade(agent, trade);
+      sink.writeCoreTrade?.(trade);
+      if (writeNow) sink.writeTrade(writeNow);
       return;
     }
 
     agent.openTrades.delete(food.id);
-    agent.bufferedTrades.set(food.id, trade);
-    applyResolvedTrade(agent, food);
+    const writeNow = bufferHeadlessTrade(agent, trade);
+    sink.writeCoreTrade?.(trade);
+    const priorResolvedTrades = agent.resolvedTrades;
+    recordHeadlessAgentResolvedTrade(agent, food);
+    maybeQueueTradeIntervalSnapshot(agent, priorResolvedTrades, event.tick);
     maybeMarkEligible(agent, event.tick);
     if (agent.eligible) {
-      sink.writeTrade(trade);
-      sink.writeMetrics(metricsRecord(agent, event.tick));
+      sink.writeTrade(writeNow ?? trade);
+      sink.writeMetrics(headlessMetricsRecord(agent, event.tick));
     }
-    dropIneligibleBuffersIfDone(agent);
+    dropIneligibleHeadlessBuffersIfDone(agent);
   }
 
   function ensureAgent(spawnerId: number, snapshot?: SpawnerAgent) {
@@ -259,48 +205,59 @@ export function createHeadlessRecorder({
     return agents.get(spawnerId) ?? null;
   }
 
-  function bufferSnapshot(agent: AgentAccumulator, snapshot: HeadlessAgentSnapshotRecord) {
-    agent.bufferedSnapshots.push(snapshot);
-    if (agent.eligible) sink.writeSnapshot(snapshot);
+  function bufferSnapshot(agent: HeadlessAgentAccumulator, snapshot: HeadlessAgentSnapshotRecord) {
+    const writeNow = bufferHeadlessSnapshot(agent, snapshot);
+    if (writeNow) sink.writeSnapshot(writeNow);
   }
 
-  function maybeMarkEligible(agent: AgentAccumulator, tick: number) {
-    if (agent.eligible || agent.resolvedTrades < threshold) return;
-    agent.eligible = true;
-    sink.markAgentEligible({ runId, spawnerId: agent.spawnerId, eligible: true, eligibleTick: tick });
-    for (const snapshot of agent.bufferedSnapshots) sink.writeSnapshot(snapshot);
-    for (const trade of agent.bufferedTrades.values()) sink.writeTrade(trade);
-    sink.writeMetrics(metricsRecord(agent, tick));
+  function maybeMarkEligible(agent: HeadlessAgentAccumulator, tick: number) {
+    const flush = maybeMarkHeadlessAgentEligible(agent, eligibilityPolicy, tick);
+    if (flush) writeEligibilityFlush(flush, tick);
   }
 
-  function dropIneligibleBuffersIfDone(agent: AgentAccumulator) {
-    if (agent.eligible || agent.deathTick === null || agent.openTrades.size > 0) return;
-    agent.bufferedSnapshots = [];
-    agent.bufferedTrades.clear();
+  function writeEligibilityFlush(flush: HeadlessEligibilityFlush, tick: number) {
+    sink.markAgentEligible(flush.eligibility);
+    for (const snapshot of flush.snapshots) sink.writeSnapshot(snapshot);
+    for (const trade of flush.trades) sink.writeTrade(trade);
+    const agent = agents.get(flush.eligibility.spawnerId);
+    if (agent) sink.writeMetrics(headlessMetricsRecord(agent, tick));
   }
 
-  function applyResolvedTrade(agent: AgentAccumulator, food: SpawnerFood) {
-    const payoff = finiteNumber(food.payoff, 0);
-    agent.resolvedTrades += 1;
-    agent.payoffSum += payoff;
-    agent.payoffSquareSum += payoff * payoff;
-    agent.horizonSum += finiteNumber(food.horizonTicks, 0);
-    agent.strengthSum += finiteNumber(food.strength, 0);
-    agent.lastResolvedTick = food.resolveTick;
-    if (food.status === "win" || payoff > 0) {
-      agent.wins += 1;
-      agent.winPayoffSum += payoff;
-    } else {
-      agent.losses += 1;
-      agent.lossPayoffSum += payoff;
+  function maybeQueueTradeIntervalSnapshot(agent: HeadlessAgentAccumulator, priorResolvedTrades: number, tick: number) {
+    const interval = snapshotPolicy.resolvedTradeSnapshotInterval;
+    if (interval <= 0 || agent.deathTick !== null) return;
+    const priorBucket = Math.floor(Math.max(0, priorResolvedTrades) / interval);
+    const nextBucket = Math.floor(Math.max(0, agent.resolvedTrades) / interval);
+    if (nextBucket <= priorBucket) return;
+    const pendingTick = pendingTradeSnapshotTicks.get(agent.spawnerId);
+    pendingTradeSnapshotTicks.set(agent.spawnerId, pendingTick === undefined ? tick : Math.min(pendingTick, tick));
+  }
+
+  function capturePendingTradeSnapshots() {
+    if (pendingTradeSnapshotTicks.size === 0) return;
+    const spawnersById = liveSpawnerMap();
+    for (const [spawnerId, tick] of pendingTradeSnapshotTicks) {
+      const agent = agents.get(spawnerId);
+      const spawner = spawnersById.get(spawnerId);
+      if (agent && spawner && agent.deathTick === null) {
+        bufferSnapshot(agent, snapshotRecord(spawner, "trade_interval", tick));
+      }
     }
-    if (food.direction === "long") {
-      agent.longTrades += 1;
-      agent.longPayoffSum += payoff;
-    } else {
-      agent.shortTrades += 1;
-      agent.shortPayoffSum += payoff;
+    pendingTradeSnapshotTicks.clear();
+  }
+
+  function captureFinalSnapshots() {
+    capturePendingTradeSnapshots();
+    const spawnersById = liveSpawnerMap();
+    for (const agent of agents.values()) {
+      if (!agent.eligible || agent.deathTick !== null) continue;
+      const spawner = spawnersById.get(agent.spawnerId);
+      if (spawner) bufferSnapshot(agent, snapshotRecord(spawner, "final", simulation.world.tick));
     }
+  }
+
+  function liveSpawnerMap() {
+    return new Map(simulation.world.spawners.map((spawner) => [spawner.id, spawner]));
   }
 
   function lifecycleEvent(event: SpawnerEvent, kind: "reproduction" | "death", point: HeadlessSourcePoint): HeadlessAgentEventRecord {
@@ -351,9 +308,9 @@ export function createHeadlessRecorder({
       entryPrice: nullableNumber(food.entryPrice),
       exitPrice: nullableNumber(food.exitPrice),
       sourceTimestamp: nullableNumber(food.sourceTimestamp),
-      sourceDatetime: datetimeFromTimestamp(food.sourceTimestamp),
+      sourceDatetime: datetimeFromUnixSeconds(food.sourceTimestamp),
       exitSourceTimestamp: nullableNumber(food.exitSourceTimestamp),
-      exitSourceDatetime: datetimeFromTimestamp(food.exitSourceTimestamp),
+      exitSourceDatetime: datetimeFromUnixSeconds(food.exitSourceTimestamp),
       status: food.status,
       payoff: nullableNumber(food.payoff),
       food,
@@ -361,55 +318,10 @@ export function createHeadlessRecorder({
   }
 }
 
-function agentRecord(agent: AgentAccumulator): HeadlessAgentRecord {
-  return {
-    runId: agent.runId,
-    spawnerId: agent.spawnerId,
-    lineageId: agent.lineageId,
-    generation: agent.generation,
-    parentSpawnerId: agent.parentSpawnerId,
-    birthTick: agent.birthTick,
-    birthSourceTimestamp: agent.birthSourceTimestamp,
-    birthSourceDatetime: agent.birthSourceDatetime,
-    eligible: agent.eligible,
-  };
-}
-
-function metricsRecord(agent: AgentAccumulator, currentTick: number): HeadlessAgentMetricsRecord {
-  const resolved = Math.max(0, agent.resolvedTrades);
-  const mean = resolved > 0 ? agent.payoffSum / resolved : 0;
-  const variance = resolved > 0 ? Math.max(0, agent.payoffSquareSum / resolved - mean * mean) : 0;
-  return {
-    runId: agent.runId,
-    spawnerId: agent.spawnerId,
-    lineageId: agent.lineageId,
-    generation: agent.generation,
-    parentSpawnerId: agent.parentSpawnerId,
-    birthTick: agent.birthTick,
-    birthSourceTimestamp: agent.birthSourceTimestamp,
-    birthSourceDatetime: agent.birthSourceDatetime,
-    deathTick: agent.deathTick,
-    deathSourceTimestamp: agent.deathSourceTimestamp,
-    deathSourceDatetime: agent.deathSourceDatetime,
-    lifespanTicks: agent.deathTick === null ? null : Math.max(0, agent.deathTick - agent.birthTick),
-    children: agent.children,
-    resolvedTrades: resolved,
-    wins: agent.wins,
-    losses: agent.losses,
-    hitRate: resolved > 0 ? agent.wins / resolved : 0,
-    cumulativePayoff: agent.payoffSum,
-    averagePayoff: mean,
-    averageWin: agent.wins > 0 ? agent.winPayoffSum / agent.wins : 0,
-    averageLoss: agent.losses > 0 ? agent.lossPayoffSum / agent.losses : 0,
-    payoffStdDev: Math.sqrt(variance),
-    longTrades: agent.longTrades,
-    shortTrades: agent.shortTrades,
-    longAveragePayoff: agent.longTrades > 0 ? agent.longPayoffSum / agent.longTrades : 0,
-    shortAveragePayoff: agent.shortTrades > 0 ? agent.shortPayoffSum / agent.shortTrades : 0,
-    averageHorizonTicks: resolved > 0 ? agent.horizonSum / resolved : 0,
-    averageStrength: resolved > 0 ? agent.strengthSum / resolved : 0,
-    lastResolvedTick: agent.lastResolvedTick ?? (resolved > 0 ? currentTick : null),
-  };
+function sanitizeResolvedTradeSnapshotInterval(value: number | undefined) {
+  const interval = Math.floor(Number(value));
+  if (!Number.isFinite(interval) || interval <= 0) return 0;
+  return interval;
 }
 
 function nowMs() {

@@ -24,6 +24,8 @@ const HEADLESS_TICKS = 500;
 const HEADLESS_CHUNK_TICKS = 100;
 const HEADLESS_CHECKPOINT_INTERVAL_TICKS = 100;
 
+const headlessDbDir = mkdtempSync(join(tmpdir(), "sine-headless-baseline-"));
+process.env.SINE_DB_PATH = join(headlessDbDir, "toy-market.sqlite");
 const repositoryModule = await import(new URL("../server/sineHeadlessRepository.mjs", import.meta.url).href);
 
 const packetSimulation = createSimulationState(
@@ -101,8 +103,7 @@ console.log(
   ),
 );
 
-const dir = mkdtempSync(join(tmpdir(), "sine-headless-baseline-"));
-const repository = repositoryModule.createSineHeadlessRepository(join(dir, "headless.sqlite"));
+const repository = repositoryModule.createSineHeadlessRepository();
 try {
   const result = await runHeadlessSineExperiment({
     runId: "milestone-0-baseline",
@@ -171,7 +172,7 @@ try {
   );
 } finally {
   repository.close();
-  rmSync(dir, { recursive: true, force: true });
+  rmSync(headlessDbDir, { recursive: true, force: true });
 }
 
 function round(value: number) {

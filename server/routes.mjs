@@ -33,7 +33,7 @@ import {
   recordBenchmarkRequest,
   resetBenchmarkInstrumentation,
 } from "./benchmarkInstrumentation.mjs";
-import { defaultSineHeadlessDbPath } from "./sineHeadlessRepository.mjs";
+import { defaultSineDbPath } from "./sineDb.mjs";
 
 export async function routeRequest(req, res) {
   const requestStarted = benchmarkNowMs();
@@ -60,7 +60,7 @@ export async function routeRequest(req, res) {
       sendJson(res, 200, {
         ok: true,
         benchmark: benchmarkInstrumentationSnapshot({
-          headlessDbPath: defaultSineHeadlessDbPath,
+          toyMarketDbPath: defaultSineDbPath,
         }),
       });
       return;

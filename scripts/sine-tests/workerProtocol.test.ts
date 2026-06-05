@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { INITIAL_SETTINGS } from "../../src/sine/marketSignal";
-import { MARKET_TIME_MODEL } from "../../src/sine/marketRuntimeConfig";
+import { INITIAL_PLAYBACK_SETTINGS, MARKET_TIME_MODEL } from "../../src/sine/marketRuntimeConfig";
 import {
   CHART_SAMPLE_INTERVAL_TICKS,
   CHART_TICKS_VISIBLE,
@@ -657,7 +657,7 @@ function testBtcChartPacketCarriesPriceSamplesOnlyForBtcMode() {
       source: "btcusd_5m",
       timeModel: MARKET_TIME_MODEL,
       generated: INITIAL_SETTINGS,
-      playback: { rocLengthBars: 50, startDateTime: "2021-01-01T00:00", barsPerSecond: 30, generatedTicksPerSecond: 5 },
+      playback: { ...INITIAL_PLAYBACK_SETTINGS, rocLengthBars: 50, startDateTime: "2021-01-01T00:00", barsPerSecond: 30, generatedTicksPerSecond: 5 },
     },
     spawnerConfig: DEFAULT_SPAWNER_CONFIG,
     candles: [
@@ -693,7 +693,7 @@ function testBtcChartPacketUsesPriceSamplesAcrossVisibleWindow() {
       source: "btcusd_5m",
       timeModel: MARKET_TIME_MODEL,
       generated: INITIAL_SETTINGS,
-      playback: { rocLengthBars: 50, startDateTime: "2021-01-01T00:00", barsPerSecond: 30, generatedTicksPerSecond: 5 },
+      playback: { ...INITIAL_PLAYBACK_SETTINGS, rocLengthBars: 50, startDateTime: "2021-01-01T00:00", barsPerSecond: 30, generatedTicksPerSecond: 5 },
     },
     spawnerConfig: DEFAULT_SPAWNER_CONFIG,
     candles,

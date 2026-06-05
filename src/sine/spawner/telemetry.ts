@@ -1,7 +1,8 @@
 import type { SpawnerWorld } from "./types";
-import { ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
+import { ensureCompiledBrainPlan } from "./brainPlan";
+import { planForAlignedSpawner, spawnerRuntimeContextMatches, type SpawnerRuntimeContext } from "./spawnerRuntimeContext";
 
-export function recordTelemetry(world: SpawnerWorld, plansBySpawnerId: Map<number, CompiledBrainPlan> = new Map()) {
+export function recordTelemetry(world: SpawnerWorld, runtimeContext?: SpawnerRuntimeContext) {
   const population = Math.max(1, world.spawners.length);
   const recentResolvedCount = world.recentResolvedPayoffs.length;
   let recentLossSum = 0;
@@ -26,8 +27,11 @@ export function recordTelemetry(world: SpawnerWorld, plansBySpawnerId: Map<numbe
   let activeUnitTotal = 0;
   let activeConnectionTotal = 0;
   let activeLayerTotal = 0;
-  for (const spawner of world.spawners) {
-    const plan = plansBySpawnerId.get(spawner.id) ?? ensureCompiledBrainPlan(spawner.genome);
+  const alignedContext = runtimeContext && spawnerRuntimeContextMatches(runtimeContext, world.spawners) ? runtimeContext : undefined;
+  for (let index = 0; index < world.spawners.length; index += 1) {
+    const spawner = world.spawners[index];
+    if (!spawner) continue;
+    const plan = planForAlignedSpawner(alignedContext, spawner, index) ?? ensureCompiledBrainPlan(spawner.genome);
     activeUnitTotal += plan.activeUnitCount;
     activeConnectionTotal += plan.activeConnectionCount;
     activeLayerTotal += plan.activeLayerCount;

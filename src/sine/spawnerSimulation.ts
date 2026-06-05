@@ -11,7 +11,7 @@ export {
   type PureBrainEvaluationInput,
 } from "./spawner/brain";
 export { createSyncBrainEvaluationRunner, evaluateBrainJob } from "./spawner/brainEvaluationRunner";
-export { brainPlanSignature, compileBrainPlan, ensureCompiledBrainPlan, type CompiledBrainPlan } from "./spawner/brainPlan";
+export { activeConnectionForInnovation, brainPlanSignature, compileBrainPlan, ensureCompiledBrainPlan, type CompiledBrainPlan } from "./spawner/brainPlan";
 export {
   createEffectiveGenomeView,
   getEffectiveConnectionWeight,
@@ -66,6 +66,7 @@ export {
   gateBiasDeltaKey,
   learnedStateDecayCanChange,
   learnedStateNorm,
+  materializeDecisionTrace,
   outputBiasDeltaKey,
   plasticitySummary,
   sanitizeLearnedState,

@@ -4,6 +4,15 @@ import type { SpawnerConfig } from "../spawnerSimulation";
 import type { BrainEvaluationMode } from "./brainEvalProtocol";
 import type { MarketRunState, MarketWorkerSessionId } from "./workerCommandProtocol";
 
+export type PersistenceOutboxDiagnostics = {
+  pendingEvents: number;
+  pendingUniquenessSnapshots: number;
+  hasInFlight: boolean;
+  inFlightPacketKb: number | null;
+  pendingStatus: "running" | "paused" | "stopped" | null;
+  retryPending: boolean;
+};
+
 export type MarketStatsPacket = {
   sessionId: MarketWorkerSessionId;
   version: number;
@@ -35,4 +44,5 @@ export type MarketStatsPacket = {
   activeSpawnerConfig: SpawnerConfig;
   pendingSpawnerConfig: SpawnerConfig;
   packetSizesKb: Partial<Record<"chart" | "roster" | "stats" | "architecture" | "inspection" | "uniqueness" | "persistence", number>>;
+  persistenceOutbox: PersistenceOutboxDiagnostics;
 };

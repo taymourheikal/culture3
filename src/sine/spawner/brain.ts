@@ -7,7 +7,7 @@ import {
   type PlanAlignedEffectiveBrainValues,
 } from "./effectiveGenome";
 import { compileBrainPlan, ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
-import { evaluateCompactBrainKernel } from "./brainKernel";
+import { evaluateCompactBrainKernel, type BrainKernelCompactActivationRecorder } from "./brainKernel";
 import { alignedHiddenStateRecord, hiddenArrayToCurrentRecord, hiddenRecordToArray, type HiddenStateArray } from "./brainState";
 import type { PlanAlignedLearnedStateView } from "./learnedStateView";
 import type { SpawnerAgent, SpawnerGenome, SpawnerLearnedState } from "./types";
@@ -29,6 +29,8 @@ export type BrainEvaluation = {
 export type BrainTraceActivations = {
   activeConnectionIds: number[];
   connectionActivations: BrainEvaluation["connectionActivations"];
+  connectionActivationSources?: number[];
+  connectionActivationTargets?: number[];
   owned: boolean;
 };
 
@@ -356,6 +358,33 @@ export function materializeBrainRuntimeTraceActivations(runtime: BrainRuntimeEva
   return {
     activeConnectionIds: [...runtime.plan.activeConnectionIds],
     connectionActivations,
+    owned: true,
+  };
+}
+
+export function materializeBrainRuntimeCompactTraceActivations(runtime: BrainRuntimeEvaluation): BrainTraceActivations {
+  const compactActivations: BrainKernelCompactActivationRecorder = {
+    kind: "compact",
+    sourceByConnectionIndex: new Array<number>(runtime.plan.activeConnectionCount),
+    targetByConnectionIndex: new Array<number>(runtime.plan.activeConnectionCount),
+  };
+  const replayCurrentState = new Array<number>(runtime.plan.unitIds.length);
+  const replayOutputs = new Array<number>(OUTPUT_COUNT);
+  evaluateCompactBrainKernel({
+    plan: runtime.plan,
+    inputs: runtime.inputs,
+    previousState: runtime.previousStateArray,
+    currentState: replayCurrentState,
+    outputs: replayOutputs,
+    effectiveValues: runtime.effectiveValues,
+    planValues: runtime.planValues,
+    connectionActivations: compactActivations,
+  });
+  return {
+    activeConnectionIds: [...runtime.plan.activeConnectionIds],
+    connectionActivations: {},
+    connectionActivationSources: compactActivations.sourceByConnectionIndex,
+    connectionActivationTargets: compactActivations.targetByConnectionIndex,
     owned: true,
   };
 }

@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL } from "../../src/sine/headless/types";
 import { INITIAL_SETTINGS, LEGACY_SECONDS_PER_TICK } from "../../src/sine/marketSignal";
 import { MARKET_SETTING_BOUNDS } from "../../src/sine/marketSettingBounds";
 import { INITIAL_MARKET_RUNTIME_CONFIG, sameMarketRuntimeConfig, sanitizeMarketRuntimeConfig } from "../../src/sine/marketRuntimeConfig";
@@ -8,6 +9,7 @@ import { sanitizeSpawnerConfig } from "../../src/sine/spawnerSettingsStorage";
 import { loadSavedMarketRuntimeConfig, sanitizeSettings, saveMarketSettingsGroup, savePlaybackSettingsGroup } from "../../src/sine/settingsStorage";
 import {
   loadSavedRunsDefaults,
+  saveRunsExecutionDefaults,
   saveRunsMarketSettingsGroup,
   saveRunsPlaybackSettingsGroup,
   saveRunsSpawnerConfigGroup,
@@ -108,6 +110,9 @@ function testMarketRuntimeConfigWrapsBareGeneratedSettings() {
   assert.equal(runtime.playback.rocLengthBars, 1);
   assert.equal(runtime.playback.startDateTime, "2021-03-04T05:06");
   assert.equal(runtime.playback.barsPerSecond, 240);
+  assert.equal(runtime.playback.endMode, "none");
+  assert.equal(runtime.playback.endAfterTicks, INITIAL_MARKET_RUNTIME_CONFIG.playback.endAfterTicks);
+  assert.equal(runtime.playback.endDateTime, INITIAL_MARKET_RUNTIME_CONFIG.playback.endDateTime);
 }
 
 function testSimulationStateTreatsPlainSettingsAsTickNative() {
@@ -126,13 +131,45 @@ function testMarketRuntimeComparatorCoversRuntimeFields() {
   assert.equal(sameMarketRuntimeConfig(base, { ...base }), true);
   assert.equal(sameMarketRuntimeConfig(base, { ...base, source: "btcusd_1m" }), false);
   assert.equal(sameMarketRuntimeConfig(base, { ...base, generated: { ...base.generated, amplitude: base.generated.amplitude + 0.25 } }), false);
+}
+
+function testMarketRuntimeComparatorCoversEveryPlaybackField() {
+  const base = sanitizeMarketRuntimeConfig(INITIAL_MARKET_RUNTIME_CONFIG);
+
   assert.equal(
     sameMarketRuntimeConfig(base, { ...base, playback: { ...base.playback, rocLengthBars: base.playback.rocLengthBars + 1 } }),
     false,
+    "playback comparator ignored rocLengthBars",
   );
   assert.equal(
     sameMarketRuntimeConfig(base, { ...base, playback: { ...base.playback, startDateTime: "2021-02-03T04:05" } }),
     false,
+    "playback comparator ignored startDateTime",
+  );
+  assert.equal(
+    sameMarketRuntimeConfig(base, { ...base, playback: { ...base.playback, generatedTicksPerSecond: base.playback.generatedTicksPerSecond + 1 } }),
+    false,
+    "playback comparator ignored generatedTicksPerSecond",
+  );
+  assert.equal(
+    sameMarketRuntimeConfig(base, { ...base, playback: { ...base.playback, barsPerSecond: base.playback.barsPerSecond + 1 } }),
+    false,
+    "playback comparator ignored barsPerSecond",
+  );
+  assert.equal(
+    sameMarketRuntimeConfig(base, { ...base, playback: { ...base.playback, endMode: "ticks" } }),
+    false,
+    "playback comparator ignored endMode",
+  );
+  assert.equal(
+    sameMarketRuntimeConfig(base, { ...base, playback: { ...base.playback, endAfterTicks: base.playback.endAfterTicks + 1 } }),
+    false,
+    "playback comparator ignored endAfterTicks",
+  );
+  assert.equal(
+    sameMarketRuntimeConfig(base, { ...base, playback: { ...base.playback, endDateTime: "2021-02-03T04:05" } }),
+    false,
+    "playback comparator ignored endDateTime",
   );
 }
 
@@ -564,21 +601,42 @@ function testLabGroupedSettingsSavesPatchOnlyRequestedKeys() {
         ...runtimeAfterMarket.playback,
         generatedTicksPerSecond: 22,
         barsPerSecond: 33,
+        endMode: "ticks",
+        endAfterTicks: 12345,
       },
-      ["generatedTicksPerSecond"],
+      ["generatedTicksPerSecond", "endMode", "endAfterTicks"],
     );
     const runtimeAfterPlayback = loadSavedMarketRuntimeConfig();
     assert.equal(savedPlayback.playback.generatedTicksPerSecond, 22);
     assert.equal(savedPlayback.playback.barsPerSecond, runtimeAfterMarket.playback.barsPerSecond);
+    assert.equal(savedPlayback.playback.endMode, "ticks");
+    assert.equal(savedPlayback.playback.endAfterTicks, 12345);
     assert.equal(runtimeAfterPlayback.generated.amplitude, 6.5);
     assert.equal(runtimeAfterPlayback.playback.generatedTicksPerSecond, 22);
     assert.equal(runtimeAfterPlayback.playback.barsPerSecond, runtimeAfterMarket.playback.barsPerSecond);
+    assert.equal(runtimeAfterPlayback.playback.endMode, "ticks");
+    assert.equal(runtimeAfterPlayback.playback.endAfterTicks, 12345);
   });
 }
 
 function testRunsGroupedSettingsSavesPatchOnlyRequestedKeys() {
   withMockLocalStorage(() => {
     const initialRuns = loadSavedRunsDefaults();
+    assert.equal(initialRuns.resolvedTradeSnapshotInterval, DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL);
+
+    const savedExecution = saveRunsExecutionDefaults({
+      ...initialRuns,
+      ticks: 123000,
+      minimumResolvedTrades: 12,
+      resolvedTradeSnapshotInterval: 25,
+      seed: 303,
+      checkpointIntervalTicks: 456,
+    });
+    const afterExecution = loadSavedRunsDefaults();
+    assert.equal(savedExecution.resolvedTradeSnapshotInterval, 25);
+    assert.equal(afterExecution.resolvedTradeSnapshotInterval, 25);
+    assert.equal(afterExecution.minimumResolvedTrades, 12);
+    assert.equal(afterExecution.seed, 303);
 
     const savedMarket = saveRunsMarketSettingsGroup(
       {
@@ -593,20 +651,28 @@ function testRunsGroupedSettingsSavesPatchOnlyRequestedKeys() {
     assert.equal(savedMarket.amplitude, initialRuns.marketConfig.generated.amplitude);
     assert.equal(afterMarket.marketConfig.generated.frequency, 0.2);
     assert.equal(afterMarket.marketConfig.generated.amplitude, initialRuns.marketConfig.generated.amplitude);
-    assert.equal(afterMarket.ticks, initialRuns.ticks);
+    assert.equal(afterMarket.ticks, 123000);
+    assert.equal(afterMarket.resolvedTradeSnapshotInterval, 25);
 
     const savedPlayback = saveRunsPlaybackSettingsGroup(
       {
         ...afterMarket.marketConfig.playback,
         generatedTicksPerSecond: 17,
         barsPerSecond: 29,
+        endMode: "date",
+        endDateTime: "2021-04-05T06:07",
       },
-      ["barsPerSecond"],
+      ["barsPerSecond", "endMode", "endDateTime"],
     );
     const afterPlayback = loadSavedRunsDefaults();
     assert.equal(savedPlayback.playback.barsPerSecond, 29);
     assert.equal(savedPlayback.playback.generatedTicksPerSecond, afterMarket.marketConfig.playback.generatedTicksPerSecond);
+    assert.equal(savedPlayback.playback.endMode, "date");
+    assert.equal(savedPlayback.playback.endDateTime, "2021-04-05T06:07");
     assert.equal(afterPlayback.marketConfig.generated.frequency, 0.2);
+    assert.equal(afterPlayback.marketConfig.playback.endMode, "date");
+    assert.equal(afterPlayback.marketConfig.playback.endDateTime, "2021-04-05T06:07");
+    assert.equal(afterPlayback.resolvedTradeSnapshotInterval, 25);
 
     const savedSpawner = saveRunsSpawnerConfigGroup(
       {
@@ -623,6 +689,7 @@ function testRunsGroupedSettingsSavesPatchOnlyRequestedKeys() {
     assert.equal(savedSpawner.maxSpawners, afterPlayback.spawnerConfig.maxSpawners);
     assert.equal(afterSpawner.spawnerConfig.reproductionEnergy, 99);
     assert.equal(afterSpawner.marketConfig.playback.barsPerSecond, 29);
+    assert.equal(afterSpawner.resolvedTradeSnapshotInterval, 25);
   });
 }
 
@@ -651,6 +718,7 @@ export const tests: SineTest[] = [
   { name: "Market Runtime Config Wraps Bare Generated Settings", run: testMarketRuntimeConfigWrapsBareGeneratedSettings },
   { name: "Simulation State Treats Plain Settings As Tick Native", run: testSimulationStateTreatsPlainSettingsAsTickNative },
   { name: "Market Runtime Comparator Covers Runtime Fields", run: testMarketRuntimeComparatorCoversRuntimeFields },
+  { name: "Market Runtime Comparator Covers Every Playback Field", run: testMarketRuntimeComparatorCoversEveryPlaybackField },
   { name: "Market Runtime Comparator Covers Every Generated Field", run: testMarketRuntimeComparatorCoversEveryGeneratedField },
   { name: "Legacy Saved Market Settings Migrate From Seconds", run: testLegacySavedMarketSettingsMigrateFromSeconds },
   { name: "Lab Grouped Settings Saves Patch Only Requested Keys", run: testLabGroupedSettingsSavesPatchOnlyRequestedKeys },

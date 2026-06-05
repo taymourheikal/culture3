@@ -16,9 +16,8 @@ This directory contains the local Node server used by Emergent Ant World and Toy
 - `sineHistoricalContext.mjs`: saved-run historical row loading, tick ranges, alive/dead context, and agent exposure.
 - `sineRunDiagnostics.mjs`, `sineTradeQuality.mjs`, `sineCohortDiagnostics.mjs`, `sineCohortRegimeContext.mjs`: saved-run health, trading, risk, trade-quality, cohort, and market-regime analysis.
 - `sineSpawnerInspectionRepository.mjs`: historical spawner reconstruction behind the saved-run facade.
-- `sineHeadlessRepository.mjs`: public headless-run repository facade. Callers use `createSineHeadlessRepository()` and startup recovery uses `markInterruptedSineHeadlessRunsFailed()`.
-- `sineHeadlessWriteRepository.mjs`, `sineHeadlessReadRepository.mjs`, `sineHeadlessStatements.mjs`, `sineHeadlessRowParsers.mjs`: headless repository internals behind the facade.
-- `sineHeadlessRoutes.mjs`, `sineHeadlessJobs.mjs`: API routes and one-at-a-time job orchestration for headless Toy Market runs.
+- `sineHeadlessRepository.mjs`: public headless-run repository facade. Headless runs write to the unified Toy Market DB through `sineHeadlessUnifiedWriteRepository.mjs` and read through `sineHeadlessUnifiedReadRepository.mjs`.
+- `sineHeadlessRoutes.mjs`, `sineHeadlessJobs.mjs`: API routes and configurable concurrent job orchestration for headless Toy Market runs.
 - `validation.mjs`: request validation and option sanitization.
 
 ## Toy Market Headless Runtime
@@ -26,7 +25,7 @@ This directory contains the local Node server used by Emergent Ant World and Toy
 The browser Lab and headless Runs page share the same simulation engine in `src/sine/`. Headless orchestration lives in `src/sine/headless/`:
 
 - `runner.ts`: setup, chunk advancement, progress, checkpoint, and finalization orchestration.
-- `recorder.ts`: converts runtime events into headless run, agent, event, trade, snapshot, metric, and checkpoint records.
+- `recorder.ts`: converts runtime events into headless run, agent, event, trade, snapshot, transient derived-stat, and checkpoint records.
 - `headlessTimingCollector.ts`: lightweight timing counters for simulation, recorder, and sink writes.
 - `headlessCheckpointScheduler.ts`: initial, interval, and final checkpoint scheduling.
 - `headlessCandleLoader.ts`: runner-side BTC candle initialization/refill coordination with an injected loader.
@@ -47,6 +46,16 @@ npm run db:split
 ```
 
 Run it only while the local API server is stopped. The script creates a backup, migrates `sine_*` tables into `toy-market.sqlite`, verifies the copy, drops old `sine_*` tables from `ant-world.sqlite`, and vacuums the Ant DB.
+
+To deliberately reset Toy Market after the unified Lab/Runs DB transition, stop the local API server and run:
+
+```bash
+npm run db:reset:toy-market -- --confirm
+```
+
+This deletes `data/toy-market.sqlite`, its WAL/SHM files, and obsolete trial `data/sine-headless.sqlite` files. Fresh startup recreates `data/toy-market.sqlite`; new Lab and Runs/headless writes should not recreate `data/sine-headless.sqlite`. Derived headless statistics are computed from unified core rows rather than permanently stored in a separate metrics table.
+
+For isolated benchmarks, set `SINE_DB_PATH` before starting the server-side Toy Market modules. The headless repository facade no longer creates a separate DB from a runtime `--db` argument.
 
 ## Boundaries
 

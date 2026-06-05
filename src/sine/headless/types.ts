@@ -2,9 +2,10 @@ import type { MarketRuntimeConfig } from "../marketRuntimeConfig";
 import type { SpawnerAgent, SpawnerConfig, SpawnerFood } from "../spawnerSimulation";
 
 export const HEADLESS_SNAPSHOT_SCHEMA_VERSION = 1;
+export const DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL = 25;
 
 export type HeadlessLifecycleKind = "birth" | "reproduction" | "death";
-export type HeadlessSnapshotReason = "birth" | "reproduction" | "death";
+export type HeadlessSnapshotReason = "birth" | "reproduction" | "death" | "trade_interval" | "final";
 export type HeadlessRunStatus = "running" | "completed" | "cancelled" | "failed";
 export type HeadlessRunTerminationReason = "target" | "market_end" | "population_extinct" | "cancelled" | "error" | "interrupted";
 
@@ -16,6 +17,7 @@ export type HeadlessSinkMethod =
   | "markAgentEligible"
   | "markAgentDead"
   | "writeAgentEvent"
+  | "writeCoreTrade"
   | "writeTrade"
   | "writeSnapshot"
   | "writeMetrics";
@@ -123,6 +125,7 @@ export type HeadlessAgentRecord = {
   birthSourceTimestamp: number | null;
   birthSourceDatetime: string | null;
   eligible: boolean;
+  spawner: SpawnerAgent;
 };
 
 export type HeadlessAgentDeathRecord = {
@@ -138,6 +141,7 @@ export type HeadlessAgentEligibilityRecord = {
   spawnerId: number;
   eligible: boolean;
   eligibleTick: number;
+  resolvedTrades?: number;
 };
 
 export type HeadlessAgentEventRecord = {
@@ -231,8 +235,10 @@ export type HeadlessRecordSink = {
   markAgentEligible(record: HeadlessAgentEligibilityRecord): void;
   markAgentDead(record: HeadlessAgentDeathRecord): void;
   writeAgentEvent(record: HeadlessAgentEventRecord): void;
+  writeCoreTrade?(record: HeadlessTradeRecord): void;
   writeTrade(record: HeadlessTradeRecord): void;
   writeSnapshot(record: HeadlessAgentSnapshotRecord): void;
+  // Transient compatibility record. Unified DB sinks intentionally derive stats from core rows instead of storing these permanently.
   writeMetrics(record: HeadlessAgentMetricsRecord): void;
 };
 
@@ -244,8 +250,10 @@ export type HeadlessRecordBatch = {
   agentEligibilities: HeadlessAgentEligibilityRecord[];
   agentDeaths: HeadlessAgentDeathRecord[];
   agentEvents: HeadlessAgentEventRecord[];
+  coreTrades: HeadlessTradeRecord[];
   trades: HeadlessTradeRecord[];
   snapshots: HeadlessAgentSnapshotRecord[];
+  // Transient compatibility records for memory sinks and legacy API shape.
   metrics: HeadlessAgentMetricsRecord[];
 };
 

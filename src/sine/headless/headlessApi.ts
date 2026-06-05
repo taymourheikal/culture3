@@ -11,7 +11,9 @@ export type SineHeadlessJob = {
   targetTicks: number;
   tick: number;
   checkpointIntervalTicks: number;
+  chunkTicks: number;
   minimumResolvedTrades: number;
+  resolvedTradeSnapshotInterval?: number;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -31,7 +33,9 @@ export type SineHeadlessRunRequest = {
   marketConfig: MarketRuntimeConfig;
   spawnerConfig: SpawnerConfig;
   minimumResolvedTrades: number;
+  resolvedTradeSnapshotInterval?: number;
   checkpointIntervalTicks: number;
+  chunkTicks?: number;
 };
 
 export type SineHeadlessRunRow = {
@@ -260,6 +264,12 @@ export function startSineHeadlessRun(request: SineHeadlessRunRequest) {
 
 export function getActiveSineHeadlessRun() {
   return getSineJson<{ ok: true; job: SineHeadlessJob | null }>("/api/sine/headless/runs/active");
+}
+
+export function getActiveSineHeadlessRuns() {
+  return getSineJson<{ ok: true; jobs: SineHeadlessJob[]; activeCount: number; maxConcurrentRuns: number; capacityFull: boolean }>(
+    "/api/sine/headless/runs/active-list",
+  );
 }
 
 export function getSineHeadlessRun(runId: string) {

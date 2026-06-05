@@ -80,7 +80,7 @@ export function SineHelpContent() {
           <p>
             <strong>The Runs page starts long simulations without rendering every tick.</strong> It uses the same Sine market
             config, spawner config, payoff rules, RNN architecture, mutation logic, and lifecycle rules as the Lab. The
-            difference is that the run is executed in the server process and written to the headless SQLite database for later
+            difference is that the run is executed in the server process and written to the unified Toy Market SQLite database for later
             analysis.
           </p>
           <div className="sine-help-columns">
@@ -89,7 +89,7 @@ export function SineHelpContent() {
               <ul>
                 <li>Run settings, seed, status, stop reason, and checkpoints.</li>
                 <li>Population, eligible-agent count, resolved trades, hit rate, average payoff, and cumulative payoff over time.</li>
-                <li>Per-agent birth, reproduction, death, trade ledger, final metrics, and exact RNN snapshots.</li>
+                <li>Per-agent birth, reproduction, death, trade ledger, derived performance summaries, and exact RNN snapshots.</li>
               </ul>
             </div>
             <div>

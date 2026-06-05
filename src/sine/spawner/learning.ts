@@ -1,6 +1,6 @@
 import { OUTPUT_INDEX } from "./config";
 import type { BrainEvaluation, BrainTraceActivations } from "./brain";
-import { activeConnections } from "./genomeConnections";
+import { activeConnectionForInnovation, ensureCompiledBrainPlan } from "./brainPlan";
 import { clamp } from "./math";
 import {
   clampLearnedState,
@@ -9,6 +9,7 @@ import {
   gateBiasDeltaKey,
   outputBiasDeltaKey,
   sanitizePlasticityProfile,
+  traceConnectionActivation,
   type SpawnerDecisionTrace,
 } from "./plasticity";
 import type { SpawnerAgent, SpawnerPlasticityProfile } from "./types";
@@ -38,15 +39,28 @@ export function captureDecisionTrace({
     owned: false,
   };
   const consumeOwnedActivations = activations.owned;
+  const hasCompactActivations = Array.isArray(activations.connectionActivationSources) && Array.isArray(activations.connectionActivationTargets);
   const trace: SpawnerDecisionTrace = {
     id,
     tick,
     action,
     strength: decoded.strength,
     activeConnectionIds: consumeOwnedActivations ? activations.activeConnectionIds : [...activations.activeConnectionIds],
-    connectionActivations: consumeOwnedActivations
+    connectionActivations: hasCompactActivations
+      ? {}
+      : consumeOwnedActivations
       ? activations.connectionActivations
       : copyConnectionActivations(activations.connectionActivations, activations.activeConnectionIds),
+    connectionActivationSources: hasCompactActivations
+      ? consumeOwnedActivations
+        ? activations.connectionActivationSources
+        : [...(activations.connectionActivationSources ?? [])]
+      : undefined,
+    connectionActivationTargets: hasCompactActivations
+      ? consumeOwnedActivations
+        ? activations.connectionActivationTargets
+        : [...(activations.connectionActivationTargets ?? [])]
+      : undefined,
   };
   if (consumeOwnedActivations) activations.owned = false;
   spawner.traceStore.traces[String(id)] = trace;
@@ -97,16 +111,18 @@ export function applyLearningSignal(
   const trace = spawner.traceStore?.traces?.[String(traceId)];
   if (!trace) return false;
 
-  const connectionById = new Map(activeConnections(spawner.genome).map((connection) => [connection.innovationId, connection]));
+  const plan = ensureCompiledBrainPlan(spawner.genome);
   const eligibility = plasticity.eligibilityTraceStrength;
   const weightRate = plasticity.weightLearningRate * boundedSignal * eligibility;
   const biasRate = plasticity.biasLearningRate * boundedSignal * eligibility;
   let changed = false;
 
-  for (const innovationId of trace.activeConnectionIds) {
-    const connection = connectionById.get(innovationId);
+  for (let traceIndex = 0; traceIndex < trace.activeConnectionIds.length; traceIndex += 1) {
+    const innovationId = trace.activeConnectionIds[traceIndex];
+    if (innovationId === undefined) continue;
+    const connection = activeConnectionForInnovation(plan, innovationId);
     if (!connection) continue;
-    const activation = trace.connectionActivations[String(innovationId)];
+    const activation = traceConnectionActivation(trace, innovationId, traceIndex);
     if (!activation) continue;
     changed =
       addDelta(

@@ -253,6 +253,7 @@ function testPacketFixtureShapes() {
     "pendingFoods",
     "pendingMarketConfig",
     "pendingSpawnerConfig",
+    "persistenceOutbox",
     "persistentSessionId",
     "playing",
     "populationRoomRatio",

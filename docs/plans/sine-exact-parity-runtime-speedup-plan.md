@@ -944,9 +944,11 @@ Exit gates:
 
 ## Milestone 11: Whole-Run Headless Isolation
 
-Goal: move active headless execution off the main server event loop to improve API responsiveness and run control.
+Goal: move active headless execution off the main server event loop to improve API responsiveness and run control, while shaping the job manager so it can later support multiple isolated runs.
 
 This milestone is a responsiveness milestone, not a raw simulation-speed milestone.
+
+This milestone must still preserve the current one-active-run behavior. Parallel scheduling is deferred to the next milestone so isolation and concurrency are validated separately.
 
 ### 1. Choose Worker Thread Or Child Process
 
@@ -959,6 +961,7 @@ Exit gates:
 - The isolated runner owns its repository and DB sink.
 - IPC does not stream per-agent/per-trade rich records.
 - IPC is limited to start, progress, cancel, timing, status, error, and final result messages.
+- The boundary is keyed by `runId` so later multi-run scheduling does not require a runner redesign.
 
 ### 2. Implement Isolated Job Execution
 
@@ -967,10 +970,13 @@ Move `startSineHeadlessJob()` execution into the isolated runner while preservin
 Exit gates:
 
 - One-active-run behavior remains enforced.
+- Active job state is managed through a `runId`-keyed handle/facade, even while the active limit remains `1`.
 - Cancel requests reach the isolated runner.
+- Cancel, progress, status, error, and completion messages are routed by `runId`.
 - Worker/process failure marks the run failed.
 - Progress, checkpoint, timing, status, and completion data remain available.
 - Existing headless routes preserve response shapes.
+- Existing `/api/sine/headless/runs/active` behavior remains backward-compatible.
 
 ### 3. Verify Persistence And Failure Semantics
 
@@ -983,6 +989,7 @@ Exit gates:
 - Cancelled runs are marked cancelled.
 - Completion, market-end, and extinction statuses remain correct.
 - No production schema migration is introduced.
+- Same-seed isolated and non-isolated runs match under strict digest, excluding timing and wall-clock fields.
 
 ### 4. Benchmark Responsiveness
 
@@ -1002,11 +1009,132 @@ Exit gates:
 - API responsiveness improves during active runs.
 - Simulation results remain exactly deterministic.
 - Headless architecture remains one engine plus one isolated execution boundary.
+- The job manager is ready for a future active-job registry without exposing runner internals.
+- One-active-run behavior remains intact until the parallel scheduler milestone changes it explicitly.
 - A milestone report separates responsiveness gain from raw speed gain.
 
-## Milestone 12: Final Benchmark And Native/WASM Decision Gate
+## Milestone 12: Concurrency-Limited Headless Scheduler
 
-Goal: quantify the total speedup and decide whether any deeper native/WASM work is justified.
+Goal: allow multiple isolated headless runs to execute concurrently, with deterministic per-run results and bounded resource usage.
+
+This milestone improves total experiment throughput and user workflow. It is not expected to make each individual run faster. Individual runs may become slower when competing for CPU, memory bandwidth, or SQLite writes, so this milestone must report per-run speed and aggregate throughput separately.
+
+Do not add unbounded queueing in this milestone. Starting a run either succeeds under the configured active-run capacity or returns a clear capacity error.
+
+### 1. Define Concurrency Policy
+
+Centralize the active-run capacity policy.
+
+Suggested starting policy:
+
+- default max concurrent runs: `2`
+- configurable through an environment variable such as `SINE_HEADLESS_MAX_CONCURRENT_RUNS`
+- hard minimum: `1`
+
+Exit gates:
+
+- Max concurrent headless runs is defined in one module.
+- Setting max concurrency to `1` restores the current one-active-run behavior.
+- Capacity-full starts return a clear `409` response.
+- The capacity policy is not duplicated in routes, UI components, and job-manager internals.
+- No unbounded queue is introduced.
+
+### 2. Replace Singleton Active Job State With A Registry
+
+Replace the current singleton active-job model with a registry keyed by `runId`.
+
+Each active job handle should own:
+
+- run id
+- status
+- progress
+- timing
+- cancel state
+- isolated worker/process handle
+- latest checkpoint
+- error/final result
+
+Exit gates:
+
+- `activeJob` is replaced by a `Map<runId, jobHandle>` or equivalent registry.
+- `start`, `cancel`, `get`, and `listActive` all go through one job-manager API.
+- Completed, cancelled, and failed handles are cleaned up by one documented lifecycle rule.
+- Cancelling one run cannot affect another active run.
+- Existing persisted-run lookup still works after active lookup misses.
+
+### 3. Add Multi-Active API While Preserving Old API
+
+Keep the existing active-run endpoint backward-compatible and add a multi-active endpoint.
+
+Exit gates:
+
+- `/api/sine/headless/runs/active` keeps its existing response shape.
+- A new endpoint returns all active jobs.
+- Client API types include the active-list response.
+- Tests cover zero, one, and two active jobs.
+- Route logic reuses the same job-manager API instead of duplicating active-job lookup.
+
+### 4. Run Multiple Isolated Jobs Concurrently
+
+Allow starts while active count is below the configured capacity.
+
+Exit gates:
+
+- Two runs with different `runId`s can execute at the same time.
+- Same-seed run digest is unchanged whether the run executes alone or beside another independent run.
+- Parity comparison excludes timestamps, timing fields, and global SQLite autoincrement ids.
+- Failure in one isolated worker/process marks only that run failed.
+- Cancel remains chunk-boundary based and documented.
+
+### 5. Harden SQLite Concurrency
+
+Validate the shared headless DB write path under concurrent runs.
+
+Exit gates:
+
+- Each isolated run owns its own repository and SQLite connection.
+- Concurrent writes do not cross-contaminate `run_id` data.
+- SQLite lock behavior is tested under at least two active writers.
+- Busy-timeout or retry behavior is explicit if needed.
+- DB write timing is reported during concurrent runs.
+
+### 6. Update Runs UI For Multiple Active Runs
+
+Show multiple active runs without duplicating single-run UI logic.
+
+Exit gates:
+
+- Multiple active progress cards render cleanly.
+- Each card has independent cancel.
+- Capacity-full state is visible.
+- Completed runs appear in persisted run browsing normally.
+- Single-run UX still works.
+
+### 7. Benchmark Concurrent Run Throughput
+
+Compare one active run against two concurrent runs.
+
+Exit gates:
+
+- Report includes per-run wall time.
+- Report includes aggregate ticks/sec across active runs.
+- Report includes API p95 latency during concurrent runs.
+- Report includes DB write time and cancel latency.
+- The default concurrency recommendation is justified by measured data.
+
+## Milestone 12 Exit Gates
+
+- Multiple headless runs can run concurrently.
+- Each run remains deterministic and isolated.
+- Cancelling or failing one run does not corrupt or stop other runs.
+- The UI can monitor all active runs.
+- SQLite persistence remains correct under concurrent writes.
+- Default concurrency is conservative and configurable.
+- A milestone report separates aggregate experiment throughput from individual run speed.
+
+## Milestone 13: Final Benchmark, Hot-Path Discovery, And Native/WASM Decision Gate
+
+Goal: quantify the total speedup, identify the next realistic speedup targets, and decide whether any deeper native/WASM work is justified.
 
 ### 1. Run Full Post-Plan Benchmark Suite
 
@@ -1036,10 +1164,25 @@ Exit gates:
 
 Use the remaining top phases to choose the next plan, if needed. Native/WASM is only plausible if the remaining dominant cost is now a narrow compact numeric kernel with cheap inputs and outputs.
 
+Before recommending native/WASM, explicitly reassess whether more ordinary TypeScript/runtime simplification can still reduce the measured bottlenecks.
+
+Required reassessment targets:
+
+- market input/context construction
+- learned-state decay and learned-state access
+- food/trade resolution
+- food/trade retention and trimming
+- brain plan lookup and effective value access
+- trace capture/materialization
+- public DTO/materialization boundaries
+- headless recorder and persistence write overhead
+- UI/worker packet payload overhead, if Lab runtime is still slow
+
 Candidate future directions:
 
+- another JS/runtime simplification plan for the remaining top measured phases
 - WASM/Rust/native prototype for the compact brain kernel
-- Node worker-thread or child-process whole-run isolation if responsiveness remains unresolved
+- further headless scheduler tuning if concurrent runs improve aggregate throughput but contention is too high
 - Shared-buffer or native batch evaluation only if cross-boundary costs are measurable and bounded
 - further JS kernel tuning if object materialization remains the bottleneck
 
@@ -1047,18 +1190,21 @@ Exit gates:
 
 - Remaining top bottlenecks are documented.
 - Actual speedup is quantified by scenario.
+- Remaining market-input, learned-state, food-resolution, trace, DTO/materialization, recorder, and persistence costs are each classified as already optimized, still actionable, or not worth pursuing.
+- Any recommended next speedup target includes a concrete expected mechanism and functional-parity risk.
 - Any future WASM/native recommendation is tied to a specific measured compact kernel.
 - The expected boundary payload for native/WASM is small enough to plausibly beat JS.
 - Exact parity risks from JS number semantics versus native/WASM arithmetic are documented.
 - No broad rewrite is recommended without evidence.
 - The next implementation target, if any, is concrete enough to plan without another broad audit.
 
-## Milestone 12 Exit Gates
+## Milestone 13 Exit Gates
 
 - The actual speedup is known.
 - Exact deterministic parity is preserved.
 - The plan's raw-speed and responsiveness gains are separated.
 - The remaining bottleneck profile is clear.
+- The next ordinary JS/runtime speedup targets are identified or explicitly rejected.
 - The next frontier is either deferred or converted into a focused plan.
 
 ## Expected Outcome

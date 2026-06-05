@@ -1,5 +1,5 @@
 import { HistorySummaryItem } from "./HistoryUi";
-import { HistogramBars } from "./RunDiagnosticsUi";
+import { HistogramBars } from "./DistributionViews";
 import { SineHelpTooltip } from "../SineHelpTooltip";
 import type { SineSessionAnalysis, SineSessionDiagnostics } from "./sineHistoryTypes";
 
@@ -60,7 +60,7 @@ export function comparisonMetrics(analysis: SineSessionAnalysis, formatNumber: (
     { label: "Median Sharpe >=50", value: sharpe50?.sharpeSummary.median ?? 0, format: formatNumber, higherBetter: true },
     { label: "Sharpe >0.75 >=50", value: sharpe50?.agentsAboveSharpe075 ?? 0, format: formatNumber, higherBetter: true },
     { label: "Top lineage pop share", value: diagnostics.populationStructure.topLineagePopulationShare, format: formatPercent, higherBetter: false },
-    { label: "Top lineage payoff share", value: diagnostics.populationStructure.topLineagePayoffShare, format: formatPercent, higherBetter: false },
+    { label: "Top winning lineage contribution", value: diagnostics.populationStructure.topLineagePayoffShare, format: formatPercent, higherBetter: false },
   ];
 }
 

@@ -1,6 +1,7 @@
 import type { SineSessionAnalysis } from "./sineHistoryTypes";
 import { shortSessionId } from "./HistoryUi";
-import { DiagnosticsPanel, formatNumber, formatPercent } from "./RunDiagnosticsUi";
+import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { formatNumber, formatPercent } from "./diagnosticFormatters";
 import { comparisonMetrics, winnerLabel } from "./RunDiagnosticsShared";
 
 export function RunComparisonPanel({ primary, comparison }: { primary: SineSessionAnalysis; comparison: SineSessionAnalysis }) {

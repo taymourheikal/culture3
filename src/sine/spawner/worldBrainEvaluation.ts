@@ -5,12 +5,13 @@ import {
   materializeBrainRuntimeEvaluation,
   type BrainRuntimeEvaluation,
 } from "./brain";
-import { ensureCompiledBrainPlan, type CompiledBrainPlan } from "./brainPlan";
+import type { CompiledBrainPlan } from "./brainPlan";
 import { createPlanAlignedLearnedStateView, type PlanAlignedLearnedStateView } from "./learnedStateView";
 import type { MarketFeatureInstrumentation } from "./marketFeatureContext";
 import { clamp } from "./math";
 import type { createMarketInputResolver } from "./marketInputs";
 import { populationRoomRatio } from "./reproductionPressure";
+import { createSpawnerRuntimeContext, type SpawnerRuntimeContext } from "./spawnerRuntimeContext";
 import type { SpawnerAgent, SpawnerLearnedState, SpawnerWorld } from "./types";
 import type { BrainEvaluationJob, BrainEvaluationResult, BrainEvaluationRunner } from "../protocol/brainEvalProtocol";
 
@@ -85,10 +86,10 @@ export type SpawnerEvaluationResult = BrainEvaluationResult | RuntimeBrainEvalua
 export function buildSpawnerEvaluationFrame(
   world: SpawnerWorld,
   marketInputResolver: ReturnType<typeof createMarketInputResolver>,
-  plansBySpawnerId: Map<number, CompiledBrainPlan> = new Map(),
+  runtimeContext: SpawnerRuntimeContext = createSpawnerRuntimeContext(world.spawners),
   options: SpawnerAdvanceOptions = {},
 ) {
-  const spawners = world.spawners.slice();
+  const spawners = runtimeContext.spawners;
   const frame: SpawnerEvaluationFrame = {
     sessionId: options.sessionId ?? 0,
     runGeneration: options.runGeneration ?? 0,
@@ -98,7 +99,7 @@ export function buildSpawnerEvaluationFrame(
     spawners,
     spawnerIds: new Array(spawners.length),
     indexes: new Array(spawners.length),
-    plans: new Array(spawners.length),
+    plans: runtimeContext.plans,
     inputs: new Array(spawners.length),
     hiddenStates: new Array(spawners.length),
     learnedStates: new Array(spawners.length),
@@ -107,10 +108,10 @@ export function buildSpawnerEvaluationFrame(
   for (let index = 0; index < spawners.length; index += 1) {
     const spawner = spawners[index];
     if (!spawner) continue;
-    const plan = plansBySpawnerId.get(spawner.id) ?? ensureCompiledBrainPlan(spawner.genome);
+    const plan = runtimeContext.plans[index];
+    if (!plan) throw new Error(`Missing compiled brain plan at evaluation frame index ${index}`);
     frame.indexes[index] = index;
     frame.spawnerIds[index] = spawner.id;
-    frame.plans[index] = plan;
     frame.inputs[index] = buildSpawnerInputs(world, spawner, marketInputResolver, options);
     frame.hiddenStates[index] = spawner.hiddenState;
     frame.learnedStates[index] = spawner.learnedState;

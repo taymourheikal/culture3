@@ -16,12 +16,13 @@ import type { SpawnerPerception } from "./types";
 
 export const MARKET_FEATURE_INPUT_COUNT = 18;
 
-export type MarketFeatureContext = ReturnType<typeof createMarketFeatureContext>;
+export type MarketFeatureFrame = ReturnType<typeof createMarketFeatureFrame>;
+export type MarketFeatureContext = MarketFeatureFrame;
 export type MarketFeatureInstrumentation = {
   recordFeaturePhase(phase: string, ms: number): void;
 };
 
-export function createMarketFeatureContext(timeline: MarketTimeline, tick: number, instrumentation?: MarketFeatureInstrumentation) {
+export function createMarketFeatureFrame(timeline: MarketTimeline, tick: number, instrumentation?: MarketFeatureInstrumentation) {
   const sampleAtTick = createTimelineSampleResolver(timeline);
   const localStatsCache = new Map<string, LocalSignalScaleStats>();
   const signalHistoryCache = new Map<string, Array<{ tick: number; value: number }>>();
@@ -138,6 +139,8 @@ export function createMarketFeatureContext(timeline: MarketTimeline, tick: numbe
     ];
   }
 }
+
+export const createMarketFeatureContext = createMarketFeatureFrame;
 
 function timeFeature<T>(instrumentation: MarketFeatureInstrumentation | undefined, phase: string, read: () => T): T {
   if (!instrumentation) return read();

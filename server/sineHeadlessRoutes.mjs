@@ -3,6 +3,8 @@ import {
   getActiveSineHeadlessJob,
   getLatestSineHeadlessRun,
   getSineHeadlessJob,
+  getSineHeadlessJobCapacity,
+  listActiveSineHeadlessJobs,
   sanitizeSineHeadlessJobOptions,
   startSineHeadlessJob,
 } from "./sineHeadlessJobs.mjs";
@@ -12,6 +14,11 @@ import { createSineHeadlessRepository } from "./sineHeadlessRepository.mjs";
 export async function routeSineHeadlessRequest({ req, res, url, readBody, sendJson, notFound }) {
   if (req.method === "GET" && url.pathname === "/api/sine/headless/runs/active") {
     sendJson(res, 200, { ok: true, job: getActiveSineHeadlessJob() });
+    return true;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/sine/headless/runs/active-list") {
+    sendJson(res, 200, { ok: true, jobs: listActiveSineHeadlessJobs(), ...getSineHeadlessJobCapacity() });
     return true;
   }
 

@@ -59,6 +59,7 @@ export function SineLabView({
   const [sidebarMode, setSidebarMode] = useState<"market" | "spawners">("market");
   const {
     latestChartPacketRef,
+    chartRevision,
     hasChartPacket,
     stats,
     roster,
@@ -107,6 +108,9 @@ export function SineLabView({
     selectedSpawnerIdRef,
     strategyMapViewOptions,
     strategyMapViewKey,
+    chartRevision,
+    runState,
+    selectedSpawnerId,
     lastCanvasDrawRef,
   });
   useLiveSpawnerInspector(requestSpawnerInspection);

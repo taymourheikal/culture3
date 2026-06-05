@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { INITIAL_SETTINGS } from "../../src/sine/marketSignal";
 import { INITIAL_MARKET_RUNTIME_CONFIG } from "../../src/sine/marketRuntimeConfig";
-import { MARKET_WORKER_COMMAND_TYPES, type MarketWorkerMessage } from "../../src/sine/marketWorkerProtocol";
+import { MARKET_WORKER_COMMAND_TYPES, type MarketRunState, type MarketWorkerMessage } from "../../src/sine/marketWorkerProtocol";
 import { connectionDetailRows, connectionRowClass, connectionRowParts, graphConnectionStyle } from "../../src/sine/architectureConnectionPresentation";
 import { createInspectionRequestStore } from "../../src/sine/hooks/inspectionRequestStore";
 import { DEFAULT_SPAWNER_CONFIG, type ConnectionGene } from "../../src/sine/spawnerSimulation";
@@ -164,6 +164,14 @@ function testWorkerSessionPauseStopInvalidateInFlightAdvance() {
   const source = readFileSync("src/sine/worker/marketWorkerSession.ts", "utf8");
   assert.match(source, /pause:[\s\S]*?setRunState\("paused"\);[\s\S]*?invalidateInFlightAdvance\(\);[\s\S]*?packetPoster\.postAllPackets\(true\);/);
   assert.match(source, /stop:[\s\S]*?setRunState\("stopped"\);[\s\S]*?invalidateInFlightAdvance\(\);[\s\S]*?packetPoster\.postAllPackets\(true\);/);
+}
+
+function testWorkerSessionPlaybackEndUsesExistingStopPath() {
+  const source = readFileSync("src/sine/worker/marketWorkerSession.ts", "utf8");
+  assert.match(source, /targetTick = cappedTargetTickForPlaybackEnd\(targetTick\);/);
+  assert.match(source, /\(simulation\.timeline\.candleEndReached \|\| result\.playbackEndReached\)[\s\S]*?setRunState\("stopped"\);/);
+  assert.match(source, /runStartTick = simulation\.world\.tick;/);
+  assert.match(source, /function playbackEndReachedForActiveRun\(\)[\s\S]*?playbackEndReached\(/);
 }
 
 function testInspectionRequestStoreRejectsPendingRequests() {
@@ -397,6 +405,86 @@ function testPacketBatchPreparesUniquenessBeforeChartWindow() {
   assert.equal(roster.spawners.find((spawner) => spawner.id === child.id)?.uniquenessComparisonTick, 100);
 }
 
+function testPausedUiPacketsDoNotRepeatWhenUnchanged() {
+  const fixture = createPacketPosterFixture("paused");
+  fixture.packetPoster.postUiPackets(true);
+  const initialCounts = messageCounts(fixture.messages);
+  assert.equal(initialCounts.chart, 1);
+  assert.equal(initialCounts.roster, 1);
+  assert.equal(initialCounts.stats, 1);
+  assert.equal(fixture.prepareCount(), 1);
+
+  fixture.packetPoster.postUiPackets(false);
+  fixture.packetPoster.postUiPackets(false);
+
+  const counts = messageCounts(fixture.messages);
+  assert.equal(counts.chart, 1);
+  assert.equal(counts.roster, 1);
+  assert.equal(counts.stats, 1);
+  assert.equal(fixture.prepareCount(), 1);
+}
+
+function testRunningUiPacketsPreserveSchedulerCadence() {
+  const fixture = createPacketPosterFixture("running");
+  fixture.packetPoster.postUiPackets(true);
+  fixture.messages.length = 0;
+  fixture.packetScheduler.retryNow("chart");
+
+  fixture.packetPoster.postUiPackets(false);
+
+  const counts = messageCounts(fixture.messages);
+  assert.equal(counts.chart, 1);
+  assert.equal(counts.roster ?? 0, 0);
+  assert.equal(counts.stats ?? 0, 0);
+}
+
+function testForcedUiPacketsStillPostAllUiFamilies() {
+  const fixture = createPacketPosterFixture("paused");
+  fixture.packetPoster.postUiPackets(true);
+  fixture.messages.length = 0;
+
+  fixture.packetPoster.postUiPackets(true);
+
+  const counts = messageCounts(fixture.messages);
+  assert.equal(counts.chart, 1);
+  assert.equal(counts.roster, 1);
+  assert.equal(counts.stats, 1);
+}
+
+function testPersistenceCanPostWhilePausedUiIsSuppressed() {
+  const fixture = createPacketPosterFixture("paused", { persistentSessionId: "paused-persist-test" });
+  fixture.persistenceOutbox.captureInitialSpawners(fixture.simulation);
+  fixture.packetPoster.postUiPackets(true);
+  fixture.messages.length = 0;
+
+  fixture.packetPoster.postUiPackets(false);
+  fixture.packetPoster.postPersistencePacket(true);
+
+  const counts = messageCounts(fixture.messages);
+  assert.equal(counts.chart ?? 0, 0);
+  assert.equal(counts.roster ?? 0, 0);
+  assert.equal(counts.stats ?? 0, 0);
+  assert.equal(counts.persistence, 1);
+}
+
+function testPausedStatsUpdateWhenOutboxDiagnosticsChange() {
+  const fixture = createPacketPosterFixture("paused");
+  fixture.packetPoster.postUiPackets(true);
+  fixture.messages.length = 0;
+  const spawner = fixture.simulation.world.spawners[0];
+  assert.ok(spawner);
+
+  fixture.persistenceOutbox.enqueueEvent({ id: 9001, kind: "spawn", tick: 1, spawnerId: spawner.id, lineageId: spawner.lineageId });
+  fixture.packetPoster.postUiPackets(false);
+
+  const counts = messageCounts(fixture.messages);
+  assert.equal(counts.chart ?? 0, 0);
+  assert.equal(counts.roster ?? 0, 0);
+  assert.equal(counts.stats, 1);
+  const stats = fixture.messages.find((message): message is Extract<MarketWorkerMessage, { type: "stats" }> => message.type === "stats")?.packet;
+  assert.equal(stats?.persistenceOutbox.pendingEvents, 1);
+}
+
 function connectionFixture(patch: Partial<ConnectionGene>): ConnectionGene {
   return {
     innovationId: 1,
@@ -454,6 +542,72 @@ function rosterFixture(patch: Partial<RosterSpawnerSummary>): RosterSpawnerSumma
   };
 }
 
+function createPacketPosterFixture(
+  runState: MarketRunState,
+  options: { persistentSessionId?: string | null } = {},
+) {
+  const simulation = createSimulationState(INITIAL_MARKET_RUNTIME_CONFIG, {
+    ...DEFAULT_SPAWNER_CONFIG,
+    initialSpawners: 1,
+    maxSpawners: 10,
+  });
+  const messages: MarketWorkerMessage[] = [];
+  let packetSizes = {};
+  let prepareCount = 0;
+  const packetScheduler = createPacketScheduler();
+  const persistenceOutbox = createPersistenceOutbox();
+  const strategyMap = createStrategyMapService();
+  const originalPrepare = strategyMap.prepare;
+  strategyMap.prepare = (nextSimulation, force) => {
+    prepareCount += 1;
+    return originalPrepare(nextSimulation, force);
+  };
+  const packetPoster = createWorkerPacketPoster({
+    postMessage: (message) => messages.push(message),
+    getState: () => ({
+      sessionId: 41,
+      simulation,
+      version: 7,
+      targetTick: simulation.world.tick,
+      settings: INITIAL_SETTINGS,
+      activeMarketConfig: INITIAL_MARKET_RUNTIME_CONFIG,
+      pendingMarketConfig: INITIAL_MARKET_RUNTIME_CONFIG,
+      activeSpawnerConfig: simulation.world.config,
+      pendingSpawnerConfig: simulation.world.config,
+      runState,
+      persistentSessionId: options.persistentSessionId ?? null,
+      backlogTicks: 0,
+      selectedSpawnerId: null,
+      brainEvalMode: "sync",
+    }),
+    getPacketSizes: () => packetSizes,
+    setPacketSizes: (nextPacketSizes) => {
+      packetSizes = nextPacketSizes;
+    },
+    packetScheduler,
+    persistenceOutbox,
+    uniquenessRuntime: createUniquenessRuntimeService({ onDetailedScore: () => undefined }),
+    strategyMap,
+    selectedSpawnerTimeline: createSelectedSpawnerTimelineService(),
+  });
+
+  return {
+    simulation,
+    messages,
+    packetScheduler,
+    persistenceOutbox,
+    packetPoster,
+    prepareCount: () => prepareCount,
+  };
+}
+
+function messageCounts(messages: MarketWorkerMessage[]) {
+  return messages.reduce((counts, message) => {
+    counts[message.type] = (counts[message.type] ?? 0) + 1;
+    return counts;
+  }, {} as Partial<Record<MarketWorkerMessage["type"], number>>);
+}
+
 export const tests: SineTest[] = [
   { name: "Worker Commands Build Exact Payloads", run: testWorkerCommandsBuildExactPayloads },
   { name: "Worker Command Builders Cover Protocol Commands", run: testWorkerCommandBuildersCoverProtocolCommands },
@@ -461,10 +615,16 @@ export const tests: SineTest[] = [
   { name: "Worker Message Router Ignores Stale Sessions", run: testWorkerMessageRouterIgnoresStaleSessions },
   { name: "Worker Command Dispatch Preserves Session Rules", run: testWorkerCommandDispatchPreservesSessionRules },
   { name: "Worker Session Pause Stop Invalidate In Flight Advance", run: testWorkerSessionPauseStopInvalidateInFlightAdvance },
+  { name: "Worker Session Playback End Uses Existing Stop Path", run: testWorkerSessionPlaybackEndUsesExistingStopPath },
   { name: "Inspection Request Store Rejects Pending Requests", run: testInspectionRequestStoreRejectsPendingRequests },
   { name: "Architecture Connection Presentation Matches Current Formatting", run: testArchitectureConnectionPresentationMatchesCurrentFormatting },
   { name: "Reproduction Requirement Meter Uses Configured Maximum Pressure", run: testReproductionRequirementMeterUsesConfiguredMaximumPressure },
   { name: "Roster View Sorts And Filters Visible Packet Without Mutation", run: testRosterViewSortsAndFiltersVisiblePacketWithoutMutation },
   { name: "Visible Population Composition Uses Visible Roster Only", run: testVisiblePopulationCompositionUsesVisibleRosterOnly },
   { name: "Packet Batch Prepares Uniqueness Before Chart Window", run: testPacketBatchPreparesUniquenessBeforeChartWindow },
+  { name: "Paused UI Packets Do Not Repeat When Unchanged", run: testPausedUiPacketsDoNotRepeatWhenUnchanged },
+  { name: "Running UI Packets Preserve Scheduler Cadence", run: testRunningUiPacketsPreserveSchedulerCadence },
+  { name: "Forced UI Packets Still Post All UI Families", run: testForcedUiPacketsStillPostAllUiFamilies },
+  { name: "Persistence Can Post While Paused UI Is Suppressed", run: testPersistenceCanPostWhilePausedUiIsSuppressed },
+  { name: "Paused Stats Update When Outbox Diagnostics Change", run: testPausedStatsUpdateWhenOutboxDiagnosticsChange },
 ];

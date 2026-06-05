@@ -249,6 +249,7 @@ export function SineHistoricalInspector({
                 </span>
               </div>
               {comparisonAnalysis ? <RunComparisonPanel primary={analysis} comparison={comparisonAnalysis} /> : null}
+              <HeadlessReconstructionAvailability session={sessions.find((session) => session.id === analysis.session.id) ?? null} />
               <RunDiagnosticsDashboard analysis={analysis} />
             </>
           ) : (
@@ -272,6 +273,32 @@ export function SineHistoricalInspector({
           </section>
         </div>
       </div>
+    </section>
+  );
+}
+
+function HeadlessReconstructionAvailability({ session }: { session: SineSessionSummary | null }) {
+  if (!session || session.runMode !== "headless") return null;
+  const reconstructableAgents = session.reconstructableAgents ?? 0;
+  const reconstructionSnapshots = session.reconstructionSnapshots ?? 0;
+  const eligibleAgents = session.eligibleAgents ?? 0;
+  return (
+    <section className="sine-workbench-panel">
+      <div className="sine-workbench-panel-head">
+        <div>
+          <span className="sine-eyebrow">Seed-bank reconstruction</span>
+          <h2>Reconstructable Agents</h2>
+        </div>
+        <strong>{reconstructableAgents.toLocaleString()} agents</strong>
+      </div>
+      {reconstructableAgents > 0 ? (
+        <div className="sine-history-summary">
+          <span className="sine-history-summary-label">Snapshot availability</span>
+          <strong>{reconstructionSnapshots.toLocaleString()} snapshots · {eligibleAgents.toLocaleString()} eligible agents</strong>
+        </div>
+      ) : (
+        <div className="sine-history-empty">This headless run has no seed-bank reconstruction snapshots.</div>
+      )}
     </section>
   );
 }

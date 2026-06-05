@@ -1,5 +1,7 @@
 import type { SineSessionDiagnostics } from "./sineHistoryTypes";
-import { DiagnosticsPanel, MiniSeriesChart, formatNumber } from "./RunDiagnosticsUi";
+import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { MiniSeriesChart } from "./MiniCharts";
+import { formatNumber } from "./diagnosticFormatters";
 import { SummaryMetricGrid } from "./RunDiagnosticsShared";
 import { RUN_DIAGNOSTIC_HELP } from "../sineMetricHelp";
 

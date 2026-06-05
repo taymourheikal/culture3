@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { buildSinePersistencePacket } from "../../src/sine/persistence/buildSinePersistencePacket";
 import { INITIAL_SETTINGS } from "../../src/sine/marketSignal";
-import { MARKET_TIME_MODEL } from "../../src/sine/marketRuntimeConfig";
+import { INITIAL_PLAYBACK_SETTINGS, MARKET_TIME_MODEL } from "../../src/sine/marketRuntimeConfig";
 import { DEFAULT_SPAWNER_CONFIG, computeSpawnerUniqueness, type SpawnerEvent, type SpawnerFood } from "../../src/sine/spawnerSimulation";
 import { createSimulationState } from "../../src/sine/simulationRuntime";
 import type { SineTest } from "./helpers";
@@ -84,7 +84,7 @@ function testPersistencePacketBuilderMapsAllRowFamilies() {
       source: "btcusd_5m",
       timeModel: MARKET_TIME_MODEL,
       generated: INITIAL_SETTINGS,
-      playback: { rocLengthBars: 50, startDateTime: "2021-01-01T00:00", barsPerSecond: 30, generatedTicksPerSecond: 5 },
+      playback: { ...INITIAL_PLAYBACK_SETTINGS, rocLengthBars: 50, startDateTime: "2021-01-01T00:00", barsPerSecond: 30, generatedTicksPerSecond: 5 },
     },
     spawnerConfig: DEFAULT_SPAWNER_CONFIG,
     events,

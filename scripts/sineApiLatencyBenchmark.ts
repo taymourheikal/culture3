@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { HEADLESS_INTERACTIVE_CHUNK_TICKS } from "../src/sine/headless/chunkPolicy";
+import { parseFlagArgs, readIntegerOption, round } from "./sine-benchmark/cli";
+import { summarizeSamples } from "./sine-benchmark/timing";
 
 type CliOptions = {
   baseUrl: string;
@@ -40,10 +43,10 @@ console.log(
       baseUrl,
       dbIsolation: {
         benchmarkInstrumentationEnabled: !!initialBenchmark?.enabled,
-        headlessDbPath: initialBenchmark?.headlessDbPath ?? finalBenchmark?.headlessDbPath ?? null,
+        toyMarketDbPath: initialBenchmark?.toyMarketDbPath ?? finalBenchmark?.toyMarketDbPath ?? null,
         productionDbWarning: initialBenchmark?.enabled
           ? null
-          : "Server benchmark instrumentation is disabled; if this server uses the default DB, benchmark runs were written to the production headless DB.",
+          : "Server benchmark instrumentation is disabled; if this server uses the default DB, benchmark runs were written to the production Toy Market DB.",
       },
       settings: {
         ticks: options.ticks,
@@ -225,19 +228,6 @@ function summarizeLatencies(latencies: Map<string, LatencyBucket>) {
   return Object.fromEntries([...latencies.entries()].map(([key, bucket]) => [key, summarizeSamples(bucket.samples)]));
 }
 
-function summarizeSamples(samples: number[]) {
-  const sorted = [...samples].sort((left, right) => left - right);
-  const total = sorted.reduce((sum, value) => sum + value, 0);
-  return {
-    sampleCount: sorted.length,
-    totalMs: round(total),
-    averageMs: round(total / Math.max(1, sorted.length)),
-    p50Ms: round(percentile(sorted, 0.5)),
-    p95Ms: round(percentile(sorted, 0.95)),
-    maxMs: round(sorted.at(-1) ?? 0),
-  };
-}
-
 function recordLatency(latencies: Map<string, LatencyBucket>, label: string, ms: number) {
   const bucket = latencies.get(label) ?? { samples: [] };
   bucket.samples.push(ms);
@@ -245,47 +235,22 @@ function recordLatency(latencies: Map<string, LatencyBucket>, label: string, ms:
 }
 
 function parseArgs(args: string[]): CliOptions {
-  const values = new Map<string, string>();
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index] ?? "";
-    if (!token.startsWith("--")) throw new Error(`Unexpected argument ${token}`);
-    const key = token.slice(2);
-    const next = args[index + 1];
-    if (!next || next.startsWith("--")) throw new Error(`Missing value for --${key}`);
-    values.set(key, next);
-    index += 1;
-  }
-  const initialSpawners = readInteger(values.get("initial-spawners") ?? "100", "--initial-spawners", 1);
+  const values = parseFlagArgs(args);
+  const initialSpawners = readIntegerOption(values, "initial-spawners", 100, 1);
   return {
     baseUrl: values.get("base-url") ?? "http://127.0.0.1:8787",
-    ticks: readInteger(values.get("ticks") ?? "500", "--ticks", 1),
-    seed: readInteger(values.get("seed") ?? "101", "--seed", 0),
+    ticks: readIntegerOption(values, "ticks", 500, 1),
+    seed: readIntegerOption(values, "seed", 101, 0),
     initialSpawners,
-    maxSpawners: readInteger(values.get("max-spawners") ?? String(initialSpawners), "--max-spawners", 1),
-    chunkTicks: readInteger(values.get("chunk-ticks") ?? "25", "--chunk-ticks", 1),
-    checkpointIntervalTicks: readInteger(values.get("checkpoint-interval-ticks") ?? "100", "--checkpoint-interval-ticks", 1),
-    minimumResolvedTrades: readInteger(values.get("minimum-resolved-trades") ?? "1", "--minimum-resolved-trades", 0),
-    pollIntervalMs: readInteger(values.get("poll-interval-ms") ?? "250", "--poll-interval-ms", 1),
-    statusIntervalMs: readInteger(values.get("status-interval-ms") ?? "1000", "--status-interval-ms", 1),
+    maxSpawners: readIntegerOption(values, "max-spawners", initialSpawners, 1),
+    chunkTicks: readIntegerOption(values, "chunk-ticks", HEADLESS_INTERACTIVE_CHUNK_TICKS, 1),
+    checkpointIntervalTicks: readIntegerOption(values, "checkpoint-interval-ticks", 100, 1),
+    minimumResolvedTrades: readIntegerOption(values, "minimum-resolved-trades", 1, 0),
+    pollIntervalMs: readIntegerOption(values, "poll-interval-ms", 250, 1),
+    statusIntervalMs: readIntegerOption(values, "status-interval-ms", 1000, 1),
   };
-}
-
-function percentile(sorted: number[], p: number) {
-  if (sorted.length === 0) return 0;
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * p) - 1));
-  return sorted[index] ?? 0;
-}
-
-function readInteger(value: string, label: string, min: number) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || Math.floor(parsed) < min) throw new Error(`${label} must be an integer >= ${min}`);
-  return Math.floor(parsed);
 }
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function round(value: number) {
-  return Number(value.toFixed(3));
 }

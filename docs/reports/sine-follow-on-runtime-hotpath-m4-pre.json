@@ -1,0 +1,6778 @@
+{
+  "ok": true,
+  "settings": {
+    "ticks": 200,
+    "warmupTicks": 0,
+    "brainWarmupTicks": 50,
+    "brainIterations": 10,
+    "seed": 101,
+    "populations": [
+      100,
+      250,
+      500
+    ],
+    "scenarios": [
+      "baseline",
+      "mostly-waiting",
+      "high-action",
+      "high-reproduction"
+    ]
+  },
+  "results": [
+    {
+      "scenario": "baseline",
+      "population": 100,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 100,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 1287.194,
+      "ticksPerSecond": 155.377,
+      "memory": {
+        "heapUsedDeltaMb": 70.448,
+        "heapTotalDeltaMb": 129.297,
+        "rssDeltaMb": 150.938
+      },
+      "phaseTiming": {
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 491.577,
+          "msPerTick": 2.458,
+          "msPerCall": 2.458,
+          "msPerCount": 0.025,
+          "maxMs": 10.211
+        },
+        "marketInputResolve": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 307.932,
+          "msPerTick": 1.54,
+          "msPerCall": 0.015,
+          "msPerCount": 0.015,
+          "maxMs": 1.675
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 265.094,
+          "msPerTick": 1.325,
+          "msPerCall": 1.325,
+          "msPerCount": 0.013,
+          "maxMs": 2.023
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 230.879,
+          "msPerTick": 1.154,
+          "msPerCall": 1.154,
+          "msPerCount": 0.012,
+          "maxMs": 7.879
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 168.089,
+          "msPerTick": 0.84,
+          "msPerCall": 0.84,
+          "msPerCount": 0.008,
+          "maxMs": 3.335
+        },
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 53.676,
+          "msPerTick": 0.268,
+          "msPerCall": 0.268,
+          "msPerCount": 0.268,
+          "maxMs": 2.703
+        },
+        "decisionTraceCapture": {
+          "calls": 855,
+          "count": 855,
+          "totalMs": 18.867,
+          "msPerTick": 0.094,
+          "msPerCall": 0.022,
+          "msPerCount": 0.022,
+          "maxMs": 0.507
+        },
+        "traceActivationMaterialization": {
+          "calls": 855,
+          "count": 855,
+          "totalMs": 17.065,
+          "msPerTick": 0.085,
+          "msPerCall": 0.02,
+          "msPerCount": 0.02,
+          "maxMs": 0.372
+        },
+        "foodSpawning": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 9.882,
+          "msPerTick": 0.049,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.553
+        },
+        "outputDecoding": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 6.199,
+          "msPerTick": 0.031,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.369
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 6.071,
+          "msPerTick": 0.03,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 2.772
+        },
+        "resultApplication": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 6,
+          "msPerTick": 0.03,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.057
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 4.304,
+          "msPerTick": 0.022,
+          "msPerCall": 0.022,
+          "msPerCount": 0,
+          "maxMs": 0.076
+        },
+        "reproductionAttempt": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 4.303,
+          "msPerTick": 0.022,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.087
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 93482,
+          "totalMs": 1.856,
+          "msPerTick": 0.009,
+          "msPerCall": 0.009,
+          "msPerCount": 0,
+          "maxMs": 0.061
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.751,
+          "msPerTick": 0.009,
+          "msPerCall": 0.009,
+          "msPerCount": 0.009,
+          "maxMs": 0.131
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 1.623,
+          "msPerTick": 0.008,
+          "msPerCall": 0.008,
+          "msPerCount": 0,
+          "maxMs": 0.107
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 1.327,
+          "msPerTick": 0.007,
+          "msPerCall": 0.007,
+          "msPerCount": 0,
+          "maxMs": 0.122
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 1.068,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 0,
+          "maxMs": 0.101
+        },
+        "actionSelection": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 1.034,
+          "msPerTick": 0.005,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.017
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.555,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.003,
+          "maxMs": 0.094
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.446,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.025
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.391,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.391,
+          "maxMs": 0.012
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.339,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.014
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 491.577,
+          "calls": 200,
+          "count": 20000
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 307.932,
+          "calls": 20000,
+          "count": 20000
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 265.094,
+          "calls": 200,
+          "count": 20000
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 230.879,
+          "calls": 200,
+          "count": 20000
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 168.089,
+          "calls": 200,
+          "count": 20000
+        },
+        {
+          "phase": "foodResolution",
+          "totalMs": 53.676,
+          "calls": 200,
+          "count": 200
+        },
+        {
+          "phase": "decisionTraceCapture",
+          "totalMs": 18.867,
+          "calls": 855,
+          "count": 855
+        },
+        {
+          "phase": "traceActivationMaterialization",
+          "totalMs": 17.065,
+          "calls": 855,
+          "count": 855
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 196.736,
+          "msPerTick": 0.984,
+          "msPerCall": 0.01,
+          "msPerCount": 0.01,
+          "maxMs": 1.252
+        },
+        "cycleShape": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 48.085,
+          "msPerTick": 0.24,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 1.231
+        },
+        "trendShape": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 38.565,
+          "msPerTick": 0.193,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.373
+        },
+        "signalHistory": {
+          "calls": 23400,
+          "count": 23400,
+          "totalMs": 17.865,
+          "msPerTick": 0.089,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.4
+        },
+        "localSignalStats": {
+          "calls": 12800,
+          "count": 12800,
+          "totalMs": 17.774,
+          "msPerTick": 0.089,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.079
+        },
+        "volumeRsiInputs": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 11.229,
+          "msPerTick": 0.056,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.08
+        },
+        "rollingDeltas": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 8.58,
+          "msPerTick": 0.043,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.032
+        },
+        "rsiSignal": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 7.907,
+          "msPerTick": 0.04,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.038
+        },
+        "rollingWindowStats": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 4.658,
+          "msPerTick": 0.023,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.04
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 92627,
+          "average": 463.135,
+          "p50": 483,
+          "p95": 814,
+          "max": 854
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 13536,
+          "average": 67.68,
+          "p50": 71,
+          "p95": 86,
+          "max": 90
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 804,
+          "average": 4.02,
+          "p50": 4,
+          "p95": 8,
+          "max": 11
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 36200,
+          "average": 181,
+          "p50": 181,
+          "p95": 181,
+          "max": 181
+        },
+        "spawnedFoodCount": {
+          "samples": 855,
+          "total": 855,
+          "average": 1,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 93482,
+          "average": 467.41,
+          "p50": 487,
+          "p95": 818,
+          "max": 855
+        },
+        "pendingFoodAverageHorizonTicks": {
+          "samples": 199,
+          "total": 3355.195,
+          "average": 16.86,
+          "p50": 16.882,
+          "p95": 17.21,
+          "max": 17.6
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 20000,
+        "firstPassBatches": 200,
+        "firstPassMs": 167.95105299999838,
+        "waitActions": 19145,
+        "longActions": 387,
+        "shortActions": 468,
+        "reproductionTraces": 0,
+        "optimizedTraceMaterializations": 855,
+        "optimizedTraceMaterializationMs": 17.25958799999964,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 855,
+        "firstPassMsPerAgent": 0.008,
+        "optimizedTraceMaterializationMsPerEvaluation": 0.02,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 855,
+        "pending": 51,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 0,
+          "lte25": 51,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "baseline",
+      "population": 250,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 250,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 3037.098,
+      "ticksPerSecond": 65.852,
+      "memory": {
+        "heapUsedDeltaMb": 19.606,
+        "heapTotalDeltaMb": 47.469,
+        "rssDeltaMb": 49.031
+      },
+      "phaseTiming": {
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 1093.027,
+          "msPerTick": 5.465,
+          "msPerCall": 5.465,
+          "msPerCount": 0.022,
+          "maxMs": 8.673
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 705.254,
+          "msPerTick": 3.526,
+          "msPerCall": 3.526,
+          "msPerCount": 0.014,
+          "maxMs": 7.011
+        },
+        "marketInputResolve": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 618.469,
+          "msPerTick": 3.092,
+          "msPerCall": 0.012,
+          "msPerCount": 0.012,
+          "maxMs": 5.101
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 575.443,
+          "msPerTick": 2.877,
+          "msPerCall": 2.877,
+          "msPerCount": 0.012,
+          "maxMs": 13.08
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 405.458,
+          "msPerTick": 2.027,
+          "msPerCall": 2.027,
+          "msPerCount": 0.008,
+          "maxMs": 2.988
+        },
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 104.526,
+          "msPerTick": 0.523,
+          "msPerCall": 0.523,
+          "msPerCount": 0.523,
+          "maxMs": 1.581
+        },
+        "decisionTraceCapture": {
+          "calls": 1892,
+          "count": 1892,
+          "totalMs": 39.809,
+          "msPerTick": 0.199,
+          "msPerCall": 0.021,
+          "msPerCount": 0.021,
+          "maxMs": 0.728
+        },
+        "traceActivationMaterialization": {
+          "calls": 1892,
+          "count": 1892,
+          "totalMs": 36.683,
+          "msPerTick": 0.183,
+          "msPerCall": 0.019,
+          "msPerCount": 0.019,
+          "maxMs": 0.724
+        },
+        "foodSpawning": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 18.932,
+          "msPerTick": 0.095,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.71
+        },
+        "resultApplication": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 15.339,
+          "msPerTick": 0.077,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.678
+        },
+        "outputDecoding": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 9.865,
+          "msPerTick": 0.049,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.029
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 8.595,
+          "msPerTick": 0.043,
+          "msPerCall": 0.043,
+          "msPerCount": 0,
+          "maxMs": 0.084
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 213037,
+          "totalMs": 8.002,
+          "msPerTick": 0.04,
+          "msPerCall": 0.04,
+          "msPerCount": 0,
+          "maxMs": 0.158
+        },
+        "reproductionAttempt": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 4.927,
+          "msPerTick": 0.025,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.033
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 4.893,
+          "msPerTick": 0.024,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.024
+        },
+        "actionSelection": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 2.525,
+          "msPerTick": 0.013,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.026
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.193,
+          "msPerTick": 0.011,
+          "msPerCall": 0.011,
+          "msPerCount": 0.011,
+          "maxMs": 0.018
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 1.888,
+          "msPerTick": 0.009,
+          "msPerCall": 0.009,
+          "msPerCount": 0,
+          "maxMs": 0.039
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 1.642,
+          "msPerTick": 0.008,
+          "msPerCall": 0.008,
+          "msPerCount": 0,
+          "maxMs": 0.042
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 1.268,
+          "msPerTick": 0.006,
+          "msPerCall": 0.006,
+          "msPerCount": 0,
+          "maxMs": 0.034
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.691,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.691,
+          "maxMs": 0.008
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.504,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.003,
+          "maxMs": 0.007
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.491,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.007
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.405,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.007
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 1093.027,
+          "calls": 200,
+          "count": 50000
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 705.254,
+          "calls": 200,
+          "count": 50000
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 618.469,
+          "calls": 50000,
+          "count": 50000
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 575.443,
+          "calls": 200,
+          "count": 50000
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 405.458,
+          "calls": 200,
+          "count": 50000
+        },
+        {
+          "phase": "foodResolution",
+          "totalMs": 104.526,
+          "calls": 200,
+          "count": 200
+        },
+        {
+          "phase": "decisionTraceCapture",
+          "totalMs": 39.809,
+          "calls": 1892,
+          "count": 1892
+        },
+        {
+          "phase": "traceActivationMaterialization",
+          "totalMs": 36.683,
+          "calls": 1892,
+          "count": 1892
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 351.94,
+          "msPerTick": 1.76,
+          "msPerCall": 0.007,
+          "msPerCount": 0.007,
+          "maxMs": 5.096
+        },
+        "cycleShape": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 93.432,
+          "msPerTick": 0.467,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.803
+        },
+        "trendShape": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 47.936,
+          "msPerTick": 0.24,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.552
+        },
+        "localSignalStats": {
+          "calls": 21800,
+          "count": 21800,
+          "totalMs": 23.005,
+          "msPerTick": 0.115,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.574
+        },
+        "volumeRsiInputs": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 22.912,
+          "msPerTick": 0.115,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.05
+        },
+        "signalHistory": {
+          "calls": 33400,
+          "count": 33400,
+          "totalMs": 21.296,
+          "msPerTick": 0.106,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.507
+        },
+        "rollingDeltas": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 17.544,
+          "msPerTick": 0.088,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.03
+        },
+        "rsiSignal": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 16.579,
+          "msPerTick": 0.083,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.048
+        },
+        "rollingWindowStats": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 14.709,
+          "msPerTick": 0.074,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 5.065
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 211145,
+          "average": 1055.725,
+          "p50": 1110,
+          "p95": 1816,
+          "max": 1890
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 29800,
+          "average": 149,
+          "p50": 150,
+          "p95": 201,
+          "max": 206
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 1786,
+          "average": 8.93,
+          "p50": 9,
+          "p95": 15,
+          "max": 21
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 55200,
+          "average": 276,
+          "p50": 276,
+          "p95": 276,
+          "max": 276
+        },
+        "spawnedFoodCount": {
+          "samples": 1892,
+          "total": 1892,
+          "average": 1,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 213037,
+          "average": 1065.185,
+          "p50": 1122,
+          "p95": 1825,
+          "max": 1892
+        },
+        "pendingFoodAverageHorizonTicks": {
+          "samples": 199,
+          "total": 3318.065,
+          "average": 16.674,
+          "p50": 16.636,
+          "p95": 17.034,
+          "max": 17.171
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 50000,
+        "firstPassBatches": 200,
+        "firstPassMs": 405.264036000003,
+        "waitActions": 48108,
+        "longActions": 742,
+        "shortActions": 1150,
+        "reproductionTraces": 0,
+        "optimizedTraceMaterializations": 1892,
+        "optimizedTraceMaterializationMs": 37.09301300000948,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 1892,
+        "firstPassMsPerAgent": 0.008,
+        "optimizedTraceMaterializationMsPerEvaluation": 0.02,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 1892,
+        "pending": 106,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 0,
+          "lte25": 106,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "baseline",
+      "population": 500,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 500,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 6321.186,
+      "ticksPerSecond": 31.64,
+      "memory": {
+        "heapUsedDeltaMb": 72.303,
+        "heapTotalDeltaMb": 101.328,
+        "rssDeltaMb": 108.844
+      },
+      "phaseTiming": {
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 2186.951,
+          "msPerTick": 10.935,
+          "msPerCall": 10.935,
+          "msPerCount": 0.022,
+          "maxMs": 13.115
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 1501.69,
+          "msPerTick": 7.508,
+          "msPerCall": 7.508,
+          "msPerCount": 0.015,
+          "maxMs": 16.412
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 1224.369,
+          "msPerTick": 6.122,
+          "msPerCall": 6.122,
+          "msPerCount": 0.012,
+          "maxMs": 25.307
+        },
+        "marketInputResolve": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 1168.629,
+          "msPerTick": 5.843,
+          "msPerCall": 0.012,
+          "msPerCount": 0.012,
+          "maxMs": 1.378
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 883.454,
+          "msPerTick": 4.417,
+          "msPerCall": 4.417,
+          "msPerCount": 0.009,
+          "maxMs": 7.281
+        },
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 201.91,
+          "msPerTick": 1.01,
+          "msPerCall": 1.01,
+          "msPerCount": 1.01,
+          "maxMs": 2.81
+        },
+        "decisionTraceCapture": {
+          "calls": 3664,
+          "count": 3664,
+          "totalMs": 78.135,
+          "msPerTick": 0.391,
+          "msPerCall": 0.021,
+          "msPerCount": 0.021,
+          "maxMs": 0.11
+        },
+        "traceActivationMaterialization": {
+          "calls": 3664,
+          "count": 3664,
+          "totalMs": 72.354,
+          "msPerTick": 0.362,
+          "msPerCall": 0.02,
+          "msPerCount": 0.02,
+          "maxMs": 0.109
+        },
+        "resultApplication": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 52.716,
+          "msPerTick": 0.264,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.056
+        },
+        "foodSpawning": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 31.236,
+          "msPerTick": 0.156,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.183
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 25.333,
+          "msPerTick": 0.127,
+          "msPerCall": 0.127,
+          "msPerCount": 0,
+          "maxMs": 1.026
+        },
+        "outputDecoding": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 18.051,
+          "msPerTick": 0.09,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.036
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 412224,
+          "totalMs": 16.241,
+          "msPerTick": 0.081,
+          "msPerCall": 0.081,
+          "msPerCount": 0,
+          "maxMs": 0.254
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 10.437,
+          "msPerTick": 0.052,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.024
+        },
+        "reproductionAttempt": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 8.772,
+          "msPerTick": 0.044,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.023
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 4.848,
+          "msPerTick": 0.024,
+          "msPerCall": 0.024,
+          "msPerCount": 0,
+          "maxMs": 0.058
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 4.502,
+          "msPerTick": 0.023,
+          "msPerCall": 0.023,
+          "msPerCount": 0,
+          "maxMs": 0.086
+        },
+        "actionSelection": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 4.191,
+          "msPerTick": 0.021,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.008
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 2.886,
+          "msPerTick": 0.014,
+          "msPerCall": 0.014,
+          "msPerCount": 0,
+          "maxMs": 0.073
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.774,
+          "msPerTick": 0.014,
+          "msPerCall": 0.014,
+          "msPerCount": 0.014,
+          "maxMs": 0.056
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.034,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 0.005,
+          "maxMs": 0.025
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.97,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 0.005,
+          "maxMs": 0.03
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.946,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 0.005,
+          "maxMs": 0.017
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.859,
+          "msPerTick": 0.004,
+          "msPerCall": 0.004,
+          "msPerCount": 0.859,
+          "maxMs": 0.036
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 2186.951,
+          "calls": 200,
+          "count": 100000
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 1501.69,
+          "calls": 200,
+          "count": 100000
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 1224.369,
+          "calls": 200,
+          "count": 100000
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 1168.629,
+          "calls": 100000,
+          "count": 100000
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 883.454,
+          "calls": 200,
+          "count": 100000
+        },
+        {
+          "phase": "foodResolution",
+          "totalMs": 201.91,
+          "calls": 200,
+          "count": 200
+        },
+        {
+          "phase": "decisionTraceCapture",
+          "totalMs": 78.135,
+          "calls": 3664,
+          "count": 3664
+        },
+        {
+          "phase": "traceActivationMaterialization",
+          "totalMs": 72.354,
+          "calls": 3664,
+          "count": 3664
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 633.113,
+          "msPerTick": 3.166,
+          "msPerCall": 0.006,
+          "msPerCount": 0.006,
+          "maxMs": 0.985
+        },
+        "cycleShape": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 185.56,
+          "msPerTick": 0.928,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.969
+        },
+        "trendShape": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 92.737,
+          "msPerTick": 0.464,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.972
+        },
+        "volumeRsiInputs": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 41.616,
+          "msPerTick": 0.208,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.306
+        },
+        "rollingDeltas": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 33.277,
+          "msPerTick": 0.166,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.035
+        },
+        "rsiSignal": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 31.324,
+          "msPerTick": 0.157,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.118
+        },
+        "localSignalStats": {
+          "calls": 32000,
+          "count": 32000,
+          "totalMs": 29.325,
+          "msPerTick": 0.147,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.051
+        },
+        "signalHistory": {
+          "calls": 44200,
+          "count": 44200,
+          "totalMs": 27.308,
+          "msPerTick": 0.137,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.888
+        },
+        "rollingWindowStats": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 15.172,
+          "msPerTick": 0.076,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.023
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 408560,
+          "average": 2042.8,
+          "p50": 2158,
+          "p95": 3522,
+          "max": 3659
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 58461,
+          "average": 292.305,
+          "p50": 292,
+          "p95": 394,
+          "max": 404
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 3457,
+          "average": 17.285,
+          "p50": 18,
+          "p95": 26,
+          "max": 33
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 76200,
+          "average": 381,
+          "p50": 381,
+          "p95": 381,
+          "max": 381
+        },
+        "spawnedFoodCount": {
+          "samples": 3664,
+          "total": 3664,
+          "average": 1,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 412224,
+          "average": 2061.12,
+          "p50": 2174,
+          "p95": 3538,
+          "max": 3664
+        },
+        "pendingFoodAverageHorizonTicks": {
+          "samples": 199,
+          "total": 3361.986,
+          "average": 16.894,
+          "p50": 16.868,
+          "p95": 17.167,
+          "max": 17.314
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 100000,
+        "firstPassBatches": 200,
+        "firstPassMs": 883.3058350000047,
+        "waitActions": 96336,
+        "longActions": 1624,
+        "shortActions": 2040,
+        "reproductionTraces": 0,
+        "optimizedTraceMaterializations": 3664,
+        "optimizedTraceMaterializationMs": 73.11108600005991,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 3664,
+        "firstPassMsPerAgent": 0.009,
+        "optimizedTraceMaterializationMsPerEvaluation": 0.02,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 3664,
+        "pending": 207,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 0,
+          "lte25": 207,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "mostly-waiting",
+      "population": 100,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 100,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 616.873,
+      "ticksPerSecond": 324.216,
+      "memory": {
+        "heapUsedDeltaMb": -1.242,
+        "heapTotalDeltaMb": 0.25,
+        "rssDeltaMb": 0.016
+      },
+      "phaseTiming": {
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 235.5,
+          "msPerTick": 1.178,
+          "msPerCall": 1.178,
+          "msPerCount": 0.012,
+          "maxMs": 2.394
+        },
+        "marketInputResolve": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 228.57,
+          "msPerTick": 1.143,
+          "msPerCall": 0.011,
+          "msPerCount": 0.011,
+          "maxMs": 1.083
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 217.157,
+          "msPerTick": 1.086,
+          "msPerCall": 1.086,
+          "msPerCount": 0.011,
+          "maxMs": 4.401
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 134.66,
+          "msPerTick": 0.673,
+          "msPerCall": 0.673,
+          "msPerCount": 0.007,
+          "maxMs": 3.953
+        },
+        "resultApplication": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 4.607,
+          "msPerTick": 0.023,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.016
+        },
+        "outputDecoding": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 3.573,
+          "msPerTick": 0.018,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.036
+        },
+        "reproductionAttempt": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 1.993,
+          "msPerTick": 0.01,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.036
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 1.913,
+          "msPerTick": 0.01,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.012
+        },
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.428,
+          "msPerTick": 0.007,
+          "msPerCall": 0.007,
+          "msPerCount": 0.007,
+          "maxMs": 0.025
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 1.374,
+          "msPerTick": 0.007,
+          "msPerCall": 0.007,
+          "msPerCount": 0,
+          "maxMs": 0.021
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.042,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 0.005,
+          "maxMs": 0.028
+        },
+        "foodSpawning": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 0.679,
+          "msPerTick": 0.003,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.001
+        },
+        "actionSelection": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 0.649,
+          "msPerTick": 0.003,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.004
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 0.645,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0,
+          "maxMs": 0.012
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 0.507,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0,
+          "maxMs": 0.021
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 0.372,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0,
+          "maxMs": 0.007
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.341,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.341,
+          "maxMs": 0.008
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 0.282,
+          "msPerTick": 0.001,
+          "msPerCall": 0.001,
+          "msPerCount": 0,
+          "maxMs": 0.003
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.195,
+          "msPerTick": 0.001,
+          "msPerCall": 0.001,
+          "msPerCount": 0.195,
+          "maxMs": 0.008
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.18,
+          "msPerTick": 0.001,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.006
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.118,
+          "msPerTick": 0.001,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.004
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.094,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.001
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 20000,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 235.5,
+          "calls": 200,
+          "count": 20000
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 228.57,
+          "calls": 20000,
+          "count": 20000
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 217.157,
+          "calls": 200,
+          "count": 20000
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 134.66,
+          "calls": 200,
+          "count": 20000
+        },
+        {
+          "phase": "resultApplication",
+          "totalMs": 4.607,
+          "calls": 20000,
+          "count": 20000
+        },
+        {
+          "phase": "outputDecoding",
+          "totalMs": 3.573,
+          "calls": 20000,
+          "count": 20000
+        },
+        {
+          "phase": "reproductionAttempt",
+          "totalMs": 1.993,
+          "calls": 20000,
+          "count": 20000
+        },
+        {
+          "phase": "spawnerInputArrayConstruction",
+          "totalMs": 1.913,
+          "calls": 20000,
+          "count": 20000
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 135.397,
+          "msPerTick": 0.677,
+          "msPerCall": 0.007,
+          "msPerCount": 0.007,
+          "maxMs": 1.077
+        },
+        "cycleShape": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 34.628,
+          "msPerTick": 0.173,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.032
+        },
+        "trendShape": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 16.575,
+          "msPerTick": 0.083,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.387
+        },
+        "signalHistory": {
+          "calls": 23400,
+          "count": 23400,
+          "totalMs": 15.355,
+          "msPerTick": 0.077,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.432
+        },
+        "localSignalStats": {
+          "calls": 12800,
+          "count": 12800,
+          "totalMs": 11.405,
+          "msPerTick": 0.057,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.413
+        },
+        "volumeRsiInputs": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 8.563,
+          "msPerTick": 0.043,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.02
+        },
+        "rollingDeltas": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 6.629,
+          "msPerTick": 0.033,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.004
+        },
+        "rsiSignal": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 6.511,
+          "msPerTick": 0.033,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.019
+        },
+        "rollingWindowStats": {
+          "calls": 20000,
+          "count": 20000,
+          "totalMs": 2.316,
+          "msPerTick": 0.012,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.006
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 20000,
+          "average": 100,
+          "p50": 100,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 36200,
+          "average": 181,
+          "p50": 181,
+          "p95": 181,
+          "max": 181
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 20000,
+        "firstPassBatches": 200,
+        "firstPassMs": 134.6336259999971,
+        "waitActions": 20000,
+        "longActions": 0,
+        "shortActions": 0,
+        "reproductionTraces": 0,
+        "optimizedTraceMaterializations": 0,
+        "optimizedTraceMaterializationMs": 0,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 0,
+        "firstPassMsPerAgent": 0.007,
+        "optimizedTraceMaterializationMsPerEvaluation": 0,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 0,
+        "pending": 0,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 0,
+          "lte25": 0,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "mostly-waiting",
+      "population": 250,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 250,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 1569.932,
+      "ticksPerSecond": 127.394,
+      "memory": {
+        "heapUsedDeltaMb": -2.647,
+        "heapTotalDeltaMb": 0,
+        "rssDeltaMb": 0
+      },
+      "phaseTiming": {
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 572.059,
+          "msPerTick": 2.86,
+          "msPerCall": 2.86,
+          "msPerCount": 0.011,
+          "maxMs": 4.618
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 567.807,
+          "msPerTick": 2.839,
+          "msPerCall": 2.839,
+          "msPerCount": 0.011,
+          "maxMs": 11.616
+        },
+        "marketInputResolve": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 552.32,
+          "msPerTick": 2.762,
+          "msPerCall": 0.011,
+          "msPerCount": 0.011,
+          "maxMs": 1.842
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 356.731,
+          "msPerTick": 1.784,
+          "msPerCall": 1.784,
+          "msPerCount": 0.007,
+          "maxMs": 2.607
+        },
+        "resultApplication": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 15.206,
+          "msPerTick": 0.076,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.032
+        },
+        "outputDecoding": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 8.495,
+          "msPerTick": 0.042,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.044
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 4.826,
+          "msPerTick": 0.024,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.015
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 4.706,
+          "msPerTick": 0.024,
+          "msPerCall": 0.024,
+          "msPerCount": 0,
+          "maxMs": 0.08
+        },
+        "reproductionAttempt": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 4.398,
+          "msPerTick": 0.022,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.002
+        },
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 3.329,
+          "msPerTick": 0.017,
+          "msPerCall": 0.017,
+          "msPerCount": 0.017,
+          "maxMs": 0.044
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 2.061,
+          "msPerTick": 0.01,
+          "msPerCall": 0.01,
+          "msPerCount": 0,
+          "maxMs": 0.019
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 2.06,
+          "msPerTick": 0.01,
+          "msPerCall": 0.01,
+          "msPerCount": 0,
+          "maxMs": 0.03
+        },
+        "foodSpawning": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 1.854,
+          "msPerTick": 0.009,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.028
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.601,
+          "msPerTick": 0.008,
+          "msPerCall": 0.008,
+          "msPerCount": 0.008,
+          "maxMs": 0.016
+        },
+        "actionSelection": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 1.509,
+          "msPerTick": 0.008,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.004
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 1.004,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 0,
+          "maxMs": 0.013
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 0.781,
+          "msPerTick": 0.004,
+          "msPerCall": 0.004,
+          "msPerCount": 0,
+          "maxMs": 0.015
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.673,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.673,
+          "maxMs": 0.009
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.47,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.007
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.403,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.403,
+          "maxMs": 0.018
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.402,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.007
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.329,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.005
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 50000,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 572.059,
+          "calls": 200,
+          "count": 50000
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 567.807,
+          "calls": 200,
+          "count": 50000
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 552.32,
+          "calls": 50000,
+          "count": 50000
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 356.731,
+          "calls": 200,
+          "count": 50000
+        },
+        {
+          "phase": "resultApplication",
+          "totalMs": 15.206,
+          "calls": 50000,
+          "count": 50000
+        },
+        {
+          "phase": "outputDecoding",
+          "totalMs": 8.495,
+          "calls": 50000,
+          "count": 50000
+        },
+        {
+          "phase": "spawnerInputArrayConstruction",
+          "totalMs": 4.826,
+          "calls": 50000,
+          "count": 50000
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 4.706,
+          "calls": 200,
+          "count": 50000
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 307.214,
+          "msPerTick": 1.536,
+          "msPerCall": 0.006,
+          "msPerCount": 0.006,
+          "maxMs": 1.836
+        },
+        "cycleShape": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 89.599,
+          "msPerTick": 0.448,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.546
+        },
+        "trendShape": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 44.177,
+          "msPerTick": 0.221,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.823
+        },
+        "volumeRsiInputs": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 20.607,
+          "msPerTick": 0.103,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.049
+        },
+        "signalHistory": {
+          "calls": 33400,
+          "count": 33400,
+          "totalMs": 19.59,
+          "msPerTick": 0.098,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.018
+        },
+        "localSignalStats": {
+          "calls": 21800,
+          "count": 21800,
+          "totalMs": 18.209,
+          "msPerTick": 0.091,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.469
+        },
+        "rollingDeltas": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 15.711,
+          "msPerTick": 0.079,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.015
+        },
+        "rsiSignal": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 15.659,
+          "msPerTick": 0.078,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.048
+        },
+        "rollingWindowStats": {
+          "calls": 50000,
+          "count": 50000,
+          "totalMs": 5.819,
+          "msPerTick": 0.029,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.015
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 50000,
+          "average": 250,
+          "p50": 250,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 55200,
+          "average": 276,
+          "p50": 276,
+          "p95": 276,
+          "max": 276
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 50000,
+        "firstPassBatches": 200,
+        "firstPassMs": 356.7074100000209,
+        "waitActions": 50000,
+        "longActions": 0,
+        "shortActions": 0,
+        "reproductionTraces": 0,
+        "optimizedTraceMaterializations": 0,
+        "optimizedTraceMaterializationMs": 0,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 0,
+        "firstPassMsPerAgent": 0.007,
+        "optimizedTraceMaterializationMsPerEvaluation": 0,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 0,
+        "pending": 0,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 0,
+          "lte25": 0,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "mostly-waiting",
+      "population": 500,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 500,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 3221.664,
+      "ticksPerSecond": 62.08,
+      "memory": {
+        "heapUsedDeltaMb": 19.663,
+        "heapTotalDeltaMb": 0,
+        "rssDeltaMb": -1.531
+      },
+      "phaseTiming": {
+        "planLookup": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 1177.67,
+          "msPerTick": 5.888,
+          "msPerCall": 5.888,
+          "msPerCount": 0.012,
+          "maxMs": 22.503
+        },
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 1128.793,
+          "msPerTick": 5.644,
+          "msPerCall": 5.644,
+          "msPerCount": 0.011,
+          "maxMs": 7.17
+        },
+        "marketInputResolve": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 1085.2,
+          "msPerTick": 5.426,
+          "msPerCall": 0.011,
+          "msPerCount": 0.011,
+          "maxMs": 1.033
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 745.516,
+          "msPerTick": 3.728,
+          "msPerCall": 3.728,
+          "msPerCount": 0.007,
+          "maxMs": 4.902
+        },
+        "resultApplication": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 41.623,
+          "msPerTick": 0.208,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.031
+        },
+        "outputDecoding": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 17.261,
+          "msPerTick": 0.086,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.03
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 15.108,
+          "msPerTick": 0.076,
+          "msPerCall": 0.076,
+          "msPerCount": 0,
+          "maxMs": 0.145
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 10.118,
+          "msPerTick": 0.051,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.011
+        },
+        "reproductionAttempt": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 8.827,
+          "msPerTick": 0.044,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.021
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 6.506,
+          "msPerTick": 0.033,
+          "msPerCall": 0.033,
+          "msPerCount": 0,
+          "maxMs": 0.156
+        },
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 6.165,
+          "msPerTick": 0.031,
+          "msPerCall": 0.031,
+          "msPerCount": 0.031,
+          "maxMs": 0.098
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 5.832,
+          "msPerTick": 0.029,
+          "msPerCall": 0.029,
+          "msPerCount": 0,
+          "maxMs": 0.051
+        },
+        "foodSpawning": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 3.534,
+          "msPerTick": 0.018,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.004
+        },
+        "actionSelection": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 3.364,
+          "msPerTick": 0.017,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.015
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 2.477,
+          "msPerTick": 0.012,
+          "msPerCall": 0.012,
+          "msPerCount": 0,
+          "maxMs": 0.026
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.389,
+          "msPerTick": 0.012,
+          "msPerCall": 0.012,
+          "msPerCount": 0.012,
+          "maxMs": 0.02
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 1.611,
+          "msPerTick": 0.008,
+          "msPerCall": 0.008,
+          "msPerCount": 0,
+          "maxMs": 0.017
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.112,
+          "msPerTick": 0.006,
+          "msPerCall": 0.006,
+          "msPerCount": 0.006,
+          "maxMs": 0.017
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 1.023,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 1.023,
+          "maxMs": 0.013
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.914,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 0.005,
+          "maxMs": 0.01
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.728,
+          "msPerTick": 0.004,
+          "msPerCall": 0.004,
+          "msPerCount": 0.004,
+          "maxMs": 0.017
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.588,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.588,
+          "maxMs": 0.029
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 100000,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "planLookup",
+          "totalMs": 1177.67,
+          "calls": 200,
+          "count": 100000
+        },
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 1128.793,
+          "calls": 200,
+          "count": 100000
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 1085.2,
+          "calls": 100000,
+          "count": 100000
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 745.516,
+          "calls": 200,
+          "count": 100000
+        },
+        {
+          "phase": "resultApplication",
+          "totalMs": 41.623,
+          "calls": 100000,
+          "count": 100000
+        },
+        {
+          "phase": "outputDecoding",
+          "totalMs": 17.261,
+          "calls": 100000,
+          "count": 100000
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 15.108,
+          "calls": 200,
+          "count": 100000
+        },
+        {
+          "phase": "spawnerInputArrayConstruction",
+          "totalMs": 10.118,
+          "calls": 100000,
+          "count": 100000
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 584.959,
+          "msPerTick": 2.925,
+          "msPerCall": 0.006,
+          "msPerCount": 0.006,
+          "maxMs": 1.025
+        },
+        "cycleShape": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 175.95,
+          "msPerTick": 0.88,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.842
+        },
+        "trendShape": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 84.322,
+          "msPerTick": 0.422,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.017
+        },
+        "volumeRsiInputs": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 40.285,
+          "msPerTick": 0.201,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.045
+        },
+        "rollingDeltas": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 30.901,
+          "msPerTick": 0.155,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.02
+        },
+        "rsiSignal": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 30.551,
+          "msPerTick": 0.153,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.028
+        },
+        "localSignalStats": {
+          "calls": 32000,
+          "count": 32000,
+          "totalMs": 25.978,
+          "msPerTick": 0.13,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.724
+        },
+        "signalHistory": {
+          "calls": 44200,
+          "count": 44200,
+          "totalMs": 25.468,
+          "msPerTick": 0.127,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.845
+        },
+        "rollingWindowStats": {
+          "calls": 100000,
+          "count": 100000,
+          "totalMs": 12.324,
+          "msPerTick": 0.062,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.639
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 100000,
+          "average": 500,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 76200,
+          "average": 381,
+          "p50": 381,
+          "p95": 381,
+          "max": 381
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 100000,
+        "firstPassBatches": 200,
+        "firstPassMs": 745.4762090000131,
+        "waitActions": 100000,
+        "longActions": 0,
+        "shortActions": 0,
+        "reproductionTraces": 0,
+        "optimizedTraceMaterializations": 0,
+        "optimizedTraceMaterializationMs": 0,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 0,
+        "firstPassMsPerAgent": 0.007,
+        "optimizedTraceMaterializationMsPerEvaluation": 0,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 0,
+        "pending": 0,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 0,
+          "lte25": 0,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "high-action",
+      "population": 100,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 22,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 1543.191,
+      "ticksPerSecond": 129.602,
+      "memory": {
+        "heapUsedDeltaMb": -134.948,
+        "heapTotalDeltaMb": -29.688,
+        "rssDeltaMb": 65.313
+      },
+      "phaseTiming": {
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 463.56,
+          "msPerTick": 2.318,
+          "msPerCall": 2.318,
+          "msPerCount": 2.318,
+          "maxMs": 6.606
+        },
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 11151,
+          "totalMs": 292.27,
+          "msPerTick": 1.461,
+          "msPerCall": 1.461,
+          "msPerCount": 0.026,
+          "maxMs": 4.157
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 11151,
+          "totalMs": 200.919,
+          "msPerTick": 1.005,
+          "msPerCall": 1.005,
+          "msPerCount": 0.018,
+          "maxMs": 2.288
+        },
+        "decisionTraceCapture": {
+          "calls": 10796,
+          "count": 10796,
+          "totalMs": 175.572,
+          "msPerTick": 0.878,
+          "msPerCall": 0.016,
+          "msPerCount": 0.016,
+          "maxMs": 1.157
+        },
+        "traceActivationMaterialization": {
+          "calls": 10796,
+          "count": 10796,
+          "totalMs": 168.879,
+          "msPerTick": 0.844,
+          "msPerCall": 0.016,
+          "msPerCount": 0.016,
+          "maxMs": 1.147
+        },
+        "marketInputResolve": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 150.99,
+          "msPerTick": 0.755,
+          "msPerCall": 0.014,
+          "msPerCount": 0.014,
+          "maxMs": 1.477
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 11151,
+          "totalMs": 124.284,
+          "msPerTick": 0.621,
+          "msPerCall": 0.621,
+          "msPerCount": 0.011,
+          "maxMs": 4.409
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 11151,
+          "totalMs": 84.249,
+          "msPerTick": 0.421,
+          "msPerCall": 0.421,
+          "msPerCount": 0.008,
+          "maxMs": 1.415
+        },
+        "foodSpawning": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 61.33,
+          "msPerTick": 0.307,
+          "msPerCall": 0.005,
+          "msPerCount": 0.005,
+          "maxMs": 1.492
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 61.239,
+          "msPerTick": 0.306,
+          "msPerCall": 0.306,
+          "msPerCount": 0.306,
+          "maxMs": 8.346
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 1319329,
+          "totalMs": 23.391,
+          "msPerTick": 0.117,
+          "msPerCall": 0.117,
+          "msPerCount": 0,
+          "maxMs": 0.36
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 11151,
+          "totalMs": 9.119,
+          "msPerTick": 0.046,
+          "msPerCall": 0.046,
+          "msPerCount": 0.001,
+          "maxMs": 0.138
+        },
+        "resultApplication": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 3.649,
+          "msPerTick": 0.018,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.021
+        },
+        "reproductionAttempt": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 3.485,
+          "msPerTick": 0.017,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.045
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 2.541,
+          "msPerTick": 0.013,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.04
+        },
+        "outputDecoding": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 2.069,
+          "msPerTick": 0.01,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.031
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.47,
+          "msPerTick": 0.007,
+          "msPerCall": 0.007,
+          "msPerCount": 0.007,
+          "maxMs": 0.013
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 11151,
+          "totalMs": 0.596,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0,
+          "maxMs": 0.007
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 11151,
+          "totalMs": 0.564,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0,
+          "maxMs": 0.017
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 11151,
+          "totalMs": 0.505,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0,
+          "maxMs": 0.022
+        },
+        "actionSelection": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 0.456,
+          "msPerTick": 0.002,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.007
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.413,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.413,
+          "maxMs": 0.007
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.368,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.026
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.216,
+          "msPerTick": 0.001,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.013
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 11151,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "foodResolution",
+          "totalMs": 463.56,
+          "calls": 200,
+          "count": 200
+        },
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 292.27,
+          "calls": 200,
+          "count": 11151
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 200.919,
+          "calls": 200,
+          "count": 11151
+        },
+        {
+          "phase": "decisionTraceCapture",
+          "totalMs": 175.572,
+          "calls": 10796,
+          "count": 10796
+        },
+        {
+          "phase": "traceActivationMaterialization",
+          "totalMs": 168.879,
+          "calls": 10796,
+          "count": 10796
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 150.99,
+          "calls": 11151,
+          "count": 11151
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 124.284,
+          "calls": 200,
+          "count": 11151
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 84.249,
+          "calls": 200,
+          "count": 11151
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 91.418,
+          "msPerTick": 0.457,
+          "msPerCall": 0.008,
+          "msPerCount": 0.008,
+          "maxMs": 1.47
+        },
+        "cycleShape": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 21.656,
+          "msPerTick": 0.108,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 1.099
+        },
+        "signalHistory": {
+          "calls": 16771,
+          "count": 16771,
+          "totalMs": 13.31,
+          "msPerTick": 0.067,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.437
+        },
+        "trendShape": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 9.665,
+          "msPerTick": 0.048,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.04
+        },
+        "localSignalStats": {
+          "calls": 7633,
+          "count": 7633,
+          "totalMs": 8.339,
+          "msPerTick": 0.042,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.02
+        },
+        "volumeRsiInputs": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 5.431,
+          "msPerTick": 0.027,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.007
+        },
+        "rollingDeltas": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 4.697,
+          "msPerTick": 0.023,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.024
+        },
+        "rsiSignal": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 4.18,
+          "msPerTick": 0.021,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.007
+        },
+        "rollingWindowStats": {
+          "calls": 11151,
+          "count": 11151,
+          "totalMs": 1.888,
+          "msPerTick": 0.009,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.008
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 1308533,
+          "average": 6542.665,
+          "p50": 6862,
+          "p95": 10554,
+          "max": 10774
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 172123,
+          "average": 860.615,
+          "p50": 859,
+          "p95": 1594,
+          "max": 1642
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 10429,
+          "average": 52.145,
+          "p50": 53,
+          "p95": 99,
+          "max": 107
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 11151,
+          "average": 55.755,
+          "p50": 54,
+          "p95": 100,
+          "max": 100
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 11151,
+          "average": 55.755,
+          "p50": 54,
+          "p95": 100,
+          "max": 100
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 11151,
+          "average": 55.755,
+          "p50": 54,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 11151,
+          "average": 55.755,
+          "p50": 54,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 11151,
+          "average": 55.755,
+          "p50": 54,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 11151,
+          "average": 55.755,
+          "p50": 54,
+          "p95": 100,
+          "max": 100
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 24404,
+          "average": 122.02,
+          "p50": 121,
+          "p95": 181,
+          "max": 181
+        },
+        "spawnedFoodCount": {
+          "samples": 10796,
+          "total": 10796,
+          "average": 1,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 1319329,
+          "average": 6596.645,
+          "p50": 6916,
+          "p95": 10576,
+          "max": 10796
+        },
+        "pendingFoodAverageHorizonTicks": {
+          "samples": 199,
+          "total": 3341.014,
+          "average": 16.789,
+          "p50": 16.68,
+          "p95": 17.518,
+          "max": 17.596
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 11151,
+        "firstPassBatches": 200,
+        "firstPassMs": 84.21529600002032,
+        "waitActions": 355,
+        "longActions": 2653,
+        "shortActions": 8143,
+        "reproductionTraces": 0,
+        "optimizedTraceMaterializations": 10796,
+        "optimizedTraceMaterializationMs": 169.98912599991672,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 10796,
+        "firstPassMsPerAgent": 0.008,
+        "optimizedTraceMaterializationMsPerEvaluation": 0.016,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 10796,
+        "pending": 367,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 2,
+          "lte25": 365,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "high-action",
+      "population": 250,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 52,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 3753.633,
+      "ticksPerSecond": 53.282,
+      "memory": {
+        "heapUsedDeltaMb": 185.357,
+        "heapTotalDeltaMb": 114.938,
+        "rssDeltaMb": 19.531
+      },
+      "phaseTiming": {
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1090.93,
+          "msPerTick": 5.455,
+          "msPerCall": 5.455,
+          "msPerCount": 5.455,
+          "maxMs": 13.93
+        },
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 27062,
+          "totalMs": 705.588,
+          "msPerTick": 3.528,
+          "msPerCall": 3.528,
+          "msPerCount": 0.026,
+          "maxMs": 7.588
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 27062,
+          "totalMs": 523.46,
+          "msPerTick": 2.617,
+          "msPerCall": 2.617,
+          "msPerCount": 0.019,
+          "maxMs": 5.538
+        },
+        "decisionTraceCapture": {
+          "calls": 25816,
+          "count": 25816,
+          "totalMs": 440.982,
+          "msPerTick": 2.205,
+          "msPerCall": 0.017,
+          "msPerCount": 0.017,
+          "maxMs": 1.291
+        },
+        "traceActivationMaterialization": {
+          "calls": 25816,
+          "count": 25816,
+          "totalMs": 424.507,
+          "msPerTick": 2.123,
+          "msPerCall": 0.016,
+          "msPerCount": 0.016,
+          "maxMs": 1.288
+        },
+        "marketInputResolve": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 355.453,
+          "msPerTick": 1.777,
+          "msPerCall": 0.013,
+          "msPerCount": 0.013,
+          "maxMs": 1.182
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 27062,
+          "totalMs": 349.288,
+          "msPerTick": 1.746,
+          "msPerCall": 1.746,
+          "msPerCount": 0.013,
+          "maxMs": 11.588
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 27062,
+          "totalMs": 246.267,
+          "msPerTick": 1.231,
+          "msPerCall": 1.231,
+          "msPerCount": 0.009,
+          "maxMs": 3.138
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 143.199,
+          "msPerTick": 0.716,
+          "msPerCall": 0.716,
+          "msPerCount": 0.716,
+          "maxMs": 15.727
+        },
+        "foodSpawning": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 89.141,
+          "msPerTick": 0.446,
+          "msPerCall": 0.003,
+          "msPerCount": 0.003,
+          "maxMs": 1.28
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 3221895,
+          "totalMs": 39.112,
+          "msPerTick": 0.196,
+          "msPerCall": 0.196,
+          "msPerCount": 0,
+          "maxMs": 0.392
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 27062,
+          "totalMs": 24.005,
+          "msPerTick": 0.12,
+          "msPerCall": 0.12,
+          "msPerCount": 0.001,
+          "maxMs": 1.049
+        },
+        "resultApplication": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 12.038,
+          "msPerTick": 0.06,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.05
+        },
+        "outputDecoding": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 6.234,
+          "msPerTick": 0.031,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.061
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 6.104,
+          "msPerTick": 0.031,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.995
+        },
+        "reproductionAttempt": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 4.459,
+          "msPerTick": 0.022,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.026
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.081,
+          "msPerTick": 0.01,
+          "msPerCall": 0.01,
+          "msPerCount": 0.01,
+          "maxMs": 0.018
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 27062,
+          "totalMs": 1.166,
+          "msPerTick": 0.006,
+          "msPerCall": 0.006,
+          "msPerCount": 0,
+          "maxMs": 0.021
+        },
+        "actionSelection": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 1.163,
+          "msPerTick": 0.006,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.006
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 27062,
+          "totalMs": 1.103,
+          "msPerTick": 0.006,
+          "msPerCall": 0.006,
+          "msPerCount": 0,
+          "maxMs": 0.048
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 27062,
+          "totalMs": 1.047,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 0,
+          "maxMs": 0.012
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.704,
+          "msPerTick": 0.004,
+          "msPerCall": 0.004,
+          "msPerCount": 0.704,
+          "maxMs": 0.008
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.673,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.003,
+          "maxMs": 0.021
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.393,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.009
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 27062,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "foodResolution",
+          "totalMs": 1090.93,
+          "calls": 200,
+          "count": 200
+        },
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 705.588,
+          "calls": 200,
+          "count": 27062
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 523.46,
+          "calls": 200,
+          "count": 27062
+        },
+        {
+          "phase": "decisionTraceCapture",
+          "totalMs": 440.982,
+          "calls": 25816,
+          "count": 25816
+        },
+        {
+          "phase": "traceActivationMaterialization",
+          "totalMs": 424.507,
+          "calls": 25816,
+          "count": 25816
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 355.453,
+          "calls": 27062,
+          "count": 27062
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 349.288,
+          "calls": 200,
+          "count": 27062
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 246.267,
+          "calls": 200,
+          "count": 27062
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 207.112,
+          "msPerTick": 1.036,
+          "msPerCall": 0.008,
+          "msPerCount": 0.008,
+          "maxMs": 1.126
+        },
+        "cycleShape": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 54.017,
+          "msPerTick": 0.27,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 1.008
+        },
+        "trendShape": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 25.39,
+          "msPerTick": 0.127,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.835
+        },
+        "signalHistory": {
+          "calls": 25376,
+          "count": 25376,
+          "totalMs": 18.103,
+          "msPerTick": 0.091,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.111
+        },
+        "localSignalStats": {
+          "calls": 14233,
+          "count": 14233,
+          "totalMs": 15.885,
+          "msPerTick": 0.079,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.069
+        },
+        "volumeRsiInputs": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 12.738,
+          "msPerTick": 0.064,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.036
+        },
+        "rollingDeltas": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 11.822,
+          "msPerTick": 0.059,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.03
+        },
+        "rsiSignal": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 9.784,
+          "msPerTick": 0.049,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.036
+        },
+        "rollingWindowStats": {
+          "calls": 27062,
+          "count": 27062,
+          "totalMs": 6.349,
+          "msPerTick": 0.032,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.031
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 3196079,
+          "average": 15980.395,
+          "p50": 16992,
+          "p95": 25278,
+          "max": 25767
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 412380,
+          "average": 2061.9,
+          "p50": 2023,
+          "p95": 3993,
+          "max": 4107
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 24976,
+          "average": 124.88,
+          "p50": 123,
+          "p95": 249,
+          "max": 267
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 27062,
+          "average": 135.31,
+          "p50": 129,
+          "p95": 250,
+          "max": 250
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 27062,
+          "average": 135.31,
+          "p50": 129,
+          "p95": 250,
+          "max": 250
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 27062,
+          "average": 135.31,
+          "p50": 129,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 27062,
+          "average": 135.31,
+          "p50": 129,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 27062,
+          "average": 135.31,
+          "p50": 129,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 27062,
+          "average": 135.31,
+          "p50": 129,
+          "p95": 250,
+          "max": 250
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 39609,
+          "average": 198.045,
+          "p50": 200,
+          "p95": 276,
+          "max": 276
+        },
+        "spawnedFoodCount": {
+          "samples": 25816,
+          "total": 25816,
+          "average": 1,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 3221895,
+          "average": 16109.475,
+          "p50": 17119,
+          "p95": 25329,
+          "max": 25816
+        },
+        "pendingFoodAverageHorizonTicks": {
+          "samples": 199,
+          "total": 3356.535,
+          "average": 16.867,
+          "p50": 16.77,
+          "p95": 17.65,
+          "max": 17.719
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 27062,
+        "firstPassBatches": 200,
+        "firstPassMs": 246.2269139999953,
+        "waitActions": 1246,
+        "longActions": 7030,
+        "shortActions": 18786,
+        "reproductionTraces": 0,
+        "optimizedTraceMaterializations": 25816,
+        "optimizedTraceMaterializationMs": 426.7588760005201,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 25816,
+        "firstPassMsPerAgent": 0.009,
+        "optimizedTraceMaterializationMsPerEvaluation": 0.017,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 25816,
+        "pending": 840,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 16,
+          "lte25": 820,
+          "lte50": 4,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "high-action",
+      "population": 500,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 104,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 7596.794,
+      "ticksPerSecond": 26.327,
+      "memory": {
+        "heapUsedDeltaMb": -149.062,
+        "heapTotalDeltaMb": 63.359,
+        "rssDeltaMb": 187.047
+      },
+      "phaseTiming": {
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2187.542,
+          "msPerTick": 10.938,
+          "msPerCall": 10.938,
+          "msPerCount": 10.938,
+          "maxMs": 24.51
+        },
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 52618,
+          "totalMs": 1416.217,
+          "msPerTick": 7.081,
+          "msPerCall": 7.081,
+          "msPerCount": 0.027,
+          "maxMs": 15.747
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 52618,
+          "totalMs": 1101.1,
+          "msPerTick": 5.506,
+          "msPerCall": 5.506,
+          "msPerCount": 0.021,
+          "maxMs": 12.438
+        },
+        "decisionTraceCapture": {
+          "calls": 50428,
+          "count": 50428,
+          "totalMs": 919.986,
+          "msPerTick": 4.6,
+          "msPerCall": 0.018,
+          "msPerCount": 0.018,
+          "maxMs": 1.704
+        },
+        "traceActivationMaterialization": {
+          "calls": 50428,
+          "count": 50428,
+          "totalMs": 890.174,
+          "msPerTick": 4.451,
+          "msPerCall": 0.018,
+          "msPerCount": 0.018,
+          "maxMs": 1.7
+        },
+        "marketInputResolve": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 690.129,
+          "msPerTick": 3.451,
+          "msPerCall": 0.013,
+          "msPerCount": 0.013,
+          "maxMs": 10.209
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 52618,
+          "totalMs": 682.9,
+          "msPerTick": 3.414,
+          "msPerCall": 3.414,
+          "msPerCount": 0.013,
+          "maxMs": 22.203
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 52618,
+          "totalMs": 459.449,
+          "msPerTick": 2.297,
+          "msPerCall": 2.297,
+          "msPerCount": 0.009,
+          "maxMs": 8.941
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 306.545,
+          "msPerTick": 1.533,
+          "msPerCall": 1.533,
+          "msPerCount": 1.533,
+          "maxMs": 34.952
+        },
+        "foodSpawning": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 177.998,
+          "msPerTick": 0.89,
+          "msPerCall": 0.003,
+          "msPerCount": 0.003,
+          "maxMs": 1.767
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 6323693,
+          "totalMs": 81.62,
+          "msPerTick": 0.408,
+          "msPerCall": 0.408,
+          "msPerCount": 0,
+          "maxMs": 1.65
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 52618,
+          "totalMs": 48.481,
+          "msPerTick": 0.242,
+          "msPerCall": 0.242,
+          "msPerCount": 0.001,
+          "maxMs": 1.355
+        },
+        "resultApplication": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 33.506,
+          "msPerTick": 0.168,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.633
+        },
+        "outputDecoding": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 12.715,
+          "msPerTick": 0.064,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.284
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 7.814,
+          "msPerTick": 0.039,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.03
+        },
+        "reproductionAttempt": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 7.064,
+          "msPerTick": 0.035,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.03
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.439,
+          "msPerTick": 0.012,
+          "msPerCall": 0.012,
+          "msPerCount": 0.012,
+          "maxMs": 0.021
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 52618,
+          "totalMs": 2.346,
+          "msPerTick": 0.012,
+          "msPerCall": 0.012,
+          "msPerCount": 0,
+          "maxMs": 0.098
+        },
+        "actionSelection": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 2.34,
+          "msPerTick": 0.012,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.021
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 52618,
+          "totalMs": 2.331,
+          "msPerTick": 0.012,
+          "msPerCall": 0.012,
+          "msPerCount": 0,
+          "maxMs": 0.049
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 52618,
+          "totalMs": 1.672,
+          "msPerTick": 0.008,
+          "msPerCall": 0.008,
+          "msPerCount": 0,
+          "maxMs": 0.017
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.336,
+          "msPerTick": 0.007,
+          "msPerCall": 0.007,
+          "msPerCount": 0.007,
+          "maxMs": 0.07
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.951,
+          "msPerTick": 0.005,
+          "msPerCall": 0.005,
+          "msPerCount": 0.951,
+          "maxMs": 0.012
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.805,
+          "msPerTick": 0.004,
+          "msPerCall": 0.004,
+          "msPerCount": 0.004,
+          "maxMs": 0.012
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 52618,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "foodResolution",
+          "totalMs": 2187.542,
+          "calls": 200,
+          "count": 200
+        },
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 1416.217,
+          "calls": 200,
+          "count": 52618
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 1101.1,
+          "calls": 200,
+          "count": 52618
+        },
+        {
+          "phase": "decisionTraceCapture",
+          "totalMs": 919.986,
+          "calls": 50428,
+          "count": 50428
+        },
+        {
+          "phase": "traceActivationMaterialization",
+          "totalMs": 890.174,
+          "calls": 50428,
+          "count": 50428
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 690.129,
+          "calls": 52618,
+          "count": 52618
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 682.9,
+          "calls": 200,
+          "count": 52618
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 459.449,
+          "calls": 200,
+          "count": 52618
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 375.702,
+          "msPerTick": 1.879,
+          "msPerCall": 0.007,
+          "msPerCount": 0.007,
+          "maxMs": 3.186
+        },
+        "cycleShape": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 104.275,
+          "msPerTick": 0.521,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 1.559
+        },
+        "trendShape": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 49.197,
+          "msPerTick": 0.246,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.161
+        },
+        "volumeRsiInputs": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 23.709,
+          "msPerTick": 0.119,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.034
+        },
+        "signalHistory": {
+          "calls": 34628,
+          "count": 34628,
+          "totalMs": 23.18,
+          "msPerTick": 0.116,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.043
+        },
+        "localSignalStats": {
+          "calls": 22231,
+          "count": 22231,
+          "totalMs": 22.385,
+          "msPerTick": 0.112,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.065
+        },
+        "rollingDeltas": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 21.946,
+          "msPerTick": 0.11,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.079
+        },
+        "rsiSignal": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 18.058,
+          "msPerTick": 0.09,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.032
+        },
+        "rollingWindowStats": {
+          "calls": 52618,
+          "count": 52618,
+          "totalMs": 11.299,
+          "msPerTick": 0.056,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.109
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 6273265,
+          "average": 31366.325,
+          "p50": 33483,
+          "p95": 49325,
+          "max": 50328
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 817636,
+          "average": 4088.18,
+          "p50": 3936,
+          "p95": 8053,
+          "max": 8280
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 48692,
+          "average": 243.46,
+          "p50": 238,
+          "p95": 499,
+          "max": 516
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 52618,
+          "average": 263.09,
+          "p50": 245,
+          "p95": 500,
+          "max": 500
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 52618,
+          "average": 263.09,
+          "p50": 245,
+          "p95": 500,
+          "max": 500
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 52618,
+          "average": 263.09,
+          "p50": 245,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 52618,
+          "average": 263.09,
+          "p50": 245,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 52618,
+          "average": 263.09,
+          "p50": 245,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 52618,
+          "average": 263.09,
+          "p50": 245,
+          "p95": 500,
+          "max": 500
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 56859,
+          "average": 284.295,
+          "p50": 283,
+          "p95": 381,
+          "max": 381
+        },
+        "spawnedFoodCount": {
+          "samples": 50428,
+          "total": 50428,
+          "average": 1,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 6323693,
+          "average": 31618.465,
+          "p50": 33722,
+          "p95": 49428,
+          "max": 50428
+        },
+        "pendingFoodAverageHorizonTicks": {
+          "samples": 199,
+          "total": 3415.163,
+          "average": 17.162,
+          "p50": 17.019,
+          "p95": 17.88,
+          "max": 17.91
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 52618,
+        "firstPassBatches": 200,
+        "firstPassMs": 459.3983719999851,
+        "waitActions": 2190,
+        "longActions": 15491,
+        "shortActions": 34937,
+        "reproductionTraces": 0,
+        "optimizedTraceMaterializations": 50428,
+        "optimizedTraceMaterializationMs": 894.6278539996347,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 50428,
+        "firstPassMsPerAgent": 0.009,
+        "optimizedTraceMaterializationMsPerEvaluation": 0.018,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 50428,
+        "pending": 1736,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 42,
+          "lte25": 1661,
+          "lte50": 33,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "high-reproduction",
+      "population": 100,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 200,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 1882.23,
+      "ticksPerSecond": 106.257,
+      "memory": {
+        "heapUsedDeltaMb": 54.904,
+        "heapTotalDeltaMb": 1,
+        "rssDeltaMb": 9.125
+      },
+      "phaseTiming": {
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 39894,
+          "totalMs": 630.063,
+          "msPerTick": 3.15,
+          "msPerCall": 3.15,
+          "msPerCount": 0.016,
+          "maxMs": 12.212
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 39894,
+          "totalMs": 459.203,
+          "msPerTick": 2.296,
+          "msPerCall": 2.296,
+          "msPerCount": 0.012,
+          "maxMs": 6.819
+        },
+        "marketInputResolve": {
+          "calls": 39894,
+          "count": 39894,
+          "totalMs": 432.856,
+          "msPerTick": 2.164,
+          "msPerCall": 0.011,
+          "msPerCount": 0.011,
+          "maxMs": 1.583
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 39894,
+          "totalMs": 344.111,
+          "msPerTick": 1.721,
+          "msPerCall": 1.721,
+          "msPerCount": 0.009,
+          "maxMs": 8.89
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 39894,
+          "totalMs": 282.334,
+          "msPerTick": 1.412,
+          "msPerCall": 1.412,
+          "msPerCount": 0.007,
+          "maxMs": 7.896
+        },
+        "reproductionAttempt": {
+          "calls": 39894,
+          "count": 39894,
+          "totalMs": 94.292,
+          "msPerTick": 0.471,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 8.67
+        },
+        "resultApplication": {
+          "calls": 39894,
+          "count": 39894,
+          "totalMs": 12.789,
+          "msPerTick": 0.064,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.383
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 39994,
+          "totalMs": 11.115,
+          "msPerTick": 0.056,
+          "msPerCall": 0.056,
+          "msPerCount": 0,
+          "maxMs": 7.081
+        },
+        "outputDecoding": {
+          "calls": 39894,
+          "count": 39894,
+          "totalMs": 7.594,
+          "msPerTick": 0.038,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.06
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 39894,
+          "totalMs": 4.844,
+          "msPerTick": 0.024,
+          "msPerCall": 0.024,
+          "msPerCount": 0,
+          "maxMs": 0.074
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 39894,
+          "count": 39894,
+          "totalMs": 4.788,
+          "msPerTick": 0.024,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.115
+        },
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 3.512,
+          "msPerTick": 0.018,
+          "msPerCall": 0.018,
+          "msPerCount": 0.018,
+          "maxMs": 0.612
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.068,
+          "msPerTick": 0.01,
+          "msPerCall": 0.01,
+          "msPerCount": 0.01,
+          "maxMs": 0.092
+        },
+        "traceActivationMaterialization": {
+          "calls": 100,
+          "count": 100,
+          "totalMs": 1.942,
+          "msPerTick": 0.01,
+          "msPerCall": 0.019,
+          "msPerCount": 0.019,
+          "maxMs": 0.062
+        },
+        "foodSpawning": {
+          "calls": 39894,
+          "count": 39894,
+          "totalMs": 1.576,
+          "msPerTick": 0.008,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.122
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 39894,
+          "totalMs": 1.463,
+          "msPerTick": 0.007,
+          "msPerCall": 0.007,
+          "msPerCount": 0,
+          "maxMs": 0.025
+        },
+        "actionSelection": {
+          "calls": 39894,
+          "count": 39894,
+          "totalMs": 1.396,
+          "msPerTick": 0.007,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.007
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 39894,
+          "totalMs": 1.172,
+          "msPerTick": 0.006,
+          "msPerCall": 0.006,
+          "msPerCount": 0,
+          "maxMs": 0.013
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 100,
+          "totalMs": 0.815,
+          "msPerTick": 0.004,
+          "msPerCall": 0.004,
+          "msPerCount": 0.008,
+          "maxMs": 0.154
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.575,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.003,
+          "maxMs": 0.041
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.458,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.008
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.414,
+          "msPerTick": 0.002,
+          "msPerCall": 0.002,
+          "msPerCount": 0.414,
+          "maxMs": 0.006
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.262,
+          "msPerTick": 0.001,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.014
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 39894,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 630.063,
+          "calls": 200,
+          "count": 39894
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 459.203,
+          "calls": 200,
+          "count": 39894
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 432.856,
+          "calls": 39894,
+          "count": 39894
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 344.111,
+          "calls": 200,
+          "count": 39894
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 282.334,
+          "calls": 200,
+          "count": 39894
+        },
+        {
+          "phase": "reproductionAttempt",
+          "totalMs": 94.292,
+          "calls": 39894,
+          "count": 39894
+        },
+        {
+          "phase": "resultApplication",
+          "totalMs": 12.789,
+          "calls": 39894,
+          "count": 39894
+        },
+        {
+          "phase": "telemetry",
+          "totalMs": 11.115,
+          "calls": 200,
+          "count": 39994
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 36114,
+          "count": 36114,
+          "totalMs": 239.819,
+          "msPerTick": 1.199,
+          "msPerCall": 0.007,
+          "msPerCount": 0.007,
+          "maxMs": 1.528
+        },
+        "cycleShape": {
+          "calls": 36114,
+          "count": 36114,
+          "totalMs": 65.296,
+          "msPerTick": 0.326,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.598
+        },
+        "trendShape": {
+          "calls": 36114,
+          "count": 36114,
+          "totalMs": 31.759,
+          "msPerTick": 0.159,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.63
+        },
+        "signalHistory": {
+          "calls": 24395,
+          "count": 24395,
+          "totalMs": 17.221,
+          "msPerTick": 0.086,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.647
+        },
+        "volumeRsiInputs": {
+          "calls": 36114,
+          "count": 36114,
+          "totalMs": 15.5,
+          "msPerTick": 0.077,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.072
+        },
+        "localSignalStats": {
+          "calls": 13795,
+          "count": 13795,
+          "totalMs": 14.929,
+          "msPerTick": 0.075,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.058
+        },
+        "rollingDeltas": {
+          "calls": 36114,
+          "count": 36114,
+          "totalMs": 13.455,
+          "msPerTick": 0.067,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.024
+        },
+        "rsiSignal": {
+          "calls": 36114,
+          "count": 36114,
+          "totalMs": 11.753,
+          "msPerTick": 0.059,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.059
+        },
+        "rollingWindowStats": {
+          "calls": 36114,
+          "count": 36114,
+          "totalMs": 6.152,
+          "msPerTick": 0.031,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.044
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 39894,
+          "average": 199.47,
+          "p50": 200,
+          "p95": 200,
+          "max": 200
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 3780,
+          "average": 18.9,
+          "p50": 19,
+          "p95": 19,
+          "max": 19
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 36114,
+          "average": 180.57,
+          "p50": 181,
+          "p95": 181,
+          "max": 181
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 36114,
+          "average": 180.57,
+          "p50": 181,
+          "p95": 181,
+          "max": 181
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 36114,
+          "average": 180.57,
+          "p50": 181,
+          "p95": 181,
+          "max": 181
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 36114,
+          "average": 180.57,
+          "p50": 181,
+          "p95": 181,
+          "max": 181
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 36114,
+          "average": 180.57,
+          "p50": 181,
+          "p95": 181,
+          "max": 181
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 38190,
+          "average": 190.95,
+          "p50": 191,
+          "p95": 191,
+          "max": 191
+        },
+        "reproductionCount": {
+          "samples": 100,
+          "total": 100,
+          "average": 1,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 39894,
+        "firstPassBatches": 200,
+        "firstPassMs": 344.0759979999748,
+        "waitActions": 39894,
+        "longActions": 0,
+        "shortActions": 0,
+        "reproductionTraces": 100,
+        "optimizedTraceMaterializations": 100,
+        "optimizedTraceMaterializationMs": 1.952540999980556,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 0,
+        "firstPassMsPerAgent": 0.009,
+        "optimizedTraceMaterializationMsPerEvaluation": 0.02,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 0,
+        "pending": 0,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 0,
+          "lte25": 0,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "high-reproduction",
+      "population": 250,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 500,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 4945.136,
+      "ticksPerSecond": 40.444,
+      "memory": {
+        "heapUsedDeltaMb": 59.405,
+        "heapTotalDeltaMb": 0,
+        "rssDeltaMb": -30.641
+      },
+      "phaseTiming": {
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 99721,
+          "totalMs": 1615.241,
+          "msPerTick": 8.076,
+          "msPerCall": 8.076,
+          "msPerCount": 0.016,
+          "maxMs": 19.784
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 99721,
+          "totalMs": 1235.82,
+          "msPerTick": 6.179,
+          "msPerCall": 6.179,
+          "msPerCount": 0.012,
+          "maxMs": 11.521
+        },
+        "marketInputResolve": {
+          "calls": 99721,
+          "count": 99721,
+          "totalMs": 1091.799,
+          "msPerTick": 5.459,
+          "msPerCall": 0.011,
+          "msPerCount": 0.011,
+          "maxMs": 4.043
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 99721,
+          "totalMs": 896.156,
+          "msPerTick": 4.481,
+          "msPerCall": 4.481,
+          "msPerCount": 0.009,
+          "maxMs": 10.883
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 99721,
+          "totalMs": 743.744,
+          "msPerTick": 3.719,
+          "msPerCall": 3.719,
+          "msPerCount": 0.007,
+          "maxMs": 9.099
+        },
+        "reproductionAttempt": {
+          "calls": 99721,
+          "count": 99721,
+          "totalMs": 230.042,
+          "msPerTick": 1.15,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 14.186
+        },
+        "resultApplication": {
+          "calls": 99721,
+          "count": 99721,
+          "totalMs": 52.668,
+          "msPerTick": 0.263,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.414
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 99971,
+          "totalMs": 27.682,
+          "msPerTick": 0.138,
+          "msPerCall": 0.138,
+          "msPerCount": 0,
+          "maxMs": 17.851
+        },
+        "outputDecoding": {
+          "calls": 99721,
+          "count": 99721,
+          "totalMs": 27.073,
+          "msPerTick": 0.135,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.091
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 99721,
+          "totalMs": 18.537,
+          "msPerTick": 0.093,
+          "msPerCall": 0.093,
+          "msPerCount": 0,
+          "maxMs": 0.492
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 99721,
+          "count": 99721,
+          "totalMs": 12.23,
+          "msPerTick": 0.061,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.82
+        },
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 7.515,
+          "msPerTick": 0.038,
+          "msPerCall": 0.038,
+          "msPerCount": 0.038,
+          "maxMs": 0.743
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 99721,
+          "totalMs": 5,
+          "msPerTick": 0.025,
+          "msPerCall": 0.025,
+          "msPerCount": 0,
+          "maxMs": 0.162
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 99721,
+          "totalMs": 4.965,
+          "msPerTick": 0.025,
+          "msPerCall": 0.025,
+          "msPerCount": 0,
+          "maxMs": 0.263
+        },
+        "traceActivationMaterialization": {
+          "calls": 250,
+          "count": 250,
+          "totalMs": 4.832,
+          "msPerTick": 0.024,
+          "msPerCall": 0.019,
+          "msPerCount": 0.019,
+          "maxMs": 0.052
+        },
+        "foodSpawning": {
+          "calls": 99721,
+          "count": 99721,
+          "totalMs": 3.594,
+          "msPerTick": 0.018,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.046
+        },
+        "actionSelection": {
+          "calls": 99721,
+          "count": 99721,
+          "totalMs": 3.491,
+          "msPerTick": 0.017,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.034
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 250,
+          "totalMs": 3.12,
+          "msPerTick": 0.016,
+          "msPerCall": 0.016,
+          "msPerCount": 0.012,
+          "maxMs": 1.01
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.748,
+          "msPerTick": 0.014,
+          "msPerCall": 0.014,
+          "msPerCount": 0.014,
+          "maxMs": 0.078
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.305,
+          "msPerTick": 0.007,
+          "msPerCall": 0.007,
+          "msPerCount": 0.007,
+          "maxMs": 0.04
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.281,
+          "msPerTick": 0.006,
+          "msPerCall": 0.006,
+          "msPerCount": 0.006,
+          "maxMs": 0.094
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 0.691,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.003,
+          "maxMs": 0.01
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.583,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.583,
+          "maxMs": 0.021
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 99721,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 1615.241,
+          "calls": 200,
+          "count": 99721
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 1235.82,
+          "calls": 200,
+          "count": 99721
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 1091.799,
+          "calls": 99721,
+          "count": 99721
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 896.156,
+          "calls": 200,
+          "count": 99721
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 743.744,
+          "calls": 200,
+          "count": 99721
+        },
+        {
+          "phase": "reproductionAttempt",
+          "totalMs": 230.042,
+          "calls": 99721,
+          "count": 99721
+        },
+        {
+          "phase": "resultApplication",
+          "totalMs": 52.668,
+          "calls": 99721,
+          "count": 99721
+        },
+        {
+          "phase": "telemetry",
+          "totalMs": 27.682,
+          "calls": 200,
+          "count": 99971
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 88785,
+          "count": 88785,
+          "totalMs": 561.229,
+          "msPerTick": 2.806,
+          "msPerCall": 0.006,
+          "msPerCount": 0.006,
+          "maxMs": 2.458
+        },
+        "cycleShape": {
+          "calls": 88785,
+          "count": 88785,
+          "totalMs": 165.706,
+          "msPerTick": 0.829,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 0.936
+        },
+        "trendShape": {
+          "calls": 88785,
+          "count": 88785,
+          "totalMs": 83.557,
+          "msPerTick": 0.418,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 2.44
+        },
+        "volumeRsiInputs": {
+          "calls": 88785,
+          "count": 88785,
+          "totalMs": 37.918,
+          "msPerTick": 0.19,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.069
+        },
+        "rsiSignal": {
+          "calls": 88785,
+          "count": 88785,
+          "totalMs": 28.657,
+          "msPerTick": 0.143,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.068
+        },
+        "rollingDeltas": {
+          "calls": 88785,
+          "count": 88785,
+          "totalMs": 28.019,
+          "msPerTick": 0.14,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.306
+        },
+        "signalHistory": {
+          "calls": 35389,
+          "count": 35389,
+          "totalMs": 25.754,
+          "msPerTick": 0.129,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.915
+        },
+        "localSignalStats": {
+          "calls": 22992,
+          "count": 22992,
+          "totalMs": 24.751,
+          "msPerTick": 0.124,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.673
+        },
+        "rollingWindowStats": {
+          "calls": 88785,
+          "count": 88785,
+          "totalMs": 11.837,
+          "msPerTick": 0.059,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.108
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 99721,
+          "average": 498.605,
+          "p50": 500,
+          "p95": 500,
+          "max": 500
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 10936,
+          "average": 54.68,
+          "p50": 55,
+          "p95": 55,
+          "max": 55
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 88785,
+          "average": 443.925,
+          "p50": 445,
+          "p95": 445,
+          "max": 445
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 88785,
+          "average": 443.925,
+          "p50": 445,
+          "p95": 445,
+          "max": 445
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 88785,
+          "average": 443.925,
+          "p50": 445,
+          "p95": 445,
+          "max": 445
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 88785,
+          "average": 443.925,
+          "p50": 445,
+          "p95": 445,
+          "max": 445
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 88785,
+          "average": 443.925,
+          "p50": 445,
+          "p95": 445,
+          "max": 445
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 58381,
+          "average": 291.905,
+          "p50": 292,
+          "p95": 292,
+          "max": 292
+        },
+        "reproductionCount": {
+          "samples": 250,
+          "total": 250,
+          "average": 1,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 99721,
+        "firstPassBatches": 200,
+        "firstPassMs": 896.0724660000633,
+        "waitActions": 99721,
+        "longActions": 0,
+        "shortActions": 0,
+        "reproductionTraces": 250,
+        "optimizedTraceMaterializations": 250,
+        "optimizedTraceMaterializationMs": 4.856048999983614,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 0,
+        "firstPassMsPerAgent": 0.009,
+        "optimizedTraceMaterializationMsPerEvaluation": 0.019,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 0,
+        "pending": 0,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 0,
+          "lte25": 0,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    },
+    {
+      "scenario": "high-reproduction",
+      "population": 500,
+      "warmupTicks": 0,
+      "ticks": 200,
+      "finalTick": 200,
+      "finalPopulation": 1000,
+      "processedTicks": 200,
+      "remainingTicks": 0,
+      "elapsedMs": 9871.059,
+      "ticksPerSecond": 20.261,
+      "memory": {
+        "heapUsedDeltaMb": -1.481,
+        "heapTotalDeltaMb": -105.625,
+        "rssDeltaMb": 25.594
+      },
+      "phaseTiming": {
+        "spawnerContextInputConstruction": {
+          "calls": 200,
+          "count": 199440,
+          "totalMs": 3195.445,
+          "msPerTick": 15.977,
+          "msPerCall": 15.977,
+          "msPerCount": 0.016,
+          "maxMs": 30.935
+        },
+        "planLookup": {
+          "calls": 200,
+          "count": 199440,
+          "totalMs": 2511.894,
+          "msPerTick": 12.559,
+          "msPerCall": 12.559,
+          "msPerCount": 0.013,
+          "maxMs": 23.555
+        },
+        "marketInputResolve": {
+          "calls": 199440,
+          "count": 199440,
+          "totalMs": 2101.905,
+          "msPerTick": 10.51,
+          "msPerCall": 0.011,
+          "msPerCount": 0.011,
+          "maxMs": 8.855
+        },
+        "brainEvaluation": {
+          "calls": 200,
+          "count": 199440,
+          "totalMs": 1703.325,
+          "msPerTick": 8.517,
+          "msPerCall": 8.517,
+          "msPerCount": 0.009,
+          "maxMs": 10.907
+        },
+        "learnedStateDecay": {
+          "calls": 200,
+          "count": 199440,
+          "totalMs": 1498.77,
+          "msPerTick": 7.494,
+          "msPerCall": 7.494,
+          "msPerCount": 0.008,
+          "maxMs": 13.944
+        },
+        "reproductionAttempt": {
+          "calls": 199440,
+          "count": 199440,
+          "totalMs": 524.711,
+          "msPerTick": 2.624,
+          "msPerCall": 0.003,
+          "msPerCount": 0.003,
+          "maxMs": 13.921
+        },
+        "resultApplication": {
+          "calls": 199440,
+          "count": 199440,
+          "totalMs": 138.061,
+          "msPerTick": 0.69,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.037
+        },
+        "telemetry": {
+          "calls": 200,
+          "count": 199940,
+          "totalMs": 47.793,
+          "msPerTick": 0.239,
+          "msPerCall": 0.239,
+          "msPerCount": 0,
+          "maxMs": 28.241
+        },
+        "tracePruning": {
+          "calls": 200,
+          "count": 199440,
+          "totalMs": 44.445,
+          "msPerTick": 0.222,
+          "msPerCall": 0.222,
+          "msPerCount": 0,
+          "maxMs": 1.186
+        },
+        "outputDecoding": {
+          "calls": 199440,
+          "count": 199440,
+          "totalMs": 36.8,
+          "msPerTick": 0.184,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.036
+        },
+        "spawnerInputArrayConstruction": {
+          "calls": 199440,
+          "count": 199440,
+          "totalMs": 24.644,
+          "msPerTick": 0.123,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.088
+        },
+        "upkeep": {
+          "calls": 200,
+          "count": 199440,
+          "totalMs": 16.774,
+          "msPerTick": 0.084,
+          "msPerCall": 0.084,
+          "msPerCount": 0,
+          "maxMs": 0.197
+        },
+        "resultOrdering": {
+          "calls": 200,
+          "count": 199440,
+          "totalMs": 15.662,
+          "msPerTick": 0.078,
+          "msPerCall": 0.078,
+          "msPerCount": 0,
+          "maxMs": 0.129
+        },
+        "foodResolution": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 11.447,
+          "msPerTick": 0.057,
+          "msPerCall": 0.057,
+          "msPerCount": 0.057,
+          "maxMs": 0.141
+        },
+        "traceActivationMaterialization": {
+          "calls": 500,
+          "count": 500,
+          "totalMs": 9.663,
+          "msPerTick": 0.048,
+          "msPerCall": 0.019,
+          "msPerCount": 0.019,
+          "maxMs": 0.066
+        },
+        "foodSpawning": {
+          "calls": 199440,
+          "count": 199440,
+          "totalMs": 7.011,
+          "msPerTick": 0.035,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.016
+        },
+        "actionSelection": {
+          "calls": 199440,
+          "count": 199440,
+          "totalMs": 6.645,
+          "msPerTick": 0.033,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.032
+        },
+        "marketInputResolverCreation": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.766,
+          "msPerTick": 0.014,
+          "msPerCall": 0.014,
+          "msPerCount": 0.014,
+          "maxMs": 0.021
+        },
+        "actionDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.711,
+          "msPerTick": 0.014,
+          "msPerCall": 0.014,
+          "msPerCount": 0.014,
+          "maxMs": 0.058
+        },
+        "upkeepDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 2.014,
+          "msPerTick": 0.01,
+          "msPerCall": 0.01,
+          "msPerCount": 0.01,
+          "maxMs": 0.03
+        },
+        "payoffDeathPruning": {
+          "calls": 200,
+          "count": 200,
+          "totalMs": 1.55,
+          "msPerTick": 0.008,
+          "msPerCall": 0.008,
+          "msPerCount": 0.008,
+          "maxMs": 0.011
+        },
+        "birthAppend": {
+          "calls": 200,
+          "count": 500,
+          "totalMs": 1.359,
+          "msPerTick": 0.007,
+          "msPerCall": 0.007,
+          "msPerCount": 0.003,
+          "maxMs": 0.014
+        },
+        "foodTrimming": {
+          "calls": 200,
+          "count": 0,
+          "totalMs": 0.552,
+          "msPerTick": 0.003,
+          "msPerCall": 0.003,
+          "msPerCount": 0.552,
+          "maxMs": 0.006
+        },
+        "brainJobConstruction": {
+          "calls": 200,
+          "count": 199440,
+          "totalMs": 0,
+          "msPerTick": 0,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "topPhases": [
+        {
+          "phase": "spawnerContextInputConstruction",
+          "totalMs": 3195.445,
+          "calls": 200,
+          "count": 199440
+        },
+        {
+          "phase": "planLookup",
+          "totalMs": 2511.894,
+          "calls": 200,
+          "count": 199440
+        },
+        {
+          "phase": "marketInputResolve",
+          "totalMs": 2101.905,
+          "calls": 199440,
+          "count": 199440
+        },
+        {
+          "phase": "brainEvaluation",
+          "totalMs": 1703.325,
+          "calls": 200,
+          "count": 199440
+        },
+        {
+          "phase": "learnedStateDecay",
+          "totalMs": 1498.77,
+          "calls": 200,
+          "count": 199440
+        },
+        {
+          "phase": "reproductionAttempt",
+          "totalMs": 524.711,
+          "calls": 199440,
+          "count": 199440
+        },
+        {
+          "phase": "resultApplication",
+          "totalMs": 138.061,
+          "calls": 199440,
+          "count": 199440
+        },
+        {
+          "phase": "telemetry",
+          "totalMs": 47.793,
+          "calls": 200,
+          "count": 199940
+        }
+      ],
+      "marketFeatureTiming": {
+        "marketFeatureBuild": {
+          "calls": 180546,
+          "count": 180546,
+          "totalMs": 1063.547,
+          "msPerTick": 5.318,
+          "msPerCall": 0.006,
+          "msPerCount": 0.006,
+          "maxMs": 1.454
+        },
+        "cycleShape": {
+          "calls": 180546,
+          "count": 180546,
+          "totalMs": 330.058,
+          "msPerTick": 1.65,
+          "msPerCall": 0.002,
+          "msPerCount": 0.002,
+          "maxMs": 1.337
+        },
+        "trendShape": {
+          "calls": 180546,
+          "count": 180546,
+          "totalMs": 148.958,
+          "msPerTick": 0.745,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.442
+        },
+        "volumeRsiInputs": {
+          "calls": 180546,
+          "count": 180546,
+          "totalMs": 71.528,
+          "msPerTick": 0.358,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.027
+        },
+        "rollingDeltas": {
+          "calls": 180546,
+          "count": 180546,
+          "totalMs": 56.932,
+          "msPerTick": 0.285,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.095
+        },
+        "rsiSignal": {
+          "calls": 180546,
+          "count": 180546,
+          "totalMs": 54.648,
+          "msPerTick": 0.273,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.012
+        },
+        "localSignalStats": {
+          "calls": 35581,
+          "count": 35581,
+          "totalMs": 33.108,
+          "msPerTick": 0.166,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.991
+        },
+        "signalHistory": {
+          "calls": 49969,
+          "count": 49969,
+          "totalMs": 30.745,
+          "msPerTick": 0.154,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.328
+        },
+        "rollingWindowStats": {
+          "calls": 180546,
+          "count": 180546,
+          "totalMs": 25.882,
+          "msPerTick": 0.129,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 1.225
+        }
+      },
+      "metrics": {
+        "retainedFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "pendingFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "dueFoodCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketInputResolveCount": {
+          "samples": 200,
+          "total": 199440,
+          "average": 997.2,
+          "p50": 1000,
+          "p95": 1000,
+          "max": 1000
+        },
+        "marketInputCacheHitCount": {
+          "samples": 200,
+          "total": 18894,
+          "average": 94.47,
+          "p50": 95,
+          "p95": 95,
+          "max": 95
+        },
+        "marketInputComputeCount": {
+          "samples": 200,
+          "total": 180546,
+          "average": 902.73,
+          "p50": 905,
+          "p95": 905,
+          "max": 905
+        },
+        "marketInputCacheSize": {
+          "samples": 200,
+          "total": 180546,
+          "average": 902.73,
+          "p50": 905,
+          "p95": 905,
+          "max": 905
+        },
+        "marketFeatureResolveCount": {
+          "samples": 200,
+          "total": 180546,
+          "average": 902.73,
+          "p50": 905,
+          "p95": 905,
+          "max": 905
+        },
+        "marketFeatureCacheHitCount": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        },
+        "marketFeatureComputeCount": {
+          "samples": 200,
+          "total": 180546,
+          "average": 902.73,
+          "p50": 905,
+          "p95": 905,
+          "max": 905
+        },
+        "marketFeatureCacheSize": {
+          "samples": 200,
+          "total": 180546,
+          "average": 902.73,
+          "p50": 905,
+          "p95": 905,
+          "max": 905
+        },
+        "marketFeatureSampleCacheSize": {
+          "samples": 200,
+          "total": 85550,
+          "average": 427.75,
+          "p50": 428,
+          "p95": 428,
+          "max": 428
+        },
+        "reproductionCount": {
+          "samples": 500,
+          "total": 500,
+          "average": 1,
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "retainedFoodCountAfterTrim": {
+          "samples": 200,
+          "total": 0,
+          "average": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0
+        }
+      },
+      "trace": {
+        "evaluatedAgents": 199440,
+        "firstPassBatches": 200,
+        "firstPassMs": 1703.2492470000143,
+        "waitActions": 199440,
+        "longActions": 0,
+        "shortActions": 0,
+        "reproductionTraces": 500,
+        "optimizedTraceMaterializations": 500,
+        "optimizedTraceMaterializationMs": 9.713055999971402,
+        "fallbackTraceEvaluations": 0,
+        "fallbackTraceMs": 0,
+        "actionCount": 0,
+        "firstPassMsPerAgent": 0.009,
+        "optimizedTraceMaterializationMsPerEvaluation": 0.019,
+        "fallbackTraceMsPerEvaluation": 0
+      },
+      "finalFoodSummary": {
+        "retained": 0,
+        "pending": 0,
+        "horizonBuckets": {
+          "lte5": 0,
+          "lte10": 0,
+          "lte25": 0,
+          "lte50": 0,
+          "gt50": 0
+        }
+      }
+    }
+  ],
+  "brainProfiles": [
+    {
+      "population": 100,
+      "finalPopulation": 100,
+      "iterations": 10,
+      "evaluations": 1000,
+      "cachedTotalMs": 40.499,
+      "cachedMsPerEvaluation": 0.04,
+      "cachedTiming": {
+        "runtimeEvaluation": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 38.332,
+          "msPerTick": 3.833,
+          "msPerCall": 0.038,
+          "msPerCount": 0.038,
+          "maxMs": 0.848
+        },
+        "compactBrainKernel": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 15.777,
+          "msPerTick": 1.578,
+          "msPerCall": 0.016,
+          "msPerCount": 0.016,
+          "maxMs": 0.074
+        },
+        "cachedPlanLookup": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 11.901,
+          "msPerTick": 1.19,
+          "msPerCall": 0.012,
+          "msPerCount": 0.012,
+          "maxMs": 0.784
+        },
+        "effectiveValueArrayConstruction": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 9.432,
+          "msPerTick": 0.943,
+          "msPerCall": 0.009,
+          "msPerCount": 0.009,
+          "maxMs": 0.153
+        },
+        "publicDtoMaterialization": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 0.757,
+          "msPerTick": 0.076,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.066
+        },
+        "hiddenRecordToArray": {
+          "calls": 1000,
+          "count": 7830,
+          "totalMs": 0.14,
+          "msPerTick": 0.014,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.003
+        },
+        "currentStateArrayAllocation": {
+          "calls": 1000,
+          "count": 7830,
+          "totalMs": 0.076,
+          "msPerTick": 0.008,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.002
+        },
+        "effectiveValuePlanAlignmentCheck": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 0.069,
+          "msPerTick": 0.007,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.001
+        },
+        "activationMapAllocation": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 0.059,
+          "msPerTick": 0.006,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.007
+        },
+        "outputArrayAllocation": {
+          "calls": 1000,
+          "count": 6000,
+          "totalMs": 0.046,
+          "msPerTick": 0.005,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "freshTotalMs": 72.205,
+      "freshMsPerEvaluation": 0.072,
+      "freshTiming": {
+        "runtimeEvaluation": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 70.215,
+          "msPerTick": 7.021,
+          "msPerCall": 0.07,
+          "msPerCount": 0.07,
+          "maxMs": 1.16
+        },
+        "freshPlanCompile": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 45.471,
+          "msPerTick": 4.547,
+          "msPerCall": 0.045,
+          "msPerCount": 0.045,
+          "maxMs": 1.1
+        },
+        "compactBrainKernel": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 15.006,
+          "msPerTick": 1.501,
+          "msPerCall": 0.015,
+          "msPerCount": 0.015,
+          "maxMs": 0.063
+        },
+        "effectiveValueArrayConstruction": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 8.338,
+          "msPerTick": 0.834,
+          "msPerCall": 0.008,
+          "msPerCount": 0.008,
+          "maxMs": 0.06
+        },
+        "publicDtoMaterialization": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 0.545,
+          "msPerTick": 0.054,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.013
+        },
+        "hiddenRecordToArray": {
+          "calls": 1000,
+          "count": 7830,
+          "totalMs": 0.146,
+          "msPerTick": 0.015,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.001
+        },
+        "effectiveValuePlanAlignmentCheck": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 0.089,
+          "msPerTick": 0.009,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.003
+        },
+        "currentStateArrayAllocation": {
+          "calls": 1000,
+          "count": 7830,
+          "totalMs": 0.085,
+          "msPerTick": 0.009,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        },
+        "activationMapAllocation": {
+          "calls": 1000,
+          "count": 1000,
+          "totalMs": 0.07,
+          "msPerTick": 0.007,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.013
+        },
+        "outputArrayAllocation": {
+          "calls": 1000,
+          "count": 6000,
+          "totalMs": 0.051,
+          "msPerTick": 0.005,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.001
+        }
+      }
+    },
+    {
+      "population": 250,
+      "finalPopulation": 250,
+      "iterations": 10,
+      "evaluations": 2500,
+      "cachedTotalMs": 90.963,
+      "cachedMsPerEvaluation": 0.036,
+      "cachedTiming": {
+        "runtimeEvaluation": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 86.956,
+          "msPerTick": 8.696,
+          "msPerCall": 0.035,
+          "msPerCount": 0.035,
+          "maxMs": 0.614
+        },
+        "compactBrainKernel": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 35.712,
+          "msPerTick": 3.571,
+          "msPerCall": 0.014,
+          "msPerCount": 0.014,
+          "maxMs": 0.07
+        },
+        "cachedPlanLookup": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 28.438,
+          "msPerTick": 2.844,
+          "msPerCall": 0.011,
+          "msPerCount": 0.011,
+          "maxMs": 0.035
+        },
+        "effectiveValueArrayConstruction": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 20.771,
+          "msPerTick": 2.077,
+          "msPerCall": 0.008,
+          "msPerCount": 0.008,
+          "maxMs": 0.568
+        },
+        "publicDtoMaterialization": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 1.76,
+          "msPerTick": 0.176,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 0.574
+        },
+        "hiddenRecordToArray": {
+          "calls": 2500,
+          "count": 19750,
+          "totalMs": 0.305,
+          "msPerTick": 0.031,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.004
+        },
+        "currentStateArrayAllocation": {
+          "calls": 2500,
+          "count": 19750,
+          "totalMs": 0.101,
+          "msPerTick": 0.01,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        },
+        "outputArrayAllocation": {
+          "calls": 2500,
+          "count": 15000,
+          "totalMs": 0.086,
+          "msPerTick": 0.009,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        },
+        "effectiveValuePlanAlignmentCheck": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 0.078,
+          "msPerTick": 0.008,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        },
+        "activationMapAllocation": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 0.069,
+          "msPerTick": 0.007,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      },
+      "freshTotalMs": 167.294,
+      "freshMsPerEvaluation": 0.067,
+      "freshTiming": {
+        "runtimeEvaluation": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 163.408,
+          "msPerTick": 16.341,
+          "msPerCall": 0.065,
+          "msPerCount": 0.065,
+          "maxMs": 1.435
+        },
+        "freshPlanCompile": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 105.47,
+          "msPerTick": 10.547,
+          "msPerCall": 0.042,
+          "msPerCount": 0.042,
+          "maxMs": 1.395
+        },
+        "compactBrainKernel": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 35.754,
+          "msPerTick": 3.575,
+          "msPerCall": 0.014,
+          "msPerCount": 0.014,
+          "maxMs": 0.05
+        },
+        "effectiveValueArrayConstruction": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 19.971,
+          "msPerTick": 1.997,
+          "msPerCall": 0.008,
+          "msPerCount": 0.008,
+          "maxMs": 0.033
+        },
+        "publicDtoMaterialization": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 0.949,
+          "msPerTick": 0.095,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.004
+        },
+        "hiddenRecordToArray": {
+          "calls": 2500,
+          "count": 19750,
+          "totalMs": 0.306,
+          "msPerTick": 0.031,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.002
+        },
+        "currentStateArrayAllocation": {
+          "calls": 2500,
+          "count": 19750,
+          "totalMs": 0.1,
+          "msPerTick": 0.01,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.003
+        },
+        "activationMapAllocation": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 0.088,
+          "msPerTick": 0.009,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.002
+        },
+        "outputArrayAllocation": {
+          "calls": 2500,
+          "count": 15000,
+          "totalMs": 0.086,
+          "msPerTick": 0.009,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.001
+        },
+        "effectiveValuePlanAlignmentCheck": {
+          "calls": 2500,
+          "count": 2500,
+          "totalMs": 0.079,
+          "msPerTick": 0.008,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        }
+      }
+    },
+    {
+      "population": 500,
+      "finalPopulation": 500,
+      "iterations": 10,
+      "evaluations": 5000,
+      "cachedTotalMs": 190.611,
+      "cachedMsPerEvaluation": 0.038,
+      "cachedTiming": {
+        "runtimeEvaluation": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 182.543,
+          "msPerTick": 18.254,
+          "msPerCall": 0.037,
+          "msPerCount": 0.037,
+          "maxMs": 1.25
+        },
+        "compactBrainKernel": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 75.965,
+          "msPerTick": 7.597,
+          "msPerCall": 0.015,
+          "msPerCount": 0.015,
+          "maxMs": 0.913
+        },
+        "cachedPlanLookup": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 60.013,
+          "msPerTick": 6.001,
+          "msPerCall": 0.012,
+          "msPerCount": 0.012,
+          "maxMs": 1.195
+        },
+        "effectiveValueArrayConstruction": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 42.423,
+          "msPerTick": 4.242,
+          "msPerCall": 0.008,
+          "msPerCount": 0.008,
+          "maxMs": 0.072
+        },
+        "publicDtoMaterialization": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 2.268,
+          "msPerTick": 0.227,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.019
+        },
+        "hiddenRecordToArray": {
+          "calls": 5000,
+          "count": 39470,
+          "totalMs": 0.605,
+          "msPerTick": 0.06,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.004
+        },
+        "currentStateArrayAllocation": {
+          "calls": 5000,
+          "count": 39470,
+          "totalMs": 0.203,
+          "msPerTick": 0.02,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.003
+        },
+        "outputArrayAllocation": {
+          "calls": 5000,
+          "count": 30000,
+          "totalMs": 0.177,
+          "msPerTick": 0.018,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        },
+        "effectiveValuePlanAlignmentCheck": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 0.158,
+          "msPerTick": 0.016,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0
+        },
+        "activationMapAllocation": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 0.156,
+          "msPerTick": 0.016,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.003
+        }
+      },
+      "freshTotalMs": 346.984,
+      "freshMsPerEvaluation": 0.069,
+      "freshTiming": {
+        "runtimeEvaluation": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 336.402,
+          "msPerTick": 33.64,
+          "msPerCall": 0.067,
+          "msPerCount": 0.067,
+          "maxMs": 1.722
+        },
+        "freshPlanCompile": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 218.385,
+          "msPerTick": 21.838,
+          "msPerCall": 0.044,
+          "msPerCount": 0.044,
+          "maxMs": 1.674
+        },
+        "compactBrainKernel": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 73.704,
+          "msPerTick": 7.37,
+          "msPerCall": 0.015,
+          "msPerCount": 0.015,
+          "maxMs": 0.231
+        },
+        "effectiveValueArrayConstruction": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 40.106,
+          "msPerTick": 4.011,
+          "msPerCall": 0.008,
+          "msPerCount": 0.008,
+          "maxMs": 0.037
+        },
+        "publicDtoMaterialization": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 3.32,
+          "msPerTick": 0.332,
+          "msPerCall": 0.001,
+          "msPerCount": 0.001,
+          "maxMs": 1.32
+        },
+        "hiddenRecordToArray": {
+          "calls": 5000,
+          "count": 39470,
+          "totalMs": 0.639,
+          "msPerTick": 0.064,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.004
+        },
+        "currentStateArrayAllocation": {
+          "calls": 5000,
+          "count": 39470,
+          "totalMs": 0.194,
+          "msPerTick": 0.019,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.002
+        },
+        "activationMapAllocation": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 0.18,
+          "msPerTick": 0.018,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.001
+        },
+        "outputArrayAllocation": {
+          "calls": 5000,
+          "count": 30000,
+          "totalMs": 0.172,
+          "msPerTick": 0.017,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.001
+        },
+        "effectiveValuePlanAlignmentCheck": {
+          "calls": 5000,
+          "count": 5000,
+          "totalMs": 0.162,
+          "msPerTick": 0.016,
+          "msPerCall": 0,
+          "msPerCount": 0,
+          "maxMs": 0.001
+        }
+      }
+    }
+  ]
+}

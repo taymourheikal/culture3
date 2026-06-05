@@ -3,9 +3,15 @@ import type { HiddenStateArray } from "./brainState";
 import { OUTPUT_COUNT } from "./config";
 import type { EffectiveBrainValues, PlanAlignedEffectiveBrainValues } from "./effectiveGenome";
 import { sigmoid } from "./math";
-import type { ConnectionGene, GateType } from "./types";
+import type { GateType } from "./types";
 
 export type BrainKernelActivationMap = Record<string, { source: number; target: number }>;
+export type BrainKernelCompactActivationRecorder = {
+  kind: "compact";
+  sourceByConnectionIndex: number[];
+  targetByConnectionIndex: number[];
+};
+export type BrainKernelActivationRecorder = BrainKernelActivationMap | BrainKernelCompactActivationRecorder;
 
 export type CompactBrainKernelInput = {
   plan: CompiledBrainPlan;
@@ -15,7 +21,7 @@ export type CompactBrainKernelInput = {
   outputs: number[];
   effectiveValues: EffectiveBrainValues;
   planValues?: PlanAlignedEffectiveBrainValues;
-  connectionActivations?: BrainKernelActivationMap;
+  connectionActivations?: BrainKernelActivationRecorder;
 };
 
 export function evaluateCompactBrainKernel({
@@ -50,7 +56,7 @@ function evaluateHiddenLayers({
   currentState: HiddenStateArray;
   effectiveValues: EffectiveBrainValues;
   planValues: PlanAlignedEffectiveBrainValues | undefined;
-  connectionActivations: BrainKernelActivationMap | undefined;
+  connectionActivations: BrainKernelActivationRecorder | undefined;
 }) {
   for (const layer of plan.layers) {
     for (const unitPlan of layer.units) {
@@ -74,7 +80,7 @@ function evaluateHiddenUnit({
   currentState: HiddenStateArray;
   effectiveValues: EffectiveBrainValues;
   planValues: PlanAlignedEffectiveBrainValues | undefined;
-  connectionActivations: BrainKernelActivationMap | undefined;
+  connectionActivations: BrainKernelActivationRecorder | undefined;
 }) {
   const update = sigmoid(evaluateGateSum(unitPlan, "update", unitPlan.updateInputRefs, inputs, previousState, currentState, effectiveValues, planValues, connectionActivations));
   const reset = sigmoid(evaluateGateSum(unitPlan, "reset", unitPlan.resetInputRefs, inputs, previousState, currentState, effectiveValues, planValues, connectionActivations));
@@ -101,7 +107,7 @@ function evaluateOutputs({
   outputs: number[];
   effectiveValues: EffectiveBrainValues;
   planValues: PlanAlignedEffectiveBrainValues | undefined;
-  connectionActivations: BrainKernelActivationMap | undefined;
+  connectionActivations: BrainKernelActivationRecorder | undefined;
 }) {
   for (let outputIndex = 0; outputIndex < OUTPUT_COUNT; outputIndex += 1) {
     const outputConnections = plan.outputInputRefs[outputIndex] ?? [];
@@ -111,7 +117,7 @@ function evaluateOutputs({
     }
     if (connectionActivations) {
       for (const connectionRef of outputConnections) {
-        recordConnectionActivation(connectionActivations, connectionRef.connection, sourceValue(connectionRef, inputs, previousState, currentState), output);
+        recordConnectionActivation(connectionActivations, connectionRef, sourceValue(connectionRef, inputs, previousState, currentState), output);
       }
     }
     outputs[outputIndex] = output;
@@ -127,7 +133,7 @@ function evaluateGateSum(
   currentState: HiddenStateArray,
   effectiveValues: EffectiveBrainValues,
   planValues: PlanAlignedEffectiveBrainValues | undefined,
-  connectionActivations: BrainKernelActivationMap | undefined,
+  connectionActivations: BrainKernelActivationRecorder | undefined,
   reset = 1,
 ) {
   let sum = gateBias(unitPlan, gate, effectiveValues, planValues);
@@ -141,7 +147,7 @@ function evaluateGateSum(
     for (const connectionRef of connections) {
       const value = sourceValue(connectionRef, inputs, previousState, currentState);
       const gatedValue = gate === "candidate" && connectionRef.connection.source.kind === "hidden" && connectionRef.connection.source.mode === "previous" ? value * reset : value;
-      recordConnectionActivation(connectionActivations, connectionRef.connection, gatedValue, target);
+      recordConnectionActivation(connectionActivations, connectionRef, gatedValue, target);
     }
   }
   return sum;
@@ -166,13 +172,22 @@ function gateBias(unitPlan: CompiledBrainUnit, gate: GateType, effectiveValues: 
 }
 
 function recordConnectionActivation(
-  connectionActivations: BrainKernelActivationMap | undefined,
-  connection: ConnectionGene,
+  connectionActivations: BrainKernelActivationRecorder | undefined,
+  connectionRef: CompiledBrainConnection,
   source: number,
   target: number,
 ) {
   if (!connectionActivations) return;
-  connectionActivations[String(connection.innovationId)] = { source, target };
+  if (isCompactActivationRecorder(connectionActivations)) {
+    connectionActivations.sourceByConnectionIndex[connectionRef.connectionIndex] = source;
+    connectionActivations.targetByConnectionIndex[connectionRef.connectionIndex] = target;
+    return;
+  }
+  connectionActivations[String(connectionRef.connection.innovationId)] = { source, target };
+}
+
+function isCompactActivationRecorder(value: BrainKernelActivationRecorder): value is BrainKernelCompactActivationRecorder {
+  return (value as BrainKernelCompactActivationRecorder).kind === "compact";
 }
 
 function sourceValue(

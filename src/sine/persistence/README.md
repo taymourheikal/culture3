@@ -40,4 +40,4 @@ Run:
 npm run test:sine
 ```
 
-Persistence behavior should be covered by `persistencePacket.test.ts`, `persistenceOutbox.test.ts`, and `sinePersistence.test.ts`.
+Persistence behavior should be covered by `persistencePacket.test.ts`, `persistenceOutbox.test.ts`, and the split `sinePersistence*.test.ts` integration suites.

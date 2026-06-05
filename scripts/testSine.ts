@@ -20,7 +20,11 @@ import { tests as selectedSpawnerTimelineTests } from "./sine-tests/selectedSpaw
 import { tests as selectedSpawnerPanelModelTests } from "./sine-tests/selectedSpawnerPanelModel.test";
 import { tests as chartMathTests } from "./sine-tests/chartMath.test";
 import { tests as workerProtocolTests } from "./sine-tests/workerProtocol.test";
-import { tests as sinePersistenceTests } from "./sine-tests/sinePersistence.test";
+import { tests as sinePersistenceBasicTests } from "./sine-tests/sinePersistenceBasic.test";
+import { tests as sinePersistenceDiagnosticsTests } from "./sine-tests/sinePersistenceDiagnostics.test";
+import { tests as sinePersistenceCohortTests } from "./sine-tests/sinePersistenceCohort.test";
+import { tests as sinePersistenceInspectionTests } from "./sine-tests/sinePersistenceInspection.test";
+import { tests as sinePersistenceHeadlessSchemaTests } from "./sine-tests/sinePersistenceHeadlessSchema.test";
 import { tests as persistencePacketTests } from "./sine-tests/persistencePacket.test";
 import { tests as persistenceOutboxTests } from "./sine-tests/persistenceOutbox.test";
 import { tests as perceptionMutationProfileTests } from "./sine-tests/perceptionMutationProfile.test";
@@ -33,6 +37,7 @@ import { tests as plasticityComparisonTests } from "./sine-tests/plasticityCompa
 import { tests as sineApiTests } from "./sine-tests/sineApi.test";
 import { tests as sineRoutesTests } from "./sine-tests/sineRoutes.test";
 import { tests as headlessTests } from "./sine-tests/headless.test";
+import { tests as runDiagnosticsTests } from "./sine-tests/runDiagnostics.test";
 
 await runSuite("timeline", timelineTests);
 await runSuite("parity fixtures", parityFixtureTests);
@@ -64,9 +69,14 @@ await runSuite("worker protocol", workerProtocolTests);
 await runSuite("worker ui", workerUiTests);
 await runSuite("sine api", sineApiTests);
 await runSuite("sine routes", sineRoutesTests);
+await runSuite("run diagnostics", runDiagnosticsTests);
 await runSuite("headless", headlessTests);
 await runSuite("persistence packet", persistencePacketTests);
 await runSuite("persistence outbox", persistenceOutboxTests);
-await runSuite("sine persistence", sinePersistenceTests);
+await runSuite("sine persistence basic", sinePersistenceBasicTests);
+await runSuite("sine persistence diagnostics", sinePersistenceDiagnosticsTests);
+await runSuite("sine persistence cohort", sinePersistenceCohortTests);
+await runSuite("sine persistence inspection", sinePersistenceInspectionTests);
+await runSuite("sine persistence headless schema", sinePersistenceHeadlessSchemaTests);
 
 console.log("Sine simulator contract tests passed.");

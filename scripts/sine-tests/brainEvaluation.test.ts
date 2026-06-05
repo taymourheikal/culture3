@@ -254,7 +254,7 @@ function testEvaluationFrameOwnsOrderedInputsJobsAndResults() {
   advanceMarketTimeline(timeline, 3, 10);
   world.tick = timeline.tick;
   const resolver = createMarketInputResolver(timeline, world.tick, 7);
-  const frame = buildSpawnerEvaluationFrame(world, resolver, new Map(), {
+  const frame = buildSpawnerEvaluationFrame(world, resolver, undefined, {
     sessionId: 11,
     runGeneration: 12,
     advanceEpoch: 13,

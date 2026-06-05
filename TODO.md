@@ -137,6 +137,51 @@ Concise roadmap for the Toy Market / Sine module only. Detailed implementation p
   - selected-agent architecture snapshots
   - selected-agent trade ledger
 
+## Refactor
+
+- Do not rewrite the whole Sine codebase from scratch. Preserve the existing deterministic tests, parity checks, and edge-case behavior around learning, food/trade resolution, historical inspection, headless writes, and market inputs.
+- Rebuild the simulation core around a compact deterministic runtime model:
+  - compact numeric runtime state
+  - public inspection DTOs
+  - persistence DTOs
+  - genome/editor/inspection model
+  - materialize rich objects only at UI, persistence, and analysis boundaries
+- Make the runtime more numeric and batchable before revisiting WASM/native/GPU work. Sequence:
+  - compact runtime data
+  - reduce materialization
+  - benchmark again
+  - identify narrow kernels
+  - then consider WASM/native
+- Define one canonical run-history data model for Lab and headless runs:
+  - core run facts
+  - lifecycle facts
+  - trade facts
+  - reconstruction snapshots
+  - optional rich analysis facts
+  - derived metrics computed outside the DB unless expensive enough to cache
+- Keep the run-history principle explicit: write facts, derive metrics. Avoid storing arbitrary derived stats that can drift from code definitions.
+- Separate the agent brain from the trading strategy lifecycle:
+  - neural/evolution engine
+  - market signal engine
+  - trade lifecycle engine
+  - population/lifecycle engine
+  - analysis/persistence engine
+- Reduce the lingering spawner/food metaphor where it blocks future trading features, but avoid a premature rename that destabilizes working contracts.
+- Move diagnostics into a reusable analysis domain:
+  - server/query layer returns canonical raw analysis facts
+  - shared pure analysis functions compute metrics
+  - UI components render metric groups
+  - chart geometry/rendering remains reusable
+- Replace scattered compatibility accumulation with explicit versioned boundaries:
+  - genome schema
+  - persistence packet schema
+  - run-history schema
+  - worker packet schema
+  - saved settings schema
+- Keep compatibility code in migration/normalization modules. Runtime code should assume current-contract data.
+- Highest-value long-term refactor: compact deterministic simulation core with explicit boundary DTOs for UI, persistence, and analysis.
+- Second-highest long-term refactor: coherent facts-and-derived-metrics run-history/analysis architecture for Lab, Runs, diagnostics, seed-bank preparation, and validation.
+
 ## Future Architecture
 
 - Decide the long-term agent ecology:

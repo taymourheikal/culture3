@@ -138,6 +138,9 @@ export function instrumentHeadlessSink(sink: HeadlessRecordSink, timing: Headles
     writeAgentEvent(record) {
       timeSink(timing, "writeAgentEvent", () => sink.writeAgentEvent(record));
     },
+    writeCoreTrade: sink.writeCoreTrade
+      ? (record) => timeSink(timing, "writeCoreTrade", () => sink.writeCoreTrade?.(record))
+      : undefined,
     writeTrade(record) {
       timing.writeCounts.trades += 1;
       timeSink(timing, "writeTrade", () => sink.writeTrade(record));

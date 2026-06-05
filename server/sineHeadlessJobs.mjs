@@ -1,32 +1,48 @@
 import { randomUUID } from "node:crypto";
-import { getMarketCandles } from "./marketDataRepository.mjs";
+import { Worker } from "node:worker_threads";
 import { createSineHeadlessRepository } from "./sineHeadlessRepository.mjs";
-import { runHeadlessSineExperiment } from "../src/sine/headless/runner.ts";
-import { sanitizeMarketRuntimeConfig, isBtcSource } from "../src/sine/marketRuntimeConfig.ts";
+import { maxConcurrentSineHeadlessJobs } from "./sineHeadlessConcurrency.mjs";
+import { sanitizeHeadlessChunkTicks } from "../src/sine/headless/chunkPolicy.ts";
+import { DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL } from "../src/sine/headless/types.ts";
+import { sanitizeMarketRuntimeConfig } from "../src/sine/marketRuntimeConfig.ts";
 import { sanitizeSpawnerConfig } from "../src/sine/spawnerSettingsStorage.ts";
 
-let activeJob = null;
-const DEFAULT_JOB_CHUNK_TICKS = 25;
-const MAX_JOB_CHUNK_TICKS = 100;
+const activeJobs = new Map();
 
 export function hasActiveSineHeadlessJob() {
-  return activeJob !== null && !isTerminalStatus(activeJob.status);
+  return activeJobs.size > 0;
 }
 
 export function getActiveSineHeadlessJob() {
-  return activeJob ? serializeJob(activeJob) : null;
+  const job = firstActiveJob();
+  return job ? serializeJob(job) : null;
+}
+
+export function listActiveSineHeadlessJobs() {
+  return [...activeJobs.values()].map(serializeJob);
+}
+
+export function getSineHeadlessJobCapacity() {
+  const maxConcurrentRuns = maxConcurrentSineHeadlessJobs();
+  return {
+    activeCount: activeJobs.size,
+    maxConcurrentRuns,
+    capacityFull: activeJobs.size >= maxConcurrentRuns,
+  };
 }
 
 export function getSineHeadlessJob(runId) {
-  if (activeJob?.runId === runId) return { job: serializeJob(activeJob), active: true };
+  const activeJob = activeJobs.get(runId);
+  if (activeJob) return { job: serializeJob(activeJob), active: true };
   const repository = createSineHeadlessRepository();
   try {
     const run = repository.getRun(runId);
     if (!run) return null;
+    const analysisContext = repository.createRunAnalysisContext(runId);
     return {
       run,
-      checkpoints: repository.listRunCheckpoints(runId),
-      counts: repository.counts(runId),
+      checkpoints: analysisContext.listRunCheckpoints(),
+      counts: analysisContext.counts(),
       active: false,
     };
   } finally {
@@ -39,10 +55,11 @@ export function getLatestSineHeadlessRun() {
   try {
     const run = repository.getLatestRun();
     if (!run) return null;
+    const analysisContext = repository.createRunAnalysisContext(run.id);
     return {
       run,
-      checkpoints: repository.listRunCheckpoints(run.id),
-      counts: repository.counts(run.id),
+      checkpoints: analysisContext.listRunCheckpoints(),
+      counts: analysisContext.counts(),
       active: false,
     };
   } finally {
@@ -51,19 +68,25 @@ export function getLatestSineHeadlessRun() {
 }
 
 export function startSineHeadlessJob(options) {
-  if (hasActiveSineHeadlessJob()) {
-    return { ok: false, status: 409, error: "Another Sine headless run is already active" };
+  const activeCapacity = maxConcurrentSineHeadlessJobs();
+  if (activeJobs.size >= activeCapacity) {
+    return { ok: false, status: 409, error: `Sine headless run capacity is full (${activeJobs.size}/${activeCapacity})` };
   }
 
+  const chunkTicks = sanitizeHeadlessChunkTicks(options.chunkTicks, "interactive");
+  const runId = options.runId || randomUUID();
+  const createdAt = new Date().toISOString();
   const job = {
-    runId: options.runId || randomUUID(),
+    runId,
     status: "running",
     targetTicks: options.ticks,
     tick: 0,
     checkpointIntervalTicks: options.checkpointIntervalTicks,
+    chunkTicks,
     minimumResolvedTrades: options.minimumResolvedTrades,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    resolvedTradeSnapshotInterval: options.resolvedTradeSnapshotInterval,
+    createdAt,
+    updatedAt: createdAt,
     completedAt: null,
     cancelRequested: false,
     latestCheckpoint: null,
@@ -71,90 +94,144 @@ export function startSineHeadlessJob(options) {
     error: null,
     terminationReason: null,
     timing: null,
+    worker: null,
+    settled: false,
+    options: { ...options, runId, chunkTicks, createdAt, assumeInitializedDb: true },
   };
-  activeJob = job;
-  void runJob(job, options);
+  activeJobs.set(runId, job);
+  try {
+    startIsolatedJob(job);
+  } catch (error) {
+    activeJobs.delete(runId);
+    return {
+      ok: false,
+      status: 500,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
   return { ok: true, job: serializeJob(job) };
 }
 
 export function cancelSineHeadlessJob(runId) {
-  if (!activeJob || activeJob.runId !== runId) return null;
-  activeJob.cancelRequested = true;
-  activeJob.status = "cancel_requested";
-  activeJob.updatedAt = new Date().toISOString();
-  return serializeJob(activeJob);
+  const job = activeJobs.get(runId);
+  if (!job) return null;
+  job.cancelRequested = true;
+  job.status = "cancel_requested";
+  job.updatedAt = new Date().toISOString();
+  job.worker?.postMessage({ type: "cancel", runId });
+  return serializeJob(job);
 }
 
-async function runJob(job, options) {
-  const repository = createSineHeadlessRepository(options.dbPath);
-  let marketConfig = null;
-  let spawnerConfig = null;
+function startIsolatedJob(job) {
+  const worker = new Worker(new URL("./sineHeadlessJobWorker.mjs", import.meta.url), {
+    workerData: {
+      options: job.options,
+      diagnostics: {
+        strictDigest: false,
+      },
+    },
+  });
+  job.worker = worker;
+  worker.on("message", (message) => handleWorkerMessage(job, message));
+  worker.on("error", (error) => failJobFromParent(job, error));
+  worker.on("exit", (code) => {
+    if (code !== 0 && !job.settled) failJobFromParent(job, new Error(`Headless worker exited with code ${code}`));
+    if (job.settled) activeJobs.delete(job.runId);
+  });
+}
+
+function handleWorkerMessage(job, message) {
+  if (!message || message.runId !== job.runId) return;
+  if (message.type === "checkpoint") {
+    const checkpoint = message.checkpoint;
+    job.tick = checkpoint.tick;
+    job.population = checkpoint.population;
+    job.latestCheckpoint = checkpoint;
+    job.updatedAt = new Date().toISOString();
+    return;
+  }
+  if (message.type === "progress") {
+    const progress = message.progress;
+    job.tick = progress.tick;
+    job.population = progress.population;
+    job.timing = progress.timing ?? null;
+    job.updatedAt = progress.createdAt;
+    return;
+  }
+  if (message.type === "result") {
+    job.tick = message.tick;
+    job.status = message.status;
+    job.terminationReason = message.terminationReason;
+    job.timing = message.timing ?? job.timing;
+    job.strictDigest = message.strictDigest;
+    completeJob(job);
+    return;
+  }
+  if (message.type === "error") {
+    job.tick = message.tick ?? job.tick;
+    failJobFromParent(job, new Error(message.error ?? "Headless worker failed"));
+  }
+}
+
+function completeJob(job) {
+  job.settled = true;
+  job.completedAt = new Date().toISOString();
+  job.updatedAt = job.completedAt;
+  activeJobs.delete(job.runId);
+}
+
+function failJobFromParent(job, error) {
+  if (job.settled) return;
+  writeFailedRunFallback(job, error);
+  job.settled = true;
+  job.status = "failed";
+  job.error = error instanceof Error ? error.message : String(error);
+  job.terminationReason = "error";
+  job.completedAt = new Date().toISOString();
+  job.updatedAt = job.completedAt;
+  activeJobs.delete(job.runId);
+}
+
+function writeFailedRunFallback(job, error) {
+  const repository = createSineHeadlessRepository();
   try {
-    marketConfig = sanitizeMarketRuntimeConfig(options.marketConfig);
-    spawnerConfig = sanitizeSpawnerConfig(options.spawnerConfig);
-    const result = await runHeadlessSineExperiment({
-      runId: job.runId,
-      ticks: options.ticks,
-      seed: options.seed,
-      marketConfig,
-      spawnerConfig,
-      minimumResolvedTrades: options.minimumResolvedTrades,
-      sink: repository.sink,
-      candleLoader: isBtcSource(marketConfig.source) ? repositoryCandleLoader : undefined,
-      checkpointIntervalTicks: options.checkpointIntervalTicks,
-      chunkTicks: options.chunkTicks,
-      shouldCancel: () => job.cancelRequested,
-      onCheckpoint: (checkpoint) => {
-        job.tick = checkpoint.tick;
-        job.population = checkpoint.population;
-        job.latestCheckpoint = checkpoint;
-        job.updatedAt = new Date().toISOString();
-      },
-      onProgress: (progress) => {
-        job.tick = progress.tick;
-        job.population = progress.population;
-        job.timing = progress.timing ?? null;
-        job.updatedAt = progress.createdAt;
-      },
-    });
-    job.tick = result.tick;
-    job.status = result.status;
-    job.terminationReason = result.terminationReason;
-    job.completedAt = new Date().toISOString();
-    job.updatedAt = job.completedAt;
-  } catch (error) {
-    if (marketConfig && spawnerConfig && !repository.getRun(job.runId)) {
-      const now = new Date().toISOString();
-      repository.sink.writeRunStart({
-        id: job.runId,
-        createdAt: job.createdAt ?? now,
-        status: "running",
-        seed: Number.isFinite(options.seed) ? Math.floor(Number(options.seed)) : 101,
-        tick: job.tick ?? 0,
-        targetTicks: options.ticks,
-        checkpointIntervalTicks: options.checkpointIntervalTicks,
-        marketSource: marketConfig.source,
-        minimumResolvedTrades: Math.max(0, Math.floor(options.minimumResolvedTrades ?? 0)),
-        marketConfig,
-        spawnerConfig,
-      });
+    if (repository.getRun(job.runId)) {
       repository.sink.writeRunCompletion({
         id: job.runId,
-        completedAt: now,
+        completedAt: new Date().toISOString(),
         status: "failed",
         tick: job.tick ?? 0,
         terminationReason: "error",
         error: error instanceof Error ? error.message : String(error),
       });
+      return;
     }
-    job.status = "failed";
-    job.error = error instanceof Error ? error.message : String(error);
-    job.terminationReason = "error";
-    job.completedAt = new Date().toISOString();
-    job.updatedAt = job.completedAt;
+    const marketConfig = sanitizeMarketRuntimeConfig(job.options.marketConfig);
+    const spawnerConfig = sanitizeSpawnerConfig(job.options.spawnerConfig);
+    const now = new Date().toISOString();
+    repository.sink.writeRunStart({
+      id: job.runId,
+      createdAt: job.createdAt ?? now,
+      status: "running",
+      seed: Number.isFinite(job.options.seed) ? Math.floor(Number(job.options.seed)) : 101,
+      tick: job.tick ?? 0,
+      targetTicks: job.options.ticks,
+      checkpointIntervalTicks: job.options.checkpointIntervalTicks,
+      marketSource: marketConfig.source,
+      minimumResolvedTrades: Math.max(0, Math.floor(job.options.minimumResolvedTrades ?? 0)),
+      marketConfig,
+      spawnerConfig,
+    });
+    repository.sink.writeRunCompletion({
+      id: job.runId,
+      completedAt: now,
+      status: "failed",
+      tick: job.tick ?? 0,
+      terminationReason: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
   } finally {
     repository.close();
-    if (activeJob === job) activeJob = null;
   }
 }
 
@@ -165,7 +242,9 @@ function serializeJob(job) {
     targetTicks: job.targetTicks,
     tick: job.tick,
     checkpointIntervalTicks: job.checkpointIntervalTicks,
+    chunkTicks: job.chunkTicks,
     minimumResolvedTrades: job.minimumResolvedTrades,
+    resolvedTradeSnapshotInterval: job.resolvedTradeSnapshotInterval,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     completedAt: job.completedAt,
@@ -175,27 +254,12 @@ function serializeJob(job) {
     error: job.error,
     terminationReason: job.terminationReason,
     timing: job.timing ?? undefined,
-    active: activeJob === job,
+    active: activeJobs.has(job.runId),
   };
 }
 
-function isTerminalStatus(status) {
-  return status === "completed" || status === "cancelled" || status === "failed";
-}
-
-function repositoryCandleLoader(config, start, limit) {
-  const result = getMarketCandles({
-    source: config.source,
-    start,
-    limit,
-    rocLength: config.playback.rocLengthBars,
-  });
-  if (!result.ok) throw new Error(result.error ?? `Could not load candles for ${config.source}`);
-  return {
-    candles: result.candles,
-    snappedStartTimestamp: result.snappedStartTimestamp,
-    snappedStartDatetime: result.snappedStartDatetime,
-  };
+function firstActiveJob() {
+  return [...activeJobs.values()].sort((left, right) => left.createdAt.localeCompare(right.createdAt))[0] ?? null;
 }
 
 export function sanitizeSineHeadlessJobOptions(payload) {
@@ -208,8 +272,9 @@ export function sanitizeSineHeadlessJobOptions(payload) {
     marketConfig: sanitizeMarketRuntimeConfig(record.marketConfig),
     spawnerConfig: sanitizeSpawnerConfig(isRecord(record.spawnerConfig) ? record.spawnerConfig : {}),
     minimumResolvedTrades: readInteger(record.minimumResolvedTrades, 10, 0),
+    resolvedTradeSnapshotInterval: readInteger(record.resolvedTradeSnapshotInterval, DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL, 0),
     checkpointIntervalTicks: readInteger(record.checkpointIntervalTicks, 10000, 1),
-    chunkTicks: Math.min(MAX_JOB_CHUNK_TICKS, readInteger(record.chunkTicks, DEFAULT_JOB_CHUNK_TICKS, 1)),
+    chunkTicks: sanitizeHeadlessChunkTicks(record.chunkTicks, "interactive"),
   };
 }
 

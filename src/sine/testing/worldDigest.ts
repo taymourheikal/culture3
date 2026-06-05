@@ -1,4 +1,5 @@
 import type { SpawnerWorld } from "../spawner/types";
+import { materializeDecisionTrace } from "../spawner/plasticity";
 
 type NumericRecord = Record<string, number> | Record<number, number>;
 
@@ -65,13 +66,14 @@ export function roundDigestNumber(value: number) {
 }
 
 function traceDigest(trace: any) {
+  const publicTrace = materializeDecisionTrace(trace);
   return {
-    id: trace.id,
-    tick: trace.tick,
-    action: trace.action,
-    activeConnectionIds: trace.activeConnectionIds,
+    id: publicTrace.id,
+    tick: publicTrace.tick,
+    action: publicTrace.action,
+    activeConnectionIds: publicTrace.activeConnectionIds,
     connectionActivations: Object.fromEntries(
-      Object.entries(trace.connectionActivations).map(([key, value]: [string, any]) => [
+      Object.entries(publicTrace.connectionActivations).map(([key, value]: [string, any]) => [
         key,
         { source: roundDigestNumber(value.source), target: roundDigestNumber(value.target) },
       ]),

@@ -7,6 +7,7 @@ import { createSimulationState, advanceSimulationToTarget } from "../src/sine/si
 import { createPersistenceOutbox } from "../src/sine/persistence/persistenceOutbox";
 import { DEFAULT_SPAWNER_CONFIG, computeSpawnerUniqueness, type SpawnerConfig, type SpawnerEvent } from "../src/sine/spawnerSimulation";
 import type { SinePersistencePacket } from "../src/sine/marketWorkerProtocol";
+import { parseFlagArgs, readIntegerOption, round, roundKb } from "./sine-benchmark/cli";
 
 type CliOptions = {
   population: number;
@@ -169,29 +170,14 @@ function dbSizeBytes(dbPath: string) {
 }
 
 function parseArgs(args: string[]): CliOptions {
-  const values = new Map<string, string>();
-  for (let index = 0; index < args.length; index += 1) {
-    const token = args[index] ?? "";
-    if (!token.startsWith("--")) throw new Error(`Unexpected argument ${token}`);
-    const key = token.slice(2);
-    const next = args[index + 1];
-    if (!next || next.startsWith("--")) throw new Error(`Missing value for --${key}`);
-    values.set(key, next);
-    index += 1;
-  }
+  const values = parseFlagArgs(args);
   return {
-    population: readInteger(values.get("population") ?? "250", "--population", 1),
-    intervals: readInteger(values.get("intervals") ?? "10", "--intervals", 1),
-    intervalTicks: readInteger(values.get("interval-ticks") ?? "50", "--interval-ticks", 1),
-    seed: readInteger(values.get("seed") ?? "101", "--seed", 0),
+    population: readIntegerOption(values, "population", 250, 1),
+    intervals: readIntegerOption(values, "intervals", 10, 1),
+    intervalTicks: readIntegerOption(values, "interval-ticks", 50, 1),
+    seed: readIntegerOption(values, "seed", 101, 0),
     db: values.get("db"),
   };
-}
-
-function readInteger(value: string, label: string, min: number) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || Math.floor(parsed) < min) throw new Error(`${label} must be an integer >= ${min}`);
-  return Math.floor(parsed);
 }
 
 function average(values: number[]) {
@@ -204,12 +190,4 @@ function min(values: number[]) {
 
 function max(values: number[]) {
   return values.length > 0 ? Math.max(...values) : null;
-}
-
-function round(value: number) {
-  return Number(value.toFixed(3));
-}
-
-function roundKb(value: number) {
-  return Number(value.toFixed(1));
 }

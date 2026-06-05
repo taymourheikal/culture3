@@ -1,6 +1,6 @@
 import { nonNegativeInteger } from "../src/sine/numeric.ts";
 import { downsideDeviation, finiteSortedValues, histogram, quantile, summaryStats, tailRiskStats } from "./sineDiagnosticsMath.mjs";
-import { historicalBucketSizeForSpan, historicalBucketStart } from "./sineDiagnosticsBuckets.mjs";
+import { historicalBucketForTick, historicalBucketSizeForSpan, historicalRangeSpanTicks } from "./sineDiagnosticsBuckets.mjs";
 import { buildTradeQualityDiagnostics } from "./sineTradeQuality.mjs";
 
 const HISTORICAL_CHART_LIMIT = 700;
@@ -77,16 +77,15 @@ function buildPopulationDiagnostics(births, deaths, range, baselinePopulation = 
   const deltas = new Map();
   const birthsByBucket = new Map();
   const deathsByBucket = new Map();
-  const rangeSpanTicks = Math.max(1, range.toTick - range.fromTick);
-  const bucketSize = historicalBucketSizeForSpan(rangeSpanTicks);
+  const bucketSize = historicalBucketSizeForSpan(historicalRangeSpanTicks(range));
   deltas.set(range.fromTick, baselinePopulation);
   for (const birth of births) {
     addToMap(deltas, birth.tick, 1);
-    addToMap(birthsByBucket, historicalBucketStart(birth.tick, bucketSize, range.fromTick), 1);
+    addToMap(birthsByBucket, historicalBucketForTick(birth.tick, range, bucketSize).bucketStartTick, 1);
   }
   for (const death of deaths) {
     addToMap(deltas, death.tick, -1);
-    addToMap(deathsByBucket, historicalBucketStart(death.tick, bucketSize, range.fromTick), 1);
+    addToMap(deathsByBucket, historicalBucketForTick(death.tick, range, bucketSize).bucketStartTick, 1);
   }
 
   const ticks = [...deltas.keys()].sort((left, right) => left - right);
@@ -130,9 +129,9 @@ function buildPopulationDiagnostics(births, deaths, range, baselinePopulation = 
   const churnBuckets = [...bucketStarts].sort((left, right) => left - right).map((start) => {
     const bucketBirths = birthsByBucket.get(start) ?? 0;
     const bucketDeaths = deathsByBucket.get(start) ?? 0;
+    const bucket = historicalBucketForTick(start, range, bucketSize);
     return {
-      bucketStartTick: start,
-      bucketEndTick: Math.min(range.toTick, start + bucketSize - 1),
+      ...bucket,
       births: bucketBirths,
       deaths: bucketDeaths,
       events: bucketBirths + bucketDeaths,
@@ -155,16 +154,16 @@ function buildPopulationDiagnostics(births, deaths, range, baselinePopulation = 
 }
 
 function buildDeathCauseDiagnostics(deaths, range) {
-  const bucketSize = historicalBucketSizeForSpan(Math.max(1, range.toTick - range.fromTick));
+  const bucketSize = historicalBucketSizeForSpan(historicalRangeSpanTicks(range));
   const rowsByBucket = new Map();
   let unknown = 0;
   for (const death of deaths) {
-    const start = historicalBucketStart(death.tick, bucketSize, range.fromTick);
+    const bucket = historicalBucketForTick(death.tick, range, bucketSize);
+    const start = bucket.bucketStartTick;
     const row =
       rowsByBucket.get(start) ??
       {
-        bucketStartTick: start,
-        bucketEndTick: Math.min(range.toTick, start + bucketSize - 1),
+        ...bucket,
         lowEnergyDeaths: 0,
         lowHealthDeaths: 0,
         bothDeaths: 0,
@@ -217,11 +216,12 @@ function buildTradingDiagnostics(trades, range) {
     };
   });
 
-  const bucketSize = historicalBucketSizeForSpan(Math.max(1, range.toTick - range.fromTick));
+  const bucketSize = historicalBucketSizeForSpan(historicalRangeSpanTicks(range));
   const buckets = new Map();
   for (const trade of trades) {
-    const start = historicalBucketStart(trade.tick, bucketSize, range.fromTick);
-    const row = buckets.get(start) ?? { bucketStartTick: start, bucketEndTick: Math.min(range.toTick, start + bucketSize - 1), trades: 0, wins: 0, totalPayoff: 0 };
+    const bucket = historicalBucketForTick(trade.tick, range, bucketSize);
+    const start = bucket.bucketStartTick;
+    const row = buckets.get(start) ?? { ...bucket, trades: 0, wins: 0, totalPayoff: 0 };
     row.trades += 1;
     row.totalPayoff += trade.payoff;
     if (trade.win) row.wins += 1;
@@ -311,12 +311,13 @@ function buildPopulationStructureDiagnostics(context, population) {
   const liveCounts = [...liveByLineage.entries()].sort((left, right) => right[1] - left[1]);
   const finalPopulation = Math.max(1, population.finalPopulation);
   const payoffByLineage = new Map();
-  let cumulativePayoff = 0;
   for (const trade of context.resolvedTrades) {
-    cumulativePayoff += trade.payoff;
     addToMap(payoffByLineage, trade.lineageId, trade.payoff);
   }
   const topPayoffLineage = [...payoffByLineage.entries()].sort((left, right) => right[1] - left[1])[0] ?? null;
+  const absolutePayoffByLineage = [...payoffByLineage.entries()].map(([lineageId, payoff]) => [lineageId, Math.abs(payoff)]);
+  const totalAbsoluteLineagePayoff = absolutePayoffByLineage.reduce((sum, [, payoff]) => sum + payoff, 0);
+  const topPayoffContribution = topPayoffLineage ? Math.abs(topPayoffLineage[1]) : 0;
   const top3Population = liveCounts.slice(0, 3).reduce((sum, [, count]) => sum + count, 0);
   const generationRows = [...(context.aliveAgentsAtTo ?? []), ...context.births, ...context.deaths];
   const spanTicks = Math.max(1, context.rangeSpanTicks ?? context.latestTick);
@@ -327,7 +328,7 @@ function buildPopulationStructureDiagnostics(context, population) {
     topLineageId: liveCounts[0]?.[0] ?? null,
     topLineagePopulationShare: (liveCounts[0]?.[1] ?? 0) / finalPopulation,
     topLineagePayoffLineageId: topPayoffLineage?.[0] ?? null,
-    topLineagePayoffShare: cumulativePayoff !== 0 && topPayoffLineage ? topPayoffLineage[1] / cumulativePayoff : 0,
+    topLineagePayoffShare: totalAbsoluteLineagePayoff > 0 ? topPayoffContribution / totalAbsoluteLineagePayoff : 0,
     top3LineagePopulationShare: top3Population / finalPopulation,
     birthsPer1000Ticks: (context.births.length / spanTicks) * 1000,
     deathsPer1000Ticks: (context.deaths.length / spanTicks) * 1000,

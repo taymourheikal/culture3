@@ -1,5 +1,6 @@
 import type { SineSessionDiagnostics } from "./sineHistoryTypes";
-import { DiagnosticsPanel, formatNumber, formatPercent } from "./RunDiagnosticsUi";
+import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { formatNumber, formatPercent } from "./diagnosticFormatters";
 import { SummaryMetricGrid } from "./RunDiagnosticsShared";
 import { RUN_DIAGNOSTIC_HELP } from "../sineMetricHelp";
 

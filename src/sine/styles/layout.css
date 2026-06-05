@@ -794,6 +794,20 @@
   gap: 10px;
 }
 
+.sine-headless-run-list {
+  display: grid;
+  gap: 12px;
+}
+
+.sine-headless-run-card {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: 8px;
+  background: rgb(var(--sine-surface-rgb) / 0.68);
+}
+
 .sine-run-progress {
   height: 12px;
   overflow: hidden;

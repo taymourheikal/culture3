@@ -10,6 +10,8 @@ import {
 } from "../../src/sine/marketTimeline";
 import { advanceSpawnerWorldToTimeline, createSpawnerWorld } from "../../src/sine/spawnerSimulation";
 import { advanceSimulationToTarget, createSimulationState } from "../../src/sine/simulationRuntime";
+import { playbackEndReached } from "../../src/sine/playbackEnd";
+import { INITIAL_MARKET_RUNTIME_CONFIG } from "../../src/sine/marketRuntimeConfig";
 import { round, type SineTest } from "./helpers";
 
 function testTimelineHistoryIsProspective() {
@@ -143,6 +145,66 @@ function testCandleTimelineEndOfDataDoesNotLeaveBacklog() {
   assert.equal(timeline.candleEndReached, true);
 }
 
+function testPlaybackEndByTicksUsesRunStartTick() {
+  const playback = {
+    ...INITIAL_MARKET_RUNTIME_CONFIG.playback,
+    endMode: "ticks" as const,
+    endAfterTicks: 5,
+  };
+
+  assert.equal(playbackEndReached({ playback, runStartTick: 10, currentTick: 14 }), false);
+  assert.equal(playbackEndReached({ playback, runStartTick: 10, currentTick: 15 }), true);
+  assert.equal(playbackEndReached({ playback, runStartTick: 10, currentTick: 18 }), true);
+}
+
+function testPlaybackEndNoneNeverStopsByUserRule() {
+  const playback = {
+    ...INITIAL_MARKET_RUNTIME_CONFIG.playback,
+    endMode: "none" as const,
+    endAfterTicks: 1,
+    endDateTime: "2023-11-14T22:18",
+  };
+
+  assert.equal(playbackEndReached({ playback, runStartTick: 0, currentTick: 100, currentSourceTimestamp: 1_700_000_000 }), false);
+}
+
+function testPlaybackEndPauseResumeKeepsCountdownOrigin() {
+  const playback = {
+    ...INITIAL_MARKET_RUNTIME_CONFIG.playback,
+    endMode: "ticks" as const,
+    endAfterTicks: 3,
+  };
+  const runStartTick = 20;
+
+  assert.equal(playbackEndReached({ playback, runStartTick, currentTick: 21 }), false);
+  assert.equal(playbackEndReached({ playback, runStartTick, currentTick: 22 }), false);
+  assert.equal(playbackEndReached({ playback, runStartTick, currentTick: 23 }), true);
+}
+
+function testPlaybackEndByDateUsesFirstTimestampAtOrAfterEnd() {
+  const playback = {
+    ...INITIAL_MARKET_RUNTIME_CONFIG.playback,
+    endMode: "date" as const,
+    endDateTime: "2023-11-14T22:18",
+  };
+  const endTimestamp = Math.floor(Date.parse("2023-11-14T22:18:00.000Z") / 1000);
+
+  assert.equal(playbackEndReached({ playback, runStartTick: 0, currentTick: 1, currentSourceTimestamp: endTimestamp - 1 }), false);
+  assert.equal(playbackEndReached({ playback, runStartTick: 0, currentTick: 2, currentSourceTimestamp: endTimestamp }), true);
+  assert.equal(playbackEndReached({ playback, runStartTick: 0, currentTick: 3, currentSourceTimestamp: endTimestamp + 300 }), true);
+}
+
+function testPlaybackEndByDateIgnoresTimestamplessSources() {
+  const playback = {
+    ...INITIAL_MARKET_RUNTIME_CONFIG.playback,
+    endMode: "date" as const,
+    endDateTime: "2023-11-14T22:18",
+  };
+
+  assert.equal(playbackEndReached({ playback, runStartTick: 0, currentTick: 100 }), false);
+  assert.equal(playbackEndReached({ playback, runStartTick: 0, currentTick: 100, currentSourceTimestamp: null }), false);
+}
+
 export const tests: SineTest[] = [
   { name: "Timeline History Is Prospective", run: testTimelineHistoryIsProspective },
   { name: "Future Noise Does Not Smooth After It Becomes History", run: testFutureNoiseDoesNotSmoothAfterItBecomesHistory },
@@ -152,4 +214,9 @@ export const tests: SineTest[] = [
   { name: "Candle Timeline Advances One Candle Per Tick", run: testCandleTimelineAdvancesOneCandlePerTick },
   { name: "Candle Timeline Off Tick Sampling Uses Candle Data", run: testCandleTimelineOffTickSamplingUsesCandleData },
   { name: "Candle Timeline End Of Data Does Not Leave Backlog", run: testCandleTimelineEndOfDataDoesNotLeaveBacklog },
+  { name: "Playback End By Ticks Uses Run Start Tick", run: testPlaybackEndByTicksUsesRunStartTick },
+  { name: "Playback End None Never Stops By User Rule", run: testPlaybackEndNoneNeverStopsByUserRule },
+  { name: "Playback End Pause Resume Keeps Countdown Origin", run: testPlaybackEndPauseResumeKeepsCountdownOrigin },
+  { name: "Playback End By Date Uses First Timestamp At Or After End", run: testPlaybackEndByDateUsesFirstTimestampAtOrAfterEnd },
+  { name: "Playback End By Date Ignores Timestampless Sources", run: testPlaybackEndByDateIgnoresTimestamplessSources },
 ];

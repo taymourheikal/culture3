@@ -4,9 +4,8 @@ import { MarketControlGroups } from "./controls/MarketControlGroups";
 import { SpawnerControlGroups } from "./controls/SpawnerControlGroups";
 import {
   cancelSineHeadlessRun,
-  getActiveSineHeadlessRun,
+  getActiveSineHeadlessRuns,
   getLatestSineHeadlessRun,
-  getSineHeadlessRun,
   startSineHeadlessRun,
   type SineHeadlessCounts,
   type SineHeadlessJob,
@@ -29,16 +28,26 @@ import { sanitizeSpawnerConfig } from "./spawnerSettingsStorage";
 import { Metric } from "./SineMetric";
 import type { SineView } from "./SineApp";
 import { SineHeader } from "./SineHeader";
+import { SineHelpTooltip } from "./SineHelpTooltip";
 import { SineHeadlessAnalysis } from "./SineHeadlessAnalysis";
 
 type RunDraft = {
   ticks: number;
   seed: number;
   minimumResolvedTrades: number;
+  resolvedTradeSnapshotInterval: number;
   checkpointIntervalTicks: number;
   marketConfig: MarketRuntimeConfig;
   spawnerConfig: SpawnerConfig;
 };
+
+const RUN_CONTROL_HELP = {
+  ticks: "Maximum run length in simulation ticks. The run stops at this target unless population hits 0 or the market data ends first.",
+  checkpointIntervalTicks: "How often the headless worker writes progress checkpoints for the Runs UI and saved run summaries.",
+  minimumResolvedTrades: "Seed-bank reconstruction threshold: an agent becomes eligible for rich persisted snapshots after this many resolved trades.",
+  resolvedTradeSnapshotInterval: "For eligible/candidate agents, save an extra reconstruction snapshot after every N resolved trades. 0 disables trade-interval snapshots.",
+  seed: "Deterministic random seed for founder creation, mutation, reproduction, and other seeded simulation randomness.",
+} as const;
 
 export function SineRunsView({
   activeView,
@@ -49,42 +58,34 @@ export function SineRunsView({
 }) {
   const [draft, setDraft] = useState<RunDraft>(() => createDraft());
   const [savedGroup, setSavedGroup] = useState<string | null>(null);
-  const [job, setJob] = useState<SineHeadlessJob | null>(null);
+  const [activeJobs, setActiveJobs] = useState<SineHeadlessJob[]>([]);
+  const [maxConcurrentRuns, setMaxConcurrentRuns] = useState(2);
   const [run, setRun] = useState<SineHeadlessRunRow | null>(null);
   const [checkpoints, setCheckpoints] = useState<HeadlessRunCheckpointRecord[]>([]);
   const [counts, setCounts] = useState<SineHeadlessCounts | null>(null);
-  const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pendingAction, setPendingAction] = useState<"start" | "cancel" | null>(null);
-
-  const latestCheckpoint = job ? job.latestCheckpoint : checkpoints[checkpoints.length - 1] ?? null;
-  const progressTick = job?.tick ?? run?.tick ?? latestCheckpoint?.tick ?? 0;
-  const targetTicks = job?.targetTicks ?? run?.target_ticks ?? draft.ticks;
-  const progress = targetTicks > 0 ? Math.max(0, Math.min(1, progressTick / targetTicks)) : 1;
-  const terminal = job ? isTerminalStatus(job.status) : run ? isTerminalStatus(run.status) : false;
-  const timing = job?.timing ?? null;
+  const [pendingAction, setPendingAction] = useState<"start" | `cancel:${string}` | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const applyLatestRun = async () => {
       const latest = await getLatestSineHeadlessRun();
       if (cancelled || !latest.run) return;
-      setJob(null);
+      setActiveJobs([]);
       setRun(latest.run);
       setCheckpoints(latest.checkpoints);
       setCounts(latest.counts);
     };
-    void getActiveSineHeadlessRun()
+    void getActiveSineHeadlessRuns()
       .then((response) => {
         if (cancelled) return;
-        if (!response.job) {
+        setMaxConcurrentRuns(response.maxConcurrentRuns);
+        setActiveJobs(sortJobs(response.jobs));
+        if (response.jobs.length === 0) {
           void applyLatestRun().catch((caught) => {
             if (!cancelled) setError(caught instanceof Error ? caught.message : String(caught));
           });
-          return;
         }
-        setJob(response.job);
-        setActiveRunId(response.job.runId);
       })
       .catch((caught) => {
         if (!cancelled) setError(caught instanceof Error ? caught.message : String(caught));
@@ -95,22 +96,29 @@ export function SineRunsView({
   }, []);
 
   useEffect(() => {
-    if (!activeRunId) return;
+    if (activeJobs.length === 0) return;
     let cancelled = false;
     let timeout: number | null = null;
     const poll = () => {
-      void getSineHeadlessRun(activeRunId)
+      void getActiveSineHeadlessRuns()
         .then((response) => {
           if (cancelled) return;
-          if (response.job) {
-            setJob(response.job);
-            timeout = window.setTimeout(poll, isTerminalStatus(response.job.status) ? 250 : 1000);
+          setMaxConcurrentRuns(response.maxConcurrentRuns);
+          setActiveJobs(sortJobs(response.jobs));
+          if (response.jobs.length > 0) {
+            timeout = window.setTimeout(poll, 1000);
             return;
           }
-          setJob(null);
-          setRun(response.run ?? null);
-          setCheckpoints(response.checkpoints ?? []);
-          setCounts(response.counts ?? null);
+          void getLatestSineHeadlessRun()
+            .then((latest) => {
+              if (cancelled) return;
+              setRun(latest.run);
+              setCheckpoints(latest.checkpoints);
+              setCounts(latest.counts);
+            })
+            .catch((caught) => {
+              if (!cancelled) setError(caught instanceof Error ? caught.message : String(caught));
+            });
         })
         .catch((caught) => {
           if (!cancelled) setError(caught instanceof Error ? caught.message : String(caught));
@@ -121,11 +129,11 @@ export function SineRunsView({
       cancelled = true;
       if (timeout !== null) window.clearTimeout(timeout);
     };
-  }, [activeRunId]);
+  }, [activeJobs.length]);
 
   const marketSettings = draft.marketConfig.generated;
-  const canStart = pendingAction === null && (!job || terminal);
-  const canCancel = pendingAction === null && !!job && !isTerminalStatus(job.status) && !job.cancelRequested;
+  const capacityFull = activeJobs.length >= maxConcurrentRuns;
+  const canStart = pendingAction === null && !capacityFull;
 
   const restoreLabSettings = () => {
     const savedLab = loadSavedLabDefaultsForRuns();
@@ -187,10 +195,10 @@ export function SineRunsView({
         marketConfig: draft.marketConfig,
         spawnerConfig: draft.spawnerConfig,
         minimumResolvedTrades: draft.minimumResolvedTrades,
+        resolvedTradeSnapshotInterval: draft.resolvedTradeSnapshotInterval,
         checkpointIntervalTicks: draft.checkpointIntervalTicks,
       });
-      setJob(response.job);
-      setActiveRunId(response.job.runId);
+      setActiveJobs((current) => sortJobs(upsertJob(current, response.job)));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -198,44 +206,19 @@ export function SineRunsView({
     }
   };
 
-  const cancelRun = async () => {
-    if (!job || pendingAction !== null) return;
-    setPendingAction("cancel");
+  const cancelRun = async (job: SineHeadlessJob) => {
+    if (pendingAction !== null) return;
+    setPendingAction(`cancel:${job.runId}`);
     try {
       setError(null);
       const response = await cancelSineHeadlessRun(job.runId);
-      setJob(response.job);
+      setActiveJobs((current) => sortJobs(upsertJob(current, response.job)));
     } catch (caught) {
-      try {
-        const response = await getSineHeadlessRun(job.runId);
-        if (response.job) setJob(response.job);
-        else {
-          setJob(null);
-          setRun(response.run ?? null);
-          setCheckpoints(response.checkpoints ?? []);
-          setCounts(response.counts ?? null);
-        }
-      } catch {
-        setError(caught instanceof Error ? caught.message : String(caught));
-      }
+      setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
       setPendingAction(null);
     }
   };
-
-  const statusLabel = job?.status ?? run?.status ?? "idle";
-  const runId = job?.runId ?? run?.id ?? "Not started";
-  const headlineStats = useMemo<Array<[string, string]>>(
-    () => [
-      ["Population", latestCheckpoint ? String(latestCheckpoint.population) : job?.population !== null && job?.population !== undefined ? String(job.population) : "--"],
-      ["Eligible", latestCheckpoint ? String(latestCheckpoint.eligibleAgents) : "--"],
-      ["Hit rate", latestCheckpoint ? `${(latestCheckpoint.hitRate * 100).toFixed(1)}%` : "--"],
-      ["Avg payoff", latestCheckpoint ? latestCheckpoint.averagePayoff.toFixed(3) : "--"],
-      ["Net payoff", latestCheckpoint ? latestCheckpoint.cumulativePayoff.toFixed(2) : "--"],
-      ["Trades", latestCheckpoint ? String(latestCheckpoint.resolvedTrades) : counts ? String(counts.trades) : "--"],
-    ],
-    [counts, job?.population, latestCheckpoint],
-  );
 
   return (
     <main className="sine-shell sine-runs-shell">
@@ -247,47 +230,33 @@ export function SineRunsView({
           <div className="sine-workbench-panel-head">
             <div>
               <span className="sine-eyebrow">Headless experiment</span>
-              <h2>{runId}</h2>
+              <h2>{activeJobs.length > 0 ? "Active runs" : run?.id ?? "Not started"}</h2>
             </div>
-            <strong>{statusLabel}</strong>
+            <strong>{activeJobs.length > 0 ? `${activeJobs.length}/${maxConcurrentRuns} active` : run?.status ?? "idle"}</strong>
           </div>
-          <div className="sine-run-progress" aria-label="Headless run progress">
-            <div style={{ width: `${progress * 100}%` }} />
-          </div>
-          <div className="sine-workbench-mini-grid">
-            <Metric label="Tick" value={`${progressTick.toLocaleString()} / ${targetTicks.toLocaleString()}`} />
-            <Metric label="Checkpoints" value={String(job ? (job.latestCheckpoint ? 1 : 0) : checkpoints.length)} />
-            <Metric label="Interval" value={`${(job?.checkpointIntervalTicks ?? run?.checkpoint_interval_ticks ?? draft.checkpointIntervalTicks).toLocaleString()} ticks`} />
-            <Metric label="Stop reason" value={job ? job.terminationReason ?? "--" : runStopReason(run?.termination_reason, run?.status)} />
-          </div>
-          <div className="sine-workbench-mini-grid">
-            {headlineStats.map(([label, value]) => (
-              <Metric key={label} label={label} value={value} />
-            ))}
-          </div>
-          {timing ? (
-            <div className="sine-workbench-mini-grid">
-              <Metric label="Ticks/sec" value={formatRate(timing.latestChunk?.ticksPerSecond)} />
-              <Metric label="Chunk ms" value={formatMs(timing.latestChunk?.chunkMs)} />
-              <Metric label="Advance ms" value={formatMs(timing.latestChunk?.advanceTotalMs)} />
-              <Metric label="Recorder ms" value={formatMs(timing.latestChunk?.recorderEventMs)} />
-              <Metric label="DB/write ms" value={formatMs(timing.latestChunk?.sinkWriteMs)} />
-              <Metric label="Enqueue ms" value={formatMs(timing.latestChunk?.sinkEnqueueMs)} />
-              <Metric label="Flush ms" value={formatMs(timing.latestChunk?.sinkFlushMs)} />
-              <Metric label="Flushed rows" value={formatInteger(timing.latestChunk?.sinkBufferedRows)} />
-              <Metric label="Core est ms" value={formatMs(timing.latestChunk?.simulationCoreEstimateMs)} />
-              <Metric label="Top write" value={formatSinkMethod(timing.topSinkMethod)} />
+          {activeJobs.length > 0 ? (
+            <div className="sine-headless-run-list">
+              {activeJobs.map((activeJob) => (
+                <HeadlessRunCard
+                  key={activeJob.runId}
+                  job={activeJob}
+                  draftTicks={draft.ticks}
+                  counts={null}
+                  checkpoints={[]}
+                  pendingAction={pendingAction}
+                  onCancel={cancelRun}
+                />
+              ))}
             </div>
-          ) : null}
+          ) : (
+            <HeadlessRunCard job={null} run={run} draftTicks={draft.ticks} checkpoints={checkpoints} counts={counts} pendingAction={pendingAction} />
+          )}
           <div className="sine-workbench-actions">
             <button type="button" onClick={startRun} disabled={!canStart}>
               <FlaskConical size={15} />
               {pendingAction === "start" ? "Starting" : "Start"}
             </button>
-            <button type="button" onClick={cancelRun} disabled={!canCancel}>
-              <Square size={15} />
-              {pendingAction === "cancel" ? "Cancelling" : "Cancel"}
-            </button>
+            {capacityFull ? <span className="sine-muted">Capacity full</span> : null}
           </div>
         </section>
 
@@ -300,10 +269,11 @@ export function SineRunsView({
             {savedGroup === "runs:execution" ? <div className="saved-defaults">Saved defaults</div> : null}
           </div>
           <div className="sine-runs-fields">
-            <NumberField label="Run length" value={draft.ticks} min={0} step={1000} suffix="ticks" disabled={!canStart} onChange={(ticks) => setDraft((current) => ({ ...current, ticks }))} />
-            <NumberField label="Checkpoint interval" value={draft.checkpointIntervalTicks} min={1} step={1000} suffix="ticks" disabled={!canStart} onChange={(checkpointIntervalTicks) => setDraft((current) => ({ ...current, checkpointIntervalTicks }))} />
-            <NumberField label="Minimum resolved trades" value={draft.minimumResolvedTrades} min={0} step={1} disabled={!canStart} onChange={(minimumResolvedTrades) => setDraft((current) => ({ ...current, minimumResolvedTrades }))} />
-            <NumberField label="Seed" value={draft.seed} min={0} step={1} disabled={!canStart} onChange={(seed) => setDraft((current) => ({ ...current, seed }))} />
+            <NumberField label="Run length" value={draft.ticks} min={0} step={1000} suffix="ticks" disabled={!canStart} help={RUN_CONTROL_HELP.ticks} onChange={(ticks) => setDraft((current) => ({ ...current, ticks }))} />
+            <NumberField label="Checkpoint interval" value={draft.checkpointIntervalTicks} min={1} step={1000} suffix="ticks" disabled={!canStart} help={RUN_CONTROL_HELP.checkpointIntervalTicks} onChange={(checkpointIntervalTicks) => setDraft((current) => ({ ...current, checkpointIntervalTicks }))} />
+            <NumberField label="Minimum resolved trades" value={draft.minimumResolvedTrades} min={0} step={1} disabled={!canStart} help={RUN_CONTROL_HELP.minimumResolvedTrades} onChange={(minimumResolvedTrades) => setDraft((current) => ({ ...current, minimumResolvedTrades }))} />
+            <NumberField label="Resolved trade snapshot interval" value={draft.resolvedTradeSnapshotInterval} min={0} step={1} suffix="trades" disabled={!canStart} help={RUN_CONTROL_HELP.resolvedTradeSnapshotInterval} onChange={(resolvedTradeSnapshotInterval) => setDraft((current) => ({ ...current, resolvedTradeSnapshotInterval }))} />
+            <NumberField label="Seed" value={draft.seed} min={0} step={1} disabled={!canStart} help={RUN_CONTROL_HELP.seed} onChange={(seed) => setDraft((current) => ({ ...current, seed }))} />
           </div>
           <div className="sine-workbench-actions">
             <button
@@ -319,7 +289,7 @@ export function SineRunsView({
           </div>
         </section>
 
-        {!job && run && checkpoints.length > 0 ? (
+        {activeJobs.length === 0 && run && checkpoints.length > 0 ? (
           <SineHeadlessAnalysis
             runId={run.id}
             checkpoints={checkpoints}
@@ -345,6 +315,7 @@ export function SineRunsView({
               updateMarketSource={updateMarketSource}
               replaceMarketConfig={replaceMarketConfig}
               showSaveActions
+              showPlaybackEndControls={false}
               saveMarketSource={saveRunsMarketSourceDefault}
               savePlaybackSettings={saveRunsPlaybackSettingsGroup}
               saveMarketSettings={saveRunsMarketSettingsGroup}
@@ -366,6 +337,93 @@ export function SineRunsView({
   );
 }
 
+function HeadlessRunCard({
+  job,
+  run,
+  draftTicks,
+  checkpoints,
+  counts,
+  pendingAction,
+  onCancel,
+}: {
+  job: SineHeadlessJob | null;
+  run?: SineHeadlessRunRow | null;
+  draftTicks: number;
+  checkpoints: HeadlessRunCheckpointRecord[];
+  counts: SineHeadlessCounts | null;
+  pendingAction: "start" | `cancel:${string}` | null;
+  onCancel?: (job: SineHeadlessJob) => void;
+}) {
+  const latestCheckpoint = job ? job.latestCheckpoint : checkpoints[checkpoints.length - 1] ?? null;
+  const progressTick = job?.tick ?? run?.tick ?? latestCheckpoint?.tick ?? 0;
+  const targetTicks = job?.targetTicks ?? run?.target_ticks ?? draftTicks;
+  const progress = targetTicks > 0 ? Math.max(0, Math.min(1, progressTick / targetTicks)) : 1;
+  const statusLabel = job?.status ?? run?.status ?? "idle";
+  const runId = job?.runId ?? run?.id ?? "Not started";
+  const timing = job?.timing ?? null;
+  const cancelPending = job ? pendingAction === `cancel:${job.runId}` : false;
+  const canCancel = !!job && pendingAction === null && !isTerminalStatus(job.status) && !job.cancelRequested;
+  const headlineStats = useMemo<Array<[string, string]>>(
+    () => [
+      ["Population", latestCheckpoint ? String(latestCheckpoint.population) : job?.population !== null && job?.population !== undefined ? String(job.population) : "--"],
+      ["Eligible", latestCheckpoint ? String(latestCheckpoint.eligibleAgents) : "--"],
+      ["Hit rate", latestCheckpoint ? `${(latestCheckpoint.hitRate * 100).toFixed(1)}%` : "--"],
+      ["Avg payoff", latestCheckpoint ? latestCheckpoint.averagePayoff.toFixed(3) : "--"],
+      ["Net payoff", latestCheckpoint ? latestCheckpoint.cumulativePayoff.toFixed(2) : "--"],
+      ["Trades", latestCheckpoint ? String(latestCheckpoint.resolvedTrades) : counts ? String(counts.trades) : "--"],
+    ],
+    [counts, job?.population, latestCheckpoint],
+  );
+
+  return (
+    <article className="sine-headless-run-card">
+      <div className="sine-workbench-panel-head compact">
+        <div>
+          <span className="sine-eyebrow">Run</span>
+          <h3>{runId}</h3>
+        </div>
+        <strong>{statusLabel}</strong>
+      </div>
+      <div className="sine-run-progress" aria-label={`${runId} progress`}>
+        <div style={{ width: `${progress * 100}%` }} />
+      </div>
+      <div className="sine-workbench-mini-grid">
+        <Metric label="Tick" value={`${progressTick.toLocaleString()} / ${targetTicks.toLocaleString()}`} />
+        <Metric label="Checkpoints" value={String(job ? (job.latestCheckpoint ? 1 : 0) : checkpoints.length)} />
+        <Metric label="Interval" value={`${(job?.checkpointIntervalTicks ?? run?.checkpoint_interval_ticks ?? "--").toLocaleString()} ticks`} />
+        <Metric label="Stop reason" value={job ? job.terminationReason ?? "--" : runStopReason(run?.termination_reason, run?.status)} />
+      </div>
+      <div className="sine-workbench-mini-grid">
+        {headlineStats.map(([label, value]) => (
+          <Metric key={label} label={label} value={value} />
+        ))}
+      </div>
+      {timing ? (
+        <div className="sine-workbench-mini-grid">
+          <Metric label="Ticks/sec" value={formatRate(timing.latestChunk?.ticksPerSecond)} />
+          <Metric label="Chunk ms" value={formatMs(timing.latestChunk?.chunkMs)} />
+          <Metric label="Advance ms" value={formatMs(timing.latestChunk?.advanceTotalMs)} />
+          <Metric label="Recorder ms" value={formatMs(timing.latestChunk?.recorderEventMs)} />
+          <Metric label="DB/write ms" value={formatMs(timing.latestChunk?.sinkWriteMs)} />
+          <Metric label="Enqueue ms" value={formatMs(timing.latestChunk?.sinkEnqueueMs)} />
+          <Metric label="Flush ms" value={formatMs(timing.latestChunk?.sinkFlushMs)} />
+          <Metric label="Flushed rows" value={formatInteger(timing.latestChunk?.sinkBufferedRows)} />
+          <Metric label="Core est ms" value={formatMs(timing.latestChunk?.simulationCoreEstimateMs)} />
+          <Metric label="Top write" value={formatSinkMethod(timing.topSinkMethod)} />
+        </div>
+      ) : null}
+      {job ? (
+        <div className="sine-workbench-actions">
+          <button type="button" onClick={() => onCancel?.(job)} disabled={!canCancel}>
+            <Square size={15} />
+            {cancelPending ? "Cancelling" : "Cancel"}
+          </button>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
 function NumberField({
   label,
   value,
@@ -373,6 +431,7 @@ function NumberField({
   step,
   suffix,
   disabled,
+  help,
   onChange,
 }: {
   label: string;
@@ -381,11 +440,15 @@ function NumberField({
   step: number;
   suffix?: string;
   disabled: boolean;
+  help?: string;
   onChange: (value: number) => void;
 }) {
   return (
     <label className="sine-select-field">
-      <span>{label}</span>
+      <span>
+        {label}
+        {help ? <SineHelpTooltip help={help} /> : null}
+      </span>
       <input
         type="number"
         min={min}
@@ -405,10 +468,21 @@ function createDraft(): RunDraft {
     ticks: saved.ticks,
     seed: saved.seed,
     minimumResolvedTrades: saved.minimumResolvedTrades,
+    resolvedTradeSnapshotInterval: saved.resolvedTradeSnapshotInterval,
     checkpointIntervalTicks: saved.checkpointIntervalTicks,
     marketConfig: saved.marketConfig,
     spawnerConfig: saved.spawnerConfig,
   };
+}
+
+function upsertJob(jobs: SineHeadlessJob[], job: SineHeadlessJob) {
+  const next = jobs.filter((candidate) => candidate.runId !== job.runId);
+  next.push(job);
+  return next;
+}
+
+function sortJobs(jobs: SineHeadlessJob[]) {
+  return [...jobs].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
 
 function isTerminalStatus(status: string) {

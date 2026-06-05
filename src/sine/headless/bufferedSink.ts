@@ -39,6 +39,11 @@ export function createBufferedHeadlessRecordSink(target: HeadlessBatchRecordSink
     writeAgentEvent(record) {
       batch.agentEvents.push(record);
     },
+    writeCoreTrade: target.writeCoreTrade
+      ? (record) => {
+          batch.coreTrades.push(record);
+        }
+      : undefined,
     writeTrade(record) {
       batch.trades.push(record);
     },
@@ -82,6 +87,7 @@ export function createEmptyBatch(): HeadlessRecordBatch {
     agentEligibilities: [],
     agentDeaths: [],
     agentEvents: [],
+    coreTrades: [],
     trades: [],
     snapshots: [],
     metrics: [],
@@ -97,6 +103,7 @@ export function batchRecordCount(batch: HeadlessRecordBatch) {
     batch.agentEligibilities.length +
     batch.agentDeaths.length +
     batch.agentEvents.length +
+    batch.coreTrades.length +
     batch.trades.length +
     batch.snapshots.length +
     batch.metrics.length
@@ -112,6 +119,7 @@ export function batchMethodCounts(batch: HeadlessRecordBatch): Partial<Record<He
     markAgentEligible: batch.agentEligibilities.length,
     markAgentDead: batch.agentDeaths.length,
     writeAgentEvent: batch.agentEvents.length,
+    writeCoreTrade: batch.coreTrades.length,
     writeTrade: batch.trades.length,
     writeSnapshot: batch.snapshots.length,
     writeMetrics: batch.metrics.length,
@@ -125,6 +133,7 @@ function writeBatchWithSink(target: HeadlessRecordSink, batch: HeadlessRecordBat
   for (const record of batch.agentEligibilities) target.markAgentEligible(record);
   for (const record of batch.agentDeaths) target.markAgentDead(record);
   for (const record of batch.agentEvents) target.writeAgentEvent(record);
+  for (const record of batch.coreTrades) target.writeCoreTrade?.(record);
   for (const record of batch.trades) target.writeTrade(record);
   for (const record of batch.snapshots) target.writeSnapshot(record);
   for (const record of batch.metrics) target.writeMetrics(record);

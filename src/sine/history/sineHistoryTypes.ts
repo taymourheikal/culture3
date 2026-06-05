@@ -2,12 +2,26 @@ export type SineSessionSummary = {
   id: string;
   createdAt: string;
   updatedAt: string;
-  status: "running" | "paused" | "stopped";
+  completedAt?: string | null;
+  status: "running" | "paused" | "stopped" | "completed" | "cancelled" | "failed";
+  runMode?: "lab" | "headless" | string;
+  marketSource?: string | null;
+  seed?: number | null;
+  targetTicks?: number | null;
+  checkpointIntervalTicks?: number | null;
+  minimumResolvedTrades?: number | null;
+  terminationReason?: string | null;
+  error?: string | null;
   births: number;
   deaths: number;
   stateSnapshots: number;
+  headlessCheckpoints?: number;
+  eligibleAgents?: number;
+  reconstructionSnapshots?: number;
+  reconstructableAgents?: number;
   latestTick: number;
   settings?: Record<string, unknown>;
+  spawnerConfig?: Record<string, unknown>;
 };
 
 export type SineSeriesPoint = {
@@ -188,7 +202,15 @@ export type SineSessionAnalysis = {
     id: string;
     createdAt: string;
     updatedAt: string;
+    completedAt?: string | null;
     status: string;
+    runMode?: string;
+    seed?: number | null;
+    targetTicks?: number | null;
+    checkpointIntervalTicks?: number | null;
+    minimumResolvedTrades?: number | null;
+    terminationReason?: string | null;
+    error?: string | null;
     settings: Record<string, unknown>;
     spawnerConfig: Record<string, number>;
   };

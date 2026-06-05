@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { HEADLESS_THROUGHPUT_CHUNK_TICKS } from "../src/sine/headless/chunkPolicy";
 import { runHeadlessSineExperiment, type HeadlessCandleLoader } from "../src/sine/headless/runner";
+import { DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL } from "../src/sine/headless/types";
 import { INITIAL_MARKET_RUNTIME_CONFIG, type MarketDataSource, type MarketRuntimeConfig } from "../src/sine/marketRuntimeConfig";
 import type { SpawnerConfig } from "../src/sine/spawnerSimulation";
 
@@ -12,14 +14,14 @@ type CliOptions = {
   initialSpawners?: number;
   maxSpawners?: number;
   minimumResolvedTrades: number;
+  resolvedTradeSnapshotInterval: number;
   chunkTicks: number;
   checkpointIntervalTicks: number;
-  db?: string;
 };
 
 const options = parseArgs(process.argv.slice(2));
 const repositoryModule = await import(new URL("../server/sineHeadlessRepository.mjs", import.meta.url).href);
-const repository = repositoryModule.createSineHeadlessRepository(options.db);
+const repository = repositoryModule.createSineHeadlessRepository();
 
 try {
   const marketConfig: Partial<MarketRuntimeConfig> = {
@@ -40,6 +42,7 @@ try {
     marketConfig,
     spawnerConfig,
     minimumResolvedTrades: options.minimumResolvedTrades,
+    resolvedTradeSnapshotInterval: options.resolvedTradeSnapshotInterval,
     chunkTicks: options.chunkTicks,
     checkpointIntervalTicks: options.checkpointIntervalTicks,
     sink: repository.sink,
@@ -60,6 +63,7 @@ try {
       chunkTicks: options.chunkTicks,
       checkpointIntervalTicks: options.checkpointIntervalTicks,
       minimumResolvedTrades: options.minimumResolvedTrades,
+      resolvedTradeSnapshotInterval: options.resolvedTradeSnapshotInterval,
     },
     timing: result.timing,
     counts: repository.counts(result.runId),
@@ -79,6 +83,9 @@ function parseArgs(args: string[]): CliOptions {
     values.set(key, next);
     index += 1;
   }
+  if (values.has("db")) {
+    throw new Error("--db is no longer supported. Toy Market headless runs use the unified DB; set SINE_DB_PATH before startup for isolated benchmark DBs.");
+  }
   const marketSource = readMarketSource(values.get("market-source") ?? "generated");
   return {
     runId: values.get("run-id") ?? `headless-${randomUUID()}`,
@@ -89,9 +96,13 @@ function parseArgs(args: string[]): CliOptions {
     initialSpawners: optionalInteger(values.get("initial-spawners"), "--initial-spawners", 1),
     maxSpawners: optionalInteger(values.get("max-spawners"), "--max-spawners", 1),
     minimumResolvedTrades: readInteger(values.get("minimum-resolved-trades") ?? "10", "--minimum-resolved-trades", 0),
-    chunkTicks: readInteger(values.get("chunk-ticks") ?? "1000", "--chunk-ticks", 1),
+    resolvedTradeSnapshotInterval: readInteger(
+      values.get("resolved-trade-snapshot-interval") ?? String(DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL),
+      "--resolved-trade-snapshot-interval",
+      0,
+    ),
+    chunkTicks: readInteger(values.get("chunk-ticks") ?? String(HEADLESS_THROUGHPUT_CHUNK_TICKS), "--chunk-ticks", 1),
     checkpointIntervalTicks: readInteger(values.get("checkpoint-interval-ticks") ?? "0", "--checkpoint-interval-ticks", 0),
-    db: values.get("db"),
   };
 }
 

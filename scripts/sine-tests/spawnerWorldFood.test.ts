@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { INITIAL_SETTINGS } from "../../src/sine/marketSignal";
 import { advanceMarketTimeline, createCandleMarketTimeline, createMarketTimeline } from "../../src/sine/marketTimeline";
 import { recordSpawnerEvent } from "../../src/sine/spawner/events";
+import { duePendingFoods, trimResolvedFoodHistory } from "../../src/sine/spawner/foodDueQueue";
 import { calculateFoodPayoff, emitFood, resolveFoods } from "../../src/sine/spawner/reward";
 import {
   activeConnections,
@@ -409,6 +410,121 @@ function testFoodRuntimeIndexRebuildsFromFoods() {
   assert.equal(index.pendingByCreatorId.get(second.id), 1);
 }
 
+function testFoodDueQueuePreservesWorldOrderForDueFoods() {
+  const timeline = createCandleMarketTimeline({
+    source: "btcusd_5m",
+    candles: [
+      { timestamp: 1000, datetime: "1970-01-01T00:16:40.000Z", open: 100, high: 100, low: 100, close: 100, roc: 0, isStart: true },
+      { timestamp: 1300, datetime: "1970-01-01T00:21:40.000Z", open: 100, high: 100, low: 100, close: 100, roc: -1 },
+      { timestamp: 1600, datetime: "1970-01-01T00:26:40.000Z", open: 100, high: 100, low: 100, close: 100, roc: -2 },
+    ],
+  });
+  const world = createSpawnerWorld(101, { initialSpawners: 1, transactionCost: 0 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  world.tick = 2;
+  world.foods = [
+    foodForQueue({ id: 2, spawner, resolveTick: 2 }),
+    foodForQueue({ id: 1, spawner, resolveTick: 1 }),
+  ];
+
+  advanceMarketTimeline(timeline, 2, 10);
+  resolveFoods(world, timeline);
+
+  assert.deepEqual(world.recentEvents.map((event) => event.foodId), [2, 1]);
+  assert.deepEqual(world.foods.map((food) => food.id), [2, 1]);
+  assert.equal(world.totalResolved, 2);
+}
+
+function testFoodDueQueueSkipsUntilEarliestDueTick() {
+  const world = createSpawnerWorld(101, { initialSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  world.tick = 3;
+  world.foods.push(foodForQueue({ id: 1, spawner, resolveTick: 5 }));
+
+  assert.deepEqual(duePendingFoods(world).map((food) => food.id), []);
+
+  world.foods.push(foodForQueue({ id: 2, spawner, resolveTick: 3 }));
+  assert.deepEqual(duePendingFoods(world).map((food) => food.id), [2]);
+
+  world.tick = 5;
+  assert.deepEqual(duePendingFoods(world).map((food) => food.id), [1]);
+}
+
+function testFoodDueQueueRebuildsEarliestDueAfterArrayReplacement() {
+  const world = createSpawnerWorld(101, { initialSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  world.tick = 5;
+  world.foods.push(foodForQueue({ id: 1, spawner, resolveTick: 10 }));
+
+  assert.deepEqual(duePendingFoods(world).map((food) => food.id), []);
+
+  world.foods = [foodForQueue({ id: 2, spawner, resolveTick: 5 })];
+  assert.deepEqual(duePendingFoods(world).map((food) => food.id), [2]);
+}
+
+function testFoodDueQueuePicksUpManualAppendsAfterResolve() {
+  const timeline = createCandleMarketTimeline({
+    source: "btcusd_5m",
+    candles: [
+      { timestamp: 1000, datetime: "1970-01-01T00:16:40.000Z", open: 100, high: 100, low: 100, close: 100, roc: 0, isStart: true },
+      { timestamp: 1300, datetime: "1970-01-01T00:21:40.000Z", open: 100, high: 100, low: 100, close: 100, roc: 1 },
+      { timestamp: 1600, datetime: "1970-01-01T00:26:40.000Z", open: 100, high: 100, low: 100, close: 100, roc: 2 },
+    ],
+  });
+  const world = createSpawnerWorld(101, { initialSpawners: 1, transactionCost: 0 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  world.tick = 1;
+  world.foods.push(foodForQueue({ id: 1, spawner, resolveTick: 1 }));
+  advanceMarketTimeline(timeline, 1, 10);
+  resolveFoods(world, timeline);
+
+  world.tick = 2;
+  world.foods.push(foodForQueue({ id: 2, spawner, resolveTick: 2 }));
+  advanceMarketTimeline(timeline, 2, 10);
+  resolveFoods(world, timeline);
+
+  assert.deepEqual(world.recentEvents.map((event) => event.foodId), [1, 2]);
+  assert.equal(world.totalResolved, 2);
+}
+
+function testFoodHistoryTrimKeepsPendingFoodsAndArraySurface() {
+  const world = createSpawnerWorld(101, { initialSpawners: 1 });
+  const spawner = world.spawners[0];
+  assert(spawner);
+  const originalFoods = world.foods;
+  world.foods.push(
+    { ...foodForQueue({ id: 1, spawner, resolveTick: 1 }), status: "loss", payoff: -1 },
+    { ...foodForQueue({ id: 2, spawner, resolveTick: 10 }), status: "win", payoff: 1 },
+    foodForQueue({ id: 3, spawner, resolveTick: 1 }),
+  );
+
+  trimResolvedFoodHistory(world, 5);
+
+  assert.equal(world.foods, originalFoods);
+  assert.deepEqual(world.foods.map((food) => food.id), [2, 3]);
+  assert.equal(world.foods[1]?.status, "pending");
+}
+
+function foodForQueue({ id, spawner, resolveTick }: { id: number; spawner: NonNullable<ReturnType<typeof createSpawnerWorld>["spawners"][number]>; resolveTick: number }) {
+  return {
+    id,
+    creatorSpawnerId: spawner.id,
+    creatorLineageId: spawner.lineageId,
+    spawnTick: 0,
+    resolveTick,
+    direction: "long" as const,
+    strength: 1,
+    horizonTicks: resolveTick,
+    entrySignal: 0,
+    entryPayoffScale: 1,
+    status: "pending" as const,
+  };
+}
+
 export const tests: SineTest[] = [
   { name: "Food Resolves Exactly Once", run: testFoodResolvesExactlyOnce },
   { name: "Dead Creator Food Resolves Without Mutating Dead Spawner", run: testDeadCreatorFoodResolvesWithoutMutatingDeadSpawner },
@@ -420,4 +536,9 @@ export const tests: SineTest[] = [
   { name: "Short Payoff Pays Cost Symmetrically And Strength Scales Cost", run: testShortPayoffPaysCostSymmetricallyAndStrengthScalesCost },
   { name: "Food Snapshots Payoff Scale At Spawn", run: testFoodSnapshotsPayoffScaleAtSpawn },
   { name: "Food Runtime Index Rebuilds From Foods", run: testFoodRuntimeIndexRebuildsFromFoods },
+  { name: "Food Due Queue Preserves World Order For Due Foods", run: testFoodDueQueuePreservesWorldOrderForDueFoods },
+  { name: "Food Due Queue Skips Until Earliest Due Tick", run: testFoodDueQueueSkipsUntilEarliestDueTick },
+  { name: "Food Due Queue Rebuilds Earliest Due After Array Replacement", run: testFoodDueQueueRebuildsEarliestDueAfterArrayReplacement },
+  { name: "Food Due Queue Picks Up Manual Appends After Resolve", run: testFoodDueQueuePicksUpManualAppendsAfterResolve },
+  { name: "Food History Trim Keeps Pending Foods And Array Surface", run: testFoodHistoryTrimKeepsPendingFoodsAndArraySurface },
 ];

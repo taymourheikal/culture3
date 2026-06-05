@@ -128,6 +128,55 @@ function testPersistenceOutboxKeepsInitialFoundersThatDieBeforeFirstDelivery() {
   assert.equal(next.packet.genomeSnapshots.length, 0);
 }
 
+function testPersistenceOutboxDiagnosticsTrackDeliveryLifecycle() {
+  const simulation = createSimulationState(INITIAL_SETTINGS, DEFAULT_SPAWNER_CONFIG);
+  const outbox = createPersistenceOutbox();
+  const spawner = simulation.world.spawners[0];
+  assert.ok(spawner);
+
+  assert.deepEqual(outbox.diagnostics(), {
+    pendingEvents: 0,
+    pendingUniquenessSnapshots: 0,
+    hasInFlight: false,
+    inFlightPacketKb: null,
+    pendingStatus: null,
+    retryPending: false,
+  });
+
+  outbox.enqueueEvent({ id: 200, kind: "spawn", tick: 1, spawnerId: spawner.id, lineageId: spawner.lineageId });
+  assert.equal(outbox.diagnostics().pendingEvents, 1);
+
+  const delivery = outbox.createDelivery(makeArgs({ simulation, outboxForce: true, status: "running" }));
+  assert.ok(delivery);
+  let diagnostics = outbox.diagnostics();
+  assert.equal(diagnostics.pendingEvents, 1);
+  assert.equal(diagnostics.hasInFlight, true);
+  assert.equal(typeof diagnostics.inFlightPacketKb, "number");
+  assert.equal(diagnostics.retryPending, false);
+
+  assert.equal(outbox.acknowledge(delivery.id, false), true);
+  diagnostics = outbox.diagnostics();
+  assert.equal(diagnostics.pendingEvents, 1);
+  assert.equal(diagnostics.hasInFlight, true);
+  assert.equal(diagnostics.retryPending, true);
+
+  const retry = outbox.createDelivery(makeArgs({ simulation, outboxForce: false, status: "running" }));
+  assert.ok(retry);
+  assert.equal(retry.id, delivery.id);
+  assert.equal(outbox.diagnostics().retryPending, false);
+
+  assert.equal(outbox.acknowledge(retry.id, true), true);
+  diagnostics = outbox.diagnostics();
+  assert.equal(diagnostics.pendingEvents, 0);
+  assert.equal(diagnostics.hasInFlight, false);
+  assert.equal(diagnostics.inFlightPacketKb, null);
+
+  outbox.enqueueEvent({ id: 201, kind: "spawn", tick: 2, spawnerId: spawner.id, lineageId: spawner.lineageId });
+  assert.equal(outbox.diagnostics().pendingEvents, 1);
+  outbox.reset();
+  assert.equal(outbox.diagnostics().pendingEvents, 0);
+}
+
 function makeArgs({
   simulation,
   outboxForce,
@@ -158,4 +207,5 @@ export const tests: SineTest[] = [
   { name: "Persistence Outbox Persists Pause After In Flight Ack", run: testPersistenceOutboxPersistsPauseAfterInFlightAck },
   { name: "Persistence Outbox Keeps Stopped Status Sticky While In Flight", run: testPersistenceOutboxKeepsStoppedStatusStickyWhileInFlight },
   { name: "Persistence Outbox Keeps Initial Founders That Die Before First Delivery", run: testPersistenceOutboxKeepsInitialFoundersThatDieBeforeFirstDelivery },
+  { name: "Persistence Outbox Diagnostics Track Delivery Lifecycle", run: testPersistenceOutboxDiagnosticsTrackDeliveryLifecycle },
 ];

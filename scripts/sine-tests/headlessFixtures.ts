@@ -2,6 +2,8 @@ import { INITIAL_MARKET_RUNTIME_CONFIG } from "../../src/sine/marketRuntimeConfi
 import { DEFAULT_SPAWNER_CONFIG, type SpawnerFood } from "../../src/sine/spawnerSimulation";
 import type {
   HeadlessAgentEventRecord,
+  HeadlessAgentDeathRecord,
+  HeadlessAgentEligibilityRecord,
   HeadlessAgentMetricsRecord,
   HeadlessAgentRecord,
   HeadlessAgentSnapshotRecord,
@@ -21,6 +23,8 @@ export function createMemorySink() {
     runs: [] as HeadlessRunRecord[],
     completions: [] as HeadlessRunCompletionRecord[],
     agents: new Map<number, HeadlessAgentRecord>(),
+    agentEligibilities: [] as HeadlessAgentEligibilityRecord[],
+    agentDeaths: [] as HeadlessAgentDeathRecord[],
     events: [] as HeadlessAgentEventRecord[],
     trades: [] as HeadlessTradeRecord[],
     snapshots: [] as HeadlessAgentSnapshotRecord[],
@@ -50,17 +54,22 @@ export function createMemorySink() {
         countMethod("writeAgent");
         state.agents.set(record.spawnerId, record);
       },
-      markAgentEligible: ({ spawnerId, eligible }: { spawnerId: number; eligible: boolean }) => {
+      markAgentEligible: (record: HeadlessAgentEligibilityRecord) => {
         countMethod("markAgentEligible");
-        const current = state.agents.get(spawnerId);
-        if (current) state.agents.set(spawnerId, { ...current, eligible });
+        state.agentEligibilities.push(record);
+        const current = state.agents.get(record.spawnerId);
+        if (current) state.agents.set(record.spawnerId, { ...current, eligible: record.eligible });
       },
-      markAgentDead: () => {
+      markAgentDead: (record: HeadlessAgentDeathRecord) => {
         countMethod("markAgentDead");
+        state.agentDeaths.push(record);
       },
       writeAgentEvent: (record: HeadlessAgentEventRecord) => {
         countMethod("writeAgentEvent");
         state.events.push(record);
+      },
+      writeCoreTrade: (_record: HeadlessTradeRecord) => {
+        countMethod("writeCoreTrade");
       },
       writeTrade: (record: HeadlessTradeRecord) => {
         countMethod("writeTrade");
@@ -109,8 +118,9 @@ function writeBatchToMemorySink(sink: MemorySink["sink"], batch: HeadlessRecordB
   for (const record of batch.runCheckpoints) sink.writeRunCheckpoint?.(record);
   for (const record of batch.agents) sink.writeAgent(record);
   for (const record of batch.agentEligibilities) sink.markAgentEligible(record);
-  for (const _record of batch.agentDeaths) sink.markAgentDead();
+  for (const record of batch.agentDeaths) sink.markAgentDead(record);
   for (const record of batch.agentEvents) sink.writeAgentEvent(record);
+  for (const record of batch.coreTrades) sink.writeCoreTrade?.(record);
   for (const record of batch.trades) sink.writeTrade(record);
   for (const record of batch.snapshots) sink.writeSnapshot(record);
   for (const record of batch.metrics) sink.writeMetrics(record);
@@ -126,6 +136,7 @@ export function emptyBatch(): HeadlessRecordBatch {
     agentEligibilities: [],
     agentDeaths: [],
     agentEvents: [],
+    coreTrades: [],
     trades: [],
     snapshots: [],
     metrics: [],

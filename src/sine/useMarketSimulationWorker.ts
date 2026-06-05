@@ -32,6 +32,7 @@ export function useMarketSimulationWorker() {
   const nextInspectionRequestIdRef = useRef(1);
   const inspectionRequestsRef = useRef(createInspectionRequestStore());
   const [hasChartPacket, setHasChartPacket] = useState(false);
+  const [chartRevision, setChartRevision] = useState(0);
   const [stats, setStats] = useState<MarketStatsPacket | null>(null);
   const [roster, setRoster] = useState<MarketRosterPacket | null>(null);
   const [architecture, setArchitecture] = useState<SpawnerArchitecturePacket | null>(null);
@@ -60,6 +61,9 @@ export function useMarketSimulationWorker() {
           if (!hasChartPacketRef.current) {
             hasChartPacketRef.current = true;
             setHasChartPacket(true);
+          }
+          if (statsRef.current?.runState !== "running") {
+            setChartRevision((revision) => revision + 1);
           }
         },
         stats: (packet) => {
@@ -231,6 +235,7 @@ export function useMarketSimulationWorker() {
     latestChartPacketRef.current = null;
     hasChartPacketRef.current = false;
     setHasChartPacket(false);
+    setChartRevision(0);
     setStats(null);
     setRoster(null);
     setArchitecture(null);
@@ -246,6 +251,7 @@ export function useMarketSimulationWorker() {
 
   return {
     latestChartPacketRef,
+    chartRevision,
     hasChartPacket,
     stats,
     roster,

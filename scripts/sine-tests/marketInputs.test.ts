@@ -3,9 +3,9 @@ import { advanceMarketTimeline, createCandleMarketTimeline, createMarketTimeline
 import { INITIAL_SETTINGS } from "../../src/sine/marketSignal";
 import { DEFAULT_SPAWNER_CONFIG } from "../../src/sine/spawner/config";
 import { buildVolumeRsiInputs, computeRsiSignal } from "../../src/sine/spawner/marketFeatureInputs";
-import { createMarketFeatureContext, MARKET_FEATURE_INPUT_COUNT } from "../../src/sine/spawner/marketFeatureContext";
+import { createMarketFeatureContext, createMarketFeatureFrame, MARKET_FEATURE_INPUT_COUNT } from "../../src/sine/spawner/marketFeatureContext";
 import { buildMarketInputs, createMarketInputResolver } from "../../src/sine/spawner/marketInputs";
-import { defaultPerceptionFromConfig, perceptionCacheKey } from "../../src/sine/spawner/perception";
+import { defaultPerceptionFromConfig, perceptionCacheKey, sanitizePerception } from "../../src/sine/spawner/perception";
 import { summarizeLocalNumericScale } from "../../src/sine/spawner/localSignalScale";
 import type { SineTest } from "./helpers";
 
@@ -114,6 +114,52 @@ function testMarketInputResolverCachesVolumeAndRsiTraits() {
   assert.notEqual(perceptionCacheKey(perception), perceptionCacheKey({ ...perception, volumeDeltaLagTicks: perception.volumeDeltaLagTicks + 1 }));
   assert.notEqual(first, changed);
   assert.equal(resolver.getComputeCount(), 2);
+}
+
+function testMarketFeatureFrameCachesDiversePerceptionTraits() {
+  const values = Array.from({ length: 120 }, (_, tick) => Math.sin(tick / 6) * 1.2 + Math.cos(tick / 13) * 0.45 + (tick % 11) / 40);
+  const volumes = Array.from({ length: 120 }, (_, tick) => 150 + tick * 2.5 + Math.sin(tick / 5) * 35 + Math.cos(tick / 17) * 12);
+  const closes = Array.from({ length: 120 }, (_, tick) => 100 + tick * 0.35 + Math.sin(tick / 8) * 2.4 + Math.cos(tick / 19));
+  const timeline = createTimeline(values, volumes, closes);
+  const defaultPerception = sanitizePerception(defaultPerceptionFromConfig(DEFAULT_SPAWNER_CONFIG));
+  const diversePerception = sanitizePerception({
+    ...defaultPerception,
+    deltaLagPairs: [
+      { fromTicks: 0, toTicks: 5 },
+      { fromTicks: 5, toTicks: 17 },
+      { fromTicks: 17, toTicks: 31 },
+      { fromTicks: 31, toTicks: 47 },
+      { fromTicks: 47, toTicks: 73 },
+    ],
+    rollingWindowTicks: 47,
+    localScaleWindowTicks: 61,
+    localScaleSampleStepTicks: 4,
+    trendWindowTicks: 89,
+    cycleWindowTicks: 37,
+    roughnessSensitivity: 0.017,
+    volumeScaleWindowTicks: 71,
+    volumeScaleSampleStepTicks: 5,
+    volumeDeltaLagTicks: 9,
+    volumeAccelerationLagTicks: 6,
+    rsiWindowTicks: 11,
+    volumePriceAgreementLagTicks: 8,
+    pendingDensityScale: 120,
+  });
+  const frame = createMarketFeatureFrame(timeline, timeline.tick);
+  const defaultInputs = frame.resolveInputs(defaultPerception, 37);
+  const diverseInputs = frame.resolveInputs(diversePerception, 37);
+  const repeatedDiverseInputs = frame.resolveInputs(diversePerception, 37);
+  const repeatedDiverseFeatures = frame.resolveMarketFeatures(diversePerception);
+
+  assert.equal(defaultInputs.length, MARKET_FEATURE_INPUT_COUNT + 1);
+  assert.equal(diverseInputs.length, MARKET_FEATURE_INPUT_COUNT + 1);
+  assert(diverseInputs.every(Number.isFinite));
+  assert.notDeepEqual(defaultInputs.slice(0, MARKET_FEATURE_INPUT_COUNT).map((value) => value.toFixed(4)), diverseInputs.slice(0, MARKET_FEATURE_INPUT_COUNT).map((value) => value.toFixed(4)));
+  assert.deepEqual(repeatedDiverseInputs, diverseInputs);
+  assert.equal(repeatedDiverseFeatures, frame.resolveMarketFeatures(diversePerception));
+  assert.equal(frame.getFeatureComputeCount(), 2);
+  assert.equal(frame.getFeatureCacheHitCount(), 3);
+  assert.ok(frame.getSampleCacheSize() > 0);
 }
 
 function testMarketInputsUseVolumeAndRsiTraits() {
@@ -338,6 +384,7 @@ export const tests: SineTest[] = [
   { name: "Market Input Resolver Caches Identical Perception", run: testMarketInputResolverCachesIdenticalPerception },
   { name: "Market Feature Context Keeps Pending Density Separate", run: testMarketFeatureContextKeepsPendingDensitySeparate },
   { name: "Market Input Resolver Caches Volume And RSI Traits", run: testMarketInputResolverCachesVolumeAndRsiTraits },
+  { name: "Market Feature Frame Caches Diverse Perception Traits", run: testMarketFeatureFrameCachesDiversePerceptionTraits },
   { name: "Market Inputs Use Volume And RSI Traits", run: testMarketInputsUseVolumeAndRsiTraits },
   { name: "Volume RSI Helpers Are Finite And Directional", run: testVolumeRsiHelpersAreFiniteAndDirectional },
   { name: "Market Inputs Golden Vector", run: testMarketInputsGoldenVector },

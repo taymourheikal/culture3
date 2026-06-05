@@ -1,6 +1,7 @@
 import { loadSavedMarketRuntimeConfig } from "./settingsStorage";
 import { loadSavedSpawnerConfig, sanitizeSpawnerConfig } from "./spawnerSettingsStorage";
 import { getBrowserStorage, patchSettingsGroup, saveJsonSetting } from "./jsonStorage";
+import { DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL } from "./headless/types";
 import { sanitizeMarketRuntimeConfig, type MarketPlaybackSettings, type MarketRuntimeConfig } from "./marketRuntimeConfig";
 import type { WaveSettings } from "./marketSignal";
 import type { SpawnerConfig } from "./spawnerSimulation";
@@ -11,6 +12,7 @@ export type SineRunsDefaults = {
   ticks: number;
   seed: number;
   minimumResolvedTrades: number;
+  resolvedTradeSnapshotInterval: number;
   checkpointIntervalTicks: number;
   marketConfig: MarketRuntimeConfig;
   spawnerConfig: SpawnerConfig;
@@ -43,6 +45,7 @@ export function saveRunsExecutionDefaults(defaults: SineRunsDefaults) {
       ticks: defaults.ticks,
       seed: defaults.seed,
       minimumResolvedTrades: defaults.minimumResolvedTrades,
+      resolvedTradeSnapshotInterval: defaults.resolvedTradeSnapshotInterval,
       checkpointIntervalTicks: defaults.checkpointIntervalTicks,
     },
     current,
@@ -112,6 +115,7 @@ function labDefaults(): SineRunsDefaults {
     ticks: 100000,
     seed: 101,
     minimumResolvedTrades: 10,
+    resolvedTradeSnapshotInterval: DEFAULT_HEADLESS_RESOLVED_TRADE_SNAPSHOT_INTERVAL,
     checkpointIntervalTicks: 10000,
     marketConfig: loadSavedMarketRuntimeConfig(),
     spawnerConfig: loadSavedSpawnerConfig(),
@@ -124,6 +128,7 @@ function sanitizeRunsDefaults(value: unknown, fallback: SineRunsDefaults): SineR
     ticks: readInteger(record.ticks, fallback.ticks, 0),
     seed: readInteger(record.seed, fallback.seed, 0),
     minimumResolvedTrades: readInteger(record.minimumResolvedTrades, fallback.minimumResolvedTrades, 0),
+    resolvedTradeSnapshotInterval: readInteger(record.resolvedTradeSnapshotInterval, fallback.resolvedTradeSnapshotInterval, 0),
     checkpointIntervalTicks: readInteger(record.checkpointIntervalTicks, fallback.checkpointIntervalTicks, 1),
     marketConfig: sanitizeMarketRuntimeConfig(record.marketConfig ?? fallback.marketConfig),
     spawnerConfig: sanitizeSpawnerConfig(isRecord(record.spawnerConfig) ? record.spawnerConfig : fallback.spawnerConfig),

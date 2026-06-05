@@ -21,7 +21,9 @@ import {
   learningSignalFromPayoff,
   learnedStateDecayCanChange,
   learnedStateNorm,
+  materializeDecisionTrace,
   outputBiasDeltaKey,
+  OUTPUT_INDEX,
   pruneDecisionTraces,
   sanitizeLearnedState,
   sanitizePlasticityProfile,
@@ -33,6 +35,7 @@ import {
 } from "../../src/sine/spawnerSimulation";
 import { createSpawnerSnapshot } from "../../src/sine/spawner/snapshots";
 import { normalizeSpawnerGenomeForCurrentContract } from "../../src/sine/spawner/genome";
+import { traceConnectionActivation } from "../../src/sine/spawner/plasticity";
 import type { SineTest } from "./helpers";
 
 function testPlasticityModelsCreateWithoutWorld() {
@@ -288,9 +291,240 @@ function testLearningSignalAndDeltaUpdates() {
   const after = createEffectiveGenomeView(spawner.genome, spawner.learnedState).getConnectionWeight(connection);
 
   assert(after > before);
+  assert((spawner.learnedState.outputBiasDeltas[outputBiasDeltaKey(OUTPUT_INDEX.long)] ?? 0) > 0);
+  assert((spawner.learnedState.outputBiasDeltas[outputBiasDeltaKey(OUTPUT_INDEX.strength)] ?? 0) > 0);
   assert.equal(spawner.learnedState.learningUpdateCount, 1);
   assert.equal(spawner.learnedState.recentLearningSignal, 1);
   assert(learnedStateNorm(spawner.learnedState, spawner.genome.plasticityProfile.maxLearnedDelta) > 0);
+}
+
+function testCompactTraceLearningMatchesPublicTrace() {
+  const publicWorld = createSpawnerWorld(33, {
+    initialSpawners: 1,
+    plasticityWeightLearningRate: 0.5,
+    plasticityBiasLearningRate: 0.25,
+    plasticityMaxLearnedDelta: 10,
+  });
+  const compactWorld = createSpawnerWorld(33, {
+    initialSpawners: 1,
+    plasticityWeightLearningRate: 0.5,
+    plasticityBiasLearningRate: 0.25,
+    plasticityMaxLearnedDelta: 10,
+  });
+  const publicSpawner = publicWorld.spawners[0];
+  const compactSpawner = compactWorld.spawners[0];
+  assert(publicSpawner);
+  assert(compactSpawner);
+  const connection = activeConnections(publicSpawner.genome).find((item) => item.target.kind === "output");
+  assert(connection);
+  publicSpawner.traceStore.traces["1"] = {
+    id: 1,
+    tick: 1,
+    action: "long",
+    strength: 0.5,
+    activeConnectionIds: [connection.innovationId],
+    connectionActivations: { [String(connection.innovationId)]: { source: 0.75, target: -0.25 } },
+  };
+  compactSpawner.traceStore.traces["1"] = {
+    id: 1,
+    tick: 1,
+    action: "long",
+    strength: 0.5,
+    activeConnectionIds: [connection.innovationId],
+    connectionActivations: {},
+    connectionActivationSources: [0.75],
+    connectionActivationTargets: [-0.25],
+  };
+
+  assert.equal(applyLearningSignal(publicSpawner, 1, 1), true);
+  assert.equal(applyLearningSignal(compactSpawner, 1, 1), true);
+  assert.deepEqual(compactSpawner.learnedState, publicSpawner.learnedState);
+}
+
+function testCompactTraceMaterializesAndClonesAsPublicTrace() {
+  const trace: SpawnerDecisionTrace = {
+    id: 1,
+    tick: 1,
+    action: "short",
+    strength: 0.25,
+    activeConnectionIds: [11, 22],
+    connectionActivations: {},
+    connectionActivationSources: [0.5, -0.75],
+    connectionActivationTargets: [0.125, -0.25],
+  };
+  const materialized = materializeDecisionTrace(trace);
+
+  assert.deepEqual(materialized.connectionActivations, {
+    "11": { source: 0.5, target: 0.125 },
+    "22": { source: -0.75, target: -0.25 },
+  });
+  assert.equal(materialized.connectionActivationSources, undefined);
+  assert.equal(materialized.connectionActivationTargets, undefined);
+
+  const cloned = cloneTraceStore({ nextTraceId: 2, traces: { "1": trace } });
+  assert.deepEqual(cloned.traces["1"], materialized);
+}
+
+function testCompactTraceMissingActivationMatchesPublicTrace() {
+  const publicTrace: SpawnerDecisionTrace = {
+    id: 1,
+    tick: 1,
+    action: "long",
+    strength: 0.25,
+    activeConnectionIds: [11, 22],
+    connectionActivations: { "11": { source: 0.5, target: 0.125 } },
+  };
+  const compactTrace: SpawnerDecisionTrace = {
+    id: 1,
+    tick: 1,
+    action: "long",
+    strength: 0.25,
+    activeConnectionIds: [11, 22],
+    connectionActivations: {},
+    connectionActivationSources: [0.5],
+    connectionActivationTargets: [0.125],
+  };
+
+  assert.deepEqual(traceConnectionActivation(publicTrace, 11, 0), traceConnectionActivation(compactTrace, 11, 0));
+  assert.equal(traceConnectionActivation(publicTrace, 22, 1), undefined);
+  assert.equal(traceConnectionActivation(compactTrace, 22, 1), undefined);
+  assert.deepEqual(materializeDecisionTrace(compactTrace).connectionActivations, publicTrace.connectionActivations);
+}
+
+function testLearningIgnoresMissingStaleAndInactiveTraceConnections() {
+  const missingWorld = createSpawnerWorld(34, {
+    initialSpawners: 1,
+    plasticityWeightLearningRate: 0.5,
+    plasticityBiasLearningRate: 0,
+    plasticityMaxLearnedDelta: 10,
+  });
+  const missingSpawner = missingWorld.spawners[0];
+  assert(missingSpawner);
+  const outputConnection = activeConnections(missingSpawner.genome).find((item) => item.target.kind === "output");
+  assert(outputConnection);
+  missingSpawner.traceStore.traces["1"] = {
+    id: 1,
+    tick: 1,
+    action: "long",
+    strength: 1,
+    activeConnectionIds: [999999],
+    connectionActivations: { "999999": { source: 1, target: 1 } },
+  };
+
+  assert.equal(applyLearningSignal(missingSpawner, 1, 1, { skipActionOutputBias: true }), false);
+  assert.equal(missingSpawner.learnedState.connectionDeltas[connectionDeltaKey(999999)] ?? 0, 0);
+  assert.equal(missingSpawner.learnedState.learningUpdateCount, 0);
+
+  missingSpawner.traceStore.traces["2"] = {
+    id: 2,
+    tick: 1,
+    action: "long",
+    strength: 1,
+    activeConnectionIds: [outputConnection.innovationId],
+    connectionActivations: {},
+  };
+  assert.equal(applyLearningSignal(missingSpawner, 2, 1, { skipActionOutputBias: true }), false);
+  assert.equal(missingSpawner.learnedState.connectionDeltas[connectionDeltaKey(outputConnection.innovationId)] ?? 0, 0);
+  assert.equal(missingSpawner.learnedState.learningUpdateCount, 0);
+
+  const disabledConnectionWorld = createSpawnerWorld(34, {
+    initialSpawners: 1,
+    plasticityWeightLearningRate: 0.5,
+    plasticityBiasLearningRate: 0,
+    plasticityMaxLearnedDelta: 10,
+  });
+  const disabledConnectionSpawner = disabledConnectionWorld.spawners[0];
+  assert(disabledConnectionSpawner);
+  const disabledConnection = activeConnections(disabledConnectionSpawner.genome).find((item) => item.target.kind === "output");
+  assert(disabledConnection);
+  disabledConnectionSpawner.traceStore.traces["1"] = {
+    id: 1,
+    tick: 1,
+    action: "short",
+    strength: 1,
+    activeConnectionIds: [disabledConnection.innovationId],
+    connectionActivations: { [String(disabledConnection.innovationId)]: { source: 1, target: 1 } },
+  };
+  disabledConnection.enabled = false;
+
+  assert.equal(applyLearningSignal(disabledConnectionSpawner, 1, 1, { skipActionOutputBias: true }), false);
+  assert.equal(disabledConnectionSpawner.learnedState.connectionDeltas[connectionDeltaKey(disabledConnection.innovationId)] ?? 0, 0);
+  assert.equal(disabledConnectionSpawner.learnedState.learningUpdateCount, 0);
+
+  const disabledUnitWorld = createSpawnerWorld(34, {
+    initialSpawners: 1,
+    plasticityWeightLearningRate: 0.5,
+    plasticityBiasLearningRate: 0.25,
+    plasticityMaxLearnedDelta: 10,
+  });
+  const disabledUnitSpawner = disabledUnitWorld.spawners[0];
+  assert(disabledUnitSpawner);
+  const hiddenConnection = activeConnections(disabledUnitSpawner.genome).find((item) => item.target.kind === "hidden");
+  assert(hiddenConnection);
+  const hiddenTarget = hiddenConnection.target;
+  assert(hiddenTarget.kind === "hidden");
+  disabledUnitSpawner.traceStore.traces["1"] = {
+    id: 1,
+    tick: 1,
+    action: "long",
+    strength: 1,
+    activeConnectionIds: [hiddenConnection.innovationId],
+    connectionActivations: { [String(hiddenConnection.innovationId)]: { source: 1, target: 1 } },
+  };
+  const targetUnit = disabledUnitSpawner.genome.units.find((unit) => unit.unitId === hiddenTarget.unitId);
+  assert(targetUnit);
+  targetUnit.enabled = false;
+
+  assert.equal(applyLearningSignal(disabledUnitSpawner, 1, 1, { skipActionOutputBias: true }), false);
+  assert.equal(disabledUnitSpawner.learnedState.connectionDeltas[connectionDeltaKey(hiddenConnection.innovationId)] ?? 0, 0);
+  assert.equal(disabledUnitSpawner.learnedState.gateBiasDeltas[gateBiasDeltaKey(hiddenTarget.unitId, hiddenTarget.gate)] ?? 0, 0);
+  assert.equal(disabledUnitSpawner.learnedState.learningUpdateCount, 0);
+}
+
+function testActionOutputBiasUpdatesLongShortAndStrength() {
+  const longWorld = createSpawnerWorld(35, {
+    initialSpawners: 1,
+    plasticityWeightLearningRate: 0,
+    plasticityBiasLearningRate: 0.25,
+    plasticityMaxLearnedDelta: 10,
+  });
+  const longSpawner = longWorld.spawners[0];
+  assert(longSpawner);
+  longSpawner.traceStore.traces["1"] = {
+    id: 1,
+    tick: 1,
+    action: "long",
+    strength: 0.4,
+    activeConnectionIds: [],
+    connectionActivations: {},
+  };
+
+  assert.equal(applyLearningSignal(longSpawner, 1, 1), true);
+  assert((longSpawner.learnedState.outputBiasDeltas[outputBiasDeltaKey(OUTPUT_INDEX.long)] ?? 0) > 0);
+  assert((longSpawner.learnedState.outputBiasDeltas[outputBiasDeltaKey(OUTPUT_INDEX.strength)] ?? 0) > 0);
+  assert.equal(longSpawner.learnedState.outputBiasDeltas[outputBiasDeltaKey(OUTPUT_INDEX.short)] ?? 0, 0);
+
+  const shortWorld = createSpawnerWorld(36, {
+    initialSpawners: 1,
+    plasticityWeightLearningRate: 0,
+    plasticityBiasLearningRate: 0.25,
+    plasticityMaxLearnedDelta: 10,
+  });
+  const shortSpawner = shortWorld.spawners[0];
+  assert(shortSpawner);
+  shortSpawner.traceStore.traces["1"] = {
+    id: 1,
+    tick: 1,
+    action: "short",
+    strength: 0.4,
+    activeConnectionIds: [],
+    connectionActivations: {},
+  };
+
+  assert.equal(applyLearningSignal(shortSpawner, 1, 1), true);
+  assert((shortSpawner.learnedState.outputBiasDeltas[outputBiasDeltaKey(OUTPUT_INDEX.short)] ?? 0) > 0);
+  assert((shortSpawner.learnedState.outputBiasDeltas[outputBiasDeltaKey(OUTPUT_INDEX.strength)] ?? 0) > 0);
+  assert.equal(shortSpawner.learnedState.outputBiasDeltas[outputBiasDeltaKey(OUTPUT_INDEX.long)] ?? 0, 0);
 }
 
 function testZeroLearningAndReproductionFeedback() {
@@ -481,6 +715,11 @@ export const tests: SineTest[] = [
   { name: "Effective Genome Materializes For Inheritance Without Mutating Parent", run: testEffectiveGenomeMaterializesForInheritanceWithoutMutatingParent },
   { name: "Trace Store Sanitizes And Clones", run: testTraceStoreSanitizesAndClones },
   { name: "Learning Signal And Delta Updates", run: testLearningSignalAndDeltaUpdates },
+  { name: "Compact Trace Learning Matches Public Trace", run: testCompactTraceLearningMatchesPublicTrace },
+  { name: "Compact Trace Materializes And Clones As Public Trace", run: testCompactTraceMaterializesAndClonesAsPublicTrace },
+  { name: "Compact Trace Missing Activation Matches Public Trace", run: testCompactTraceMissingActivationMatchesPublicTrace },
+  { name: "Learning Ignores Missing Stale And Inactive Trace Connections", run: testLearningIgnoresMissingStaleAndInactiveTraceConnections },
+  { name: "Action Output Bias Updates Long Short And Strength", run: testActionOutputBiasUpdatesLongShortAndStrength },
   { name: "Zero Learning And Reproduction Feedback", run: testZeroLearningAndReproductionFeedback },
   { name: "Plasticity Profile Drifts Independently And Can Be Disabled", run: testPlasticityProfileDriftsIndependentlyAndCanBeDisabled },
   { name: "Plasticity Profile Clamps Learning Rates And Reproduction Reward", run: testPlasticityProfileClampsLearningRatesAndReproductionReward },

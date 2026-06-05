@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getSineSessionCohortAnalysis } from "./sineHistoryApi";
 import type { SineCohortTimelineBucket, SineSessionAnalysis, SineSessionCohortAnalysis, SineSessionDiagnostics } from "./sineHistoryTypes";
-import { MiniCompositeChart, formatNumber, formatPercent } from "./RunDiagnosticsUi";
+import { MiniCompositeChart } from "./MiniCharts";
+import { formatNumber, formatPercent } from "./diagnosticFormatters";
 import { SummaryMetricGrid } from "./RunDiagnosticsShared";
 
 export function RunCohortPerformancePanel({

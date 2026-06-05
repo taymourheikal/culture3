@@ -1,5 +1,6 @@
 import { getTimelineSampleByTick, type MarketTimeline } from "../marketTimeline";
 import { recordSpawnerEvent } from "./events";
+import { duePendingFoods, registerPendingFood } from "./foodDueQueue";
 import { applyFoodResolutionLearning } from "./learning";
 import { computeLocalSignalScale, LOCAL_SCALE_FLOOR } from "./localSignalScale";
 import { sanitizePayoffProfile } from "./payoffProfile";
@@ -7,7 +8,7 @@ import { createSpawnerRuntimeIndex, getLivingSpawner, isSpawnerAlive, type Spawn
 import type { SpawnerAgent, SpawnerDirection, SpawnerFood, SpawnerWorld } from "./types";
 
 export function resolveFoods(world: SpawnerWorld, timeline: MarketTimeline, spawnerIndex = createSpawnerRuntimeIndex(world.spawners, world.config)) {
-  for (const food of world.foods) {
+  for (const food of duePendingFoods(world)) {
     if (food.status !== "pending" || food.resolveTick > world.tick) continue;
 
     const outcome = resolveFoodOutcome(food, world, timeline);
@@ -119,6 +120,7 @@ export function emitFood(
     traceId,
   });
   world.foods.push(food);
+  registerPendingFood(world, food);
   world.nextFoodId += 1;
   recordSpawnerEvent(world, {
     kind: "spawn",
