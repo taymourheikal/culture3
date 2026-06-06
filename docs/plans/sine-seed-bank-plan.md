@@ -236,12 +236,13 @@ Exit gates:
 
 ### 6. Add Candidate Admission
 
-Add a server operation that admits selected candidates into a seed bank by copying the selected reconstruction payload into the seed-bank DB.
+Add a server operation that admits selected candidates into a seed bank by validating the source run/agent, reading every source reconstruction snapshot for that agent, computing admission context, and then calling the Milestone 1 seed-bank repository facade to freeze the entry.
 
 Admission should re-read and validate the source reconstruction snapshots at write time rather than trusting the client to send reconstruction JSON.
 
 Exit gates:
 
+- Admission uses `createSineSeedBankRepository().addFrozenEntry(...)` or the same public repository facade rather than creating a second seed-bank write path.
 - Admission copies frozen `genome_json`, `hidden_state_json`, and `learned_state_json` from every source reconstruction snapshot row for that agent.
 - If source reconstruction snapshots are missing at admission time, the request fails clearly and does not create a partial entry.
 - Admission stores source provenance, admission metrics, and filter context.
@@ -249,7 +250,7 @@ Exit gates:
 
 ## Milestone 2 Exit Gates
 
-- Candidate API returns reconstructable headless agents only.
+- Candidate service API returns reconstructable headless agents only.
 - Candidate filters use shared metrics and whole-run age exposure semantics.
 - Candidate admission freezes source reconstruction data into the separate seed-bank DB.
 - No simulation/runtime behavior changes are introduced.
@@ -263,6 +264,8 @@ Goal: add a top-level Seed Bank tab that lets the user create seed banks, filter
 
 Create a route module, for example `server/sineSeedBankRoutes.mjs`, and register it beside existing Sine route modules.
 
+Routes should wrap the Milestone 2 candidate service and Milestone 1 repository facade. They should not rediscover candidates, recompute metrics, parse reconstruction snapshots, or write seed-bank rows directly.
+
 Initial endpoints should cover:
 
 - list/create/update seed banks
@@ -275,8 +278,13 @@ Exit gates:
 
 - `server/routes.mjs` delegates to the new route module without embedding seed-bank logic.
 - Route handlers call repository/candidate services, not raw SQL.
+- Candidate routes call `createSineSeedBankCandidateService()` or the same public candidate-service functions.
+- Admission routes use the Milestone 1 seed-bank repository facade for frozen entry writes.
+- Admission requests send source references and filter context, not reconstruction JSON from the client.
 - Invalid filters return clear `400` responses.
 - Missing seed bank or source run returns clear `404` responses where appropriate.
+- Missing source reconstruction snapshots fail admission without creating partial entries.
+- Duplicate admissions return the existing entry or a clear duplicate/inserted status.
 
 ### 2. Add A Typed Frontend API Client
 
@@ -286,6 +294,7 @@ Exit gates:
 
 - React components do not build raw fetch calls manually.
 - API response/request types are centralized.
+- Admission request types contain `bankId`, `sourceRunId`, `sourceSpawnerId`, and optional filter context, not frozen snapshot payloads.
 - Query serialization follows existing Sine API conventions.
 - API shape tests or route tests cover representative request bodies.
 
@@ -329,9 +338,10 @@ Exit gates:
 The candidate area should support:
 
 - selecting one or more headless runs
+- selecting the active seed bank context used for duplicate/admitted status
 - minimum resolved trades
 - minimum children
-- minimum age exposure percentile
+- minimum whole-run age exposure percentile
 - minimum Sharpe
 - minimum Sortino
 - candidate table
@@ -344,7 +354,7 @@ Candidate rows should show at least:
 - lineage/generation
 - children
 - resolved trades
-- age exposure percentile
+- whole-run age exposure percentile
 - Sharpe
 - Sortino
 - hit rate
@@ -358,7 +368,9 @@ Exit gates:
 - Candidate rows update when filters change.
 - Multiple filters combine with AND semantics.
 - Adding candidates creates frozen seed-bank entries.
-- Already-admitted candidates are visibly marked or disabled.
+- Already-admitted candidates are visibly marked or disabled at the source run + source agent level, not per snapshot.
+- Candidate duplicate/admitted status comes from the selected seed bank context by passing the active `bankId` to the candidate API.
+- UI copy makes clear that age exposure is whole-run based, not relative to the currently filtered candidate set.
 - Large candidate lists remain bounded or paginated.
 
 ### 6. Add Minimal Entry Detail Display
@@ -402,7 +414,7 @@ Exit gates:
 - `npm run build` passes.
 - Seed-bank persistence tests cover DB initialization, bank CRUD, entry freezing, duplicate handling, and source-run independence.
 - Candidate tests cover min trades, min children, age percentile, Sharpe, Sortino, all-snapshot freezing, and missing-source-snapshot admission failure.
-- Route/API tests cover candidate listing and admission request/response shape.
+- Route/API tests cover candidate listing, server-side admitted status through `bankId`, source-reference admission request shape, duplicate admission response shape, lab/non-headless exclusion, missing source run handling, and missing-source-snapshot admission failure.
 - Existing Lab saved-run diagnostics still pass.
 - Existing headless run execution and analysis tests still pass.
 - No deterministic simulation parity tests change because this plan is analysis/persistence/UI only.

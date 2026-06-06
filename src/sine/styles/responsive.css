@@ -41,6 +41,15 @@
     text-align: left;
   }
 
+  .sine-seed-bank-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "error"
+      "seed-main"
+      "seed-side";
+  }
+
   .sine-run-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -288,6 +297,15 @@
   .sine-workbench-right .strategy-map-chart-wrap,
   .sine-workbench-right .uniqueness-chart-wrap {
     grid-column: auto;
+  }
+
+  .sine-seed-bank-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "error"
+      "seed-main"
+      "seed-side";
   }
 
   .sine-cohort-grid {

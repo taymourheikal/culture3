@@ -157,7 +157,8 @@
 }
 
 .sine-select-field select,
-.sine-select-field input {
+.sine-select-field input,
+.sine-select-field textarea {
   width: 100%;
   min-height: 36px;
   border: 1px solid var(--sine-border);
@@ -165,6 +166,11 @@
   background: var(--sine-bg-soft);
   color: var(--sine-text-strong);
   font: inherit;
+}
+
+.sine-select-field textarea {
+  min-height: 76px;
+  resize: vertical;
 }
 
 .save-group-button {

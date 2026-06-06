@@ -3,6 +3,16 @@ import { deleteSineSession, getSineSessionAnalysis, getSineSessionCohortAnalysis
 import { getActiveSineHeadlessRuns, startSineHeadlessRun } from "../../src/sine/headless/headlessApi";
 import { fetchMarketCandles } from "../../src/sine/worker/marketDataLoader";
 import { postSineSnapshot } from "../../src/sine/persistence/sinePersistenceClient";
+import {
+  admitSineSeedBankCandidate,
+  admitSineSeedBankCandidates,
+  createSineSeedBank,
+  listSineSeedBankCandidates,
+  listSineSeedBankCandidateRuns,
+  listSineSeedBankEntries,
+  listSineSeedBanks,
+  updateSineSeedBank,
+} from "../../src/sine/seedBankApi";
 import { fetchSineJson, getSineJson, sineApiUrl } from "../../src/sine/sineApi";
 import { INITIAL_MARKET_RUNTIME_CONFIG, INITIAL_PLAYBACK_SETTINGS } from "../../src/sine/marketRuntimeConfig";
 import { DEFAULT_SPAWNER_CONFIG } from "../../src/sine/spawnerSimulation";
@@ -35,6 +45,33 @@ async function testSineApiClientsSendExactRequests() {
       checkpointIntervalTicks: 100,
     });
     await postSineSnapshot({ persistentSessionId: "session/1", births: [] });
+    await listSineSeedBanks();
+    await createSineSeedBank({ id: "bank/1", label: "Bank", description: "Desc" });
+    await updateSineSeedBank("bank/1", { label: "Renamed" });
+    await listSineSeedBankEntries("bank/1");
+    await listSineSeedBankCandidateRuns(25);
+    await listSineSeedBankCandidates({
+      runIds: ["run/1", "run/2"],
+      bankId: "bank/1",
+      minResolvedTrades: 50,
+      minChildren: 2,
+      minAgePercentile: 75,
+      minSharpe: 1.25,
+      minSortino: 1.5,
+      limit: 100,
+      offset: 25,
+    });
+    await admitSineSeedBankCandidate({
+      bankId: "bank/1",
+      sourceRunId: "run/1",
+      sourceSpawnerId: 7,
+      filters: { minResolvedTrades: 50, minChildren: 2, minAgePercentile: 75, minSharpe: 1.25, minSortino: 1.5 },
+    });
+    await admitSineSeedBankCandidates({
+      bankId: "bank/1",
+      runIds: ["run/1", "run/2"],
+      filters: { minResolvedTrades: 50, minChildren: 2, minAgePercentile: 75, minSharpe: 1.25, minSortino: 1.5 },
+    });
     await fetchMarketCandles(
       {
         timeModel: "ticks-v2",
@@ -71,8 +108,39 @@ async function testSineApiClientsSendExactRequests() {
   assert.equal(calls[7]?.init?.method, "POST");
   assert.deepEqual(calls[7]?.init?.headers, { "Content-Type": "application/json" });
   assert.equal(calls[7]?.init?.body, JSON.stringify({ persistentSessionId: "session/1", births: [] }));
+  assert.equal(calls[8]?.url, "http://127.0.0.1:8787/api/sine/seed-banks");
+  assert.equal(calls[8]?.init?.method, undefined);
+  assert.equal(calls[9]?.url, "http://127.0.0.1:8787/api/sine/seed-banks");
+  assert.equal(calls[9]?.init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(calls[9]?.init?.body)), { id: "bank/1", label: "Bank", description: "Desc" });
+  assert.equal(calls[10]?.url, "http://127.0.0.1:8787/api/sine/seed-banks/bank%2F1");
+  assert.equal(calls[10]?.init?.method, "PATCH");
+  assert.deepEqual(JSON.parse(String(calls[10]?.init?.body)), { label: "Renamed" });
+  assert.equal(calls[11]?.url, "http://127.0.0.1:8787/api/sine/seed-banks/bank%2F1/entries");
+  assert.equal(calls[12]?.url, "http://127.0.0.1:8787/api/sine/seed-bank/candidate-runs?limit=25");
   assert.equal(
-    calls[8]?.url,
+    calls[13]?.url,
+    "http://127.0.0.1:8787/api/sine/seed-bank/candidates?runIds=run%2F1%2Crun%2F2&bankId=bank%2F1&minResolvedTrades=50&minChildren=2&minAgePercentile=75&minSharpe=1.25&minSortino=1.5&limit=100&offset=25",
+  );
+  assert.equal(calls[14]?.url, "http://127.0.0.1:8787/api/sine/seed-bank/admissions");
+  assert.equal(calls[14]?.init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(calls[14]?.init?.body)), {
+    bankId: "bank/1",
+    sourceRunId: "run/1",
+    sourceSpawnerId: 7,
+    filters: { minResolvedTrades: 50, minChildren: 2, minAgePercentile: 75, minSharpe: 1.25, minSortino: 1.5 },
+  });
+  assert.equal(Object.hasOwn(JSON.parse(String(calls[14]?.init?.body)), "snapshots"), false);
+  assert.equal(calls[15]?.url, "http://127.0.0.1:8787/api/sine/seed-bank/admissions/batch");
+  assert.equal(calls[15]?.init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(calls[15]?.init?.body)), {
+    bankId: "bank/1",
+    runIds: ["run/1", "run/2"],
+    filters: { minResolvedTrades: 50, minChildren: 2, minAgePercentile: 75, minSharpe: 1.25, minSortino: 1.5 },
+  });
+  assert.equal(Object.hasOwn(JSON.parse(String(calls[15]?.init?.body)), "snapshots"), false);
+  assert.equal(
+    calls[16]?.url,
     "http://127.0.0.1:8787/api/market/candles?source=btcusd_5m&start=2021-01-01T00%3A00&limit=123&rocLength=50",
   );
 }

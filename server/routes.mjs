@@ -19,6 +19,7 @@ import {
 import { saveEvents, getLatestWorld, saveSnapshot } from "./worldRepository.mjs";
 import { routeSineHeadlessRequest } from "./sineHeadlessRoutes.mjs";
 import { routeSineRequest } from "./sineRoutes.mjs";
+import { routeSineSeedBankRequest } from "./sineSeedBankRoutes.mjs";
 import {
   readLimit,
   sanitizeBatchOptions,
@@ -126,6 +127,10 @@ export async function routeRequest(req, res) {
     }
 
     if (await routeSineHeadlessRequest({ req, res, url, readBody, sendJson, notFound })) {
+      return;
+    }
+
+    if (await routeSineSeedBankRequest({ req, res, url, readBody, sendJson, notFound })) {
       return;
     }
 

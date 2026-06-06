@@ -6,6 +6,8 @@ dist/
 
 # Local runtime data and generated analysis output
 data/
+price-scale-visualizer/
+price-trade-audit/
 
 # Test artifacts
 test-results/

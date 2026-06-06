@@ -25,6 +25,9 @@ import { tests as sinePersistenceDiagnosticsTests } from "./sine-tests/sinePersi
 import { tests as sinePersistenceCohortTests } from "./sine-tests/sinePersistenceCohort.test";
 import { tests as sinePersistenceInspectionTests } from "./sine-tests/sinePersistenceInspection.test";
 import { tests as sinePersistenceHeadlessSchemaTests } from "./sine-tests/sinePersistenceHeadlessSchema.test";
+import { tests as seedBankPersistenceTests } from "./sine-tests/seedBankPersistence.test";
+import { tests as seedBankCandidateTests } from "./sine-tests/seedBankCandidates.test";
+import { tests as seedBankRouteTests } from "./sine-tests/seedBankRoutes.test";
 import { tests as persistencePacketTests } from "./sine-tests/persistencePacket.test";
 import { tests as persistenceOutboxTests } from "./sine-tests/persistenceOutbox.test";
 import { tests as perceptionMutationProfileTests } from "./sine-tests/perceptionMutationProfile.test";
@@ -78,5 +81,8 @@ await runSuite("sine persistence diagnostics", sinePersistenceDiagnosticsTests);
 await runSuite("sine persistence cohort", sinePersistenceCohortTests);
 await runSuite("sine persistence inspection", sinePersistenceInspectionTests);
 await runSuite("sine persistence headless schema", sinePersistenceHeadlessSchemaTests);
+await runSuite("seed bank persistence", seedBankPersistenceTests);
+await runSuite("seed bank candidates", seedBankCandidateTests);
+await runSuite("seed bank routes", seedBankRouteTests);
 
 console.log("Sine simulator contract tests passed.");

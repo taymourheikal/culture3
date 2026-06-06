@@ -31,7 +31,7 @@ export function buildTradeQualityDiagnostics(trades, agentAgeBySpawnerId = new M
 
 export function createTradeQualityModel(trades, agentAgeBySpawnerId = new Map(), agentAges = []) {
   return {
-    agents: agentTradeSummaries(trades, agentAgeBySpawnerId),
+    agents: createAgentTradeSummaries(trades, agentAgeBySpawnerId),
     ageThresholds: tradeQualityAgeThresholds(agentAges),
   };
 }
@@ -70,15 +70,16 @@ function tradeQualityAgeThresholds(agentAges) {
   ]));
 }
 
-function agentTradeSummaries(trades, agentAgeBySpawnerId = new Map()) {
+export function createAgentTradeSummaries(trades, agentAgeBySpawnerId = new Map()) {
   const byAgent = new Map();
   for (const trade of trades) {
     const row = byAgent.get(trade.spawnerId) ?? { spawnerId: trade.spawnerId, lineageId: trade.lineageId, trades: 0, wins: 0, sum: 0, sumSquares: 0, payoffs: [] };
+    const payoff = finiteNumber(trade.payoff, 0);
     row.trades += 1;
-    row.wins += trade.win ? 1 : 0;
-    row.sum += trade.payoff;
-    row.sumSquares += trade.payoff * trade.payoff;
-    row.payoffs.push(trade.payoff);
+    row.wins += trade.win === undefined ? (payoff > 0 ? 1 : 0) : trade.win ? 1 : 0;
+    row.sum += payoff;
+    row.sumSquares += payoff * payoff;
+    row.payoffs.push(payoff);
     byAgent.set(trade.spawnerId, row);
   }
   return [...byAgent.values()].map((row) => {

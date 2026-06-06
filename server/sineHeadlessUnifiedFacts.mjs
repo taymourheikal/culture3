@@ -90,6 +90,30 @@ export function reconstructionSnapshots(db, runId, spawnerId) {
   }));
 }
 
+export function reconstructionSnapshotSummaries(db, runId) {
+  const summaries = new Map(db.prepare(`
+    SELECT spawner_id, COUNT(*) AS count, MAX(tick) AS latest_tick
+    FROM sine_headless_reconstruction_snapshots
+    WHERE session_id = ?
+    GROUP BY spawner_id
+  `).all(runId).map((row) => [row.spawner_id, {
+    count: row.count ?? 0,
+    latestTick: row.latest_tick ?? null,
+    reasons: [],
+  }]));
+  for (const row of db.prepare(`
+    SELECT spawner_id, reason
+    FROM sine_headless_reconstruction_snapshots
+    WHERE session_id = ?
+    GROUP BY spawner_id, reason
+    ORDER BY spawner_id ASC, reason ASC
+  `).all(runId)) {
+    const summary = summaries.get(row.spawner_id);
+    if (summary) summary.reasons.push(row.reason);
+  }
+  return summaries;
+}
+
 export function parseAgentEventRow(row) {
   return {
     id: row.id,

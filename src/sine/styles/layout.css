@@ -808,6 +808,119 @@
   background: rgb(var(--sine-surface-rgb) / 0.68);
 }
 
+.sine-seed-bank-shell {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+  grid-template-areas:
+    "header header"
+    "error error"
+    "seed-main seed-side";
+}
+
+.sine-seed-bank-main {
+  grid-area: seed-main;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.sine-seed-bank-side {
+  grid-area: seed-side;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.sine-seed-bank-run-list,
+.sine-seed-bank-entry-list {
+  display: grid;
+  gap: 8px;
+}
+
+.sine-seed-bank-run-list {
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+}
+
+.sine-seed-bank-run-chip,
+.sine-seed-bank-entry-list button {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sine-surface-muted) 82%, transparent);
+  color: var(--sine-text);
+}
+
+.sine-seed-bank-run-chip {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  font-size: 0.76rem;
+  font-weight: 780;
+}
+
+.sine-seed-bank-run-chip small {
+  grid-column: 2;
+  color: var(--sine-text-faint);
+  font-size: 0.67rem;
+}
+
+.sine-seed-bank-entry-list button {
+  text-align: left;
+}
+
+.sine-seed-bank-entry-list button.active {
+  border-color: rgb(var(--sine-accent-rgb) / 0.38);
+  background: rgb(var(--sine-accent-rgb) / 0.1);
+}
+
+.sine-seed-bank-entry-list span {
+  font-weight: 840;
+}
+
+.sine-seed-bank-entry-list small {
+  color: var(--sine-text-faint);
+  font-size: 0.68rem;
+}
+
+.sine-seed-bank-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--sine-border-subtle);
+  border-radius: 8px;
+  background: rgb(var(--sine-surface-rgb) / 0.66);
+}
+
+.sine-seed-bank-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+
+.sine-seed-bank-table th,
+.sine-seed-bank-table td {
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--sine-border-subtle);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sine-seed-bank-table th {
+  color: var(--sine-text-faint);
+  font-size: 0.65rem;
+  font-weight: 860;
+  text-transform: uppercase;
+}
+
+.sine-seed-bank-table tr.muted {
+  opacity: 0.58;
+}
+
+.sine-seed-bank-entry-detail {
+  display: grid;
+  gap: 10px;
+}
+
 .sine-run-progress {
   height: 12px;
   overflow: hidden;

@@ -29,6 +29,21 @@ export async function postSineJson<T>(
   });
 }
 
+export async function patchSineJson<T>(
+  path: string,
+  body: unknown,
+  { errorMessage = (status: number) => `Sine API request failed (${status})` }: { errorMessage?: (status: number) => string } = {},
+) {
+  return requestSineJson<T>(path, {
+    options: {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    errorMessage,
+  });
+}
+
 export async function deleteSineJson(path: string, { errorMessage = (status: number) => `Sine API request failed (${status})` } = {}) {
   const response = await fetch(sineApiUrl(path), { method: "DELETE" });
   if (!response.ok) throw new Error(errorMessage(response.status));
